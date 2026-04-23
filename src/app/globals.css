@@ -279,3 +279,37 @@ textarea.input { resize:vertical; }
 
 /* ─── Superadmin banner ─── */
 .superadmin-banner { background:rgba(255,77,191,.06); border-bottom:1px solid rgba(255,77,191,.3); padding:6px 56px; font-family:var(--f-sys); font-size:10px; letter-spacing:.2em; color:var(--magenta); display:flex; gap:14px; align-items:center; }
+
+/* ─── YouTube Player ─── */
+.yt-player-wrap { width:100%; margin:0; }
+.yt-video-area { position:relative; width:100%; aspect-ratio:16/9; overflow:hidden; background:#000; }
+.yt-iframe-slot { position:absolute; inset:0; width:100%; height:100%; }
+.yt-iframe-slot iframe { width:100%; height:100%; border:none; display:block; }
+.yt-play-overlay { position:absolute; inset:0; width:100%; height:100%; background:transparent; border:none; cursor:pointer; z-index:2; }
+.yt-play-overlay:hover { background:rgba(0,0,0,.18); }
+.yt-play-overlay-icon { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:56px; height:56px; border-radius:50%; background:rgba(0,0,0,.7); border:2px solid var(--accent); display:flex; align-items:center; justify-content:center; color:var(--accent); font-size:20px; padding-left:4px; }
+.yt-play-overlay:hover .yt-play-overlay-icon { background:rgba(0,0,0,.88); border-color:#fff; color:#fff; }
+.yt-expand-btn { position:absolute; top:8px; right:8px; width:28px; height:28px; background:rgba(0,0,0,.6); border:1px solid var(--border-1); color:var(--ink-2); cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity .2s, background .15s; z-index:3; }
+.yt-video-area:hover .yt-expand-btn, .yt-modal-player .yt-expand-btn { opacity:1; }
+.yt-expand-btn:hover { background:rgba(0,0,0,.88); color:#fff; }
+.yt-controls { display:flex; align-items:center; gap:8px; padding:6px 10px; background:var(--bg-2); border:1px solid var(--border-1); border-top:none; }
+.yt-play-btn { width:26px; height:26px; flex-shrink:0; background:var(--bg-1); border:1px solid var(--border-1); color:var(--ink-1); cursor:pointer; font-size:11px; display:flex; align-items:center; justify-content:center; transition:background .15s, color .15s; }
+.yt-play-btn:hover:not(:disabled) { background:var(--accent); color:var(--bg-0); border-color:var(--accent); }
+.yt-play-btn:disabled { opacity:.4; cursor:default; }
+.yt-time { font-size:10px; font-family:var(--f-mono); color:var(--ink-3); min-width:32px; flex-shrink:0; }
+.yt-progress { flex:1; height:4px; background:var(--bg-1); cursor:pointer; position:relative; border-radius:2px; }
+.yt-progress-fill { height:100%; background:var(--accent); border-radius:2px; transition:width .3s linear; }
+.yt-progress:hover .yt-progress-fill { background:var(--cyan); }
+.yt-mute-btn { background:none; border:none; cursor:pointer; font-size:14px; padding:0 2px; flex-shrink:0; opacity:.7; transition:opacity .15s, transform .15s; }
+.yt-mute-btn:hover { opacity:1; transform:scale(1.15); }
+.yt-volume-slider { width:60px; height:3px; accent-color:var(--accent); cursor:pointer; flex-shrink:0; }
+.yt-quality-wrap { position:relative; flex-shrink:0; }
+.yt-quality-btn { background:var(--bg-1); border:1px solid var(--border-1); color:var(--ink-2); font-family:var(--f-sys); font-size:10px; padding:2px 6px; cursor:pointer; display:flex; align-items:center; gap:4px; letter-spacing:.05em; transition:border-color .15s, color .15s; }
+.yt-quality-btn:hover, .yt-quality-btn.open { border-color:var(--accent); color:var(--accent); }
+.yt-quality-menu { position:absolute; right:0; bottom:calc(100% + 4px); background:var(--bg-2); border:1px solid var(--border-1); min-width:70px; z-index:10; box-shadow:0 4px 16px rgba(0,0,0,.4); }
+.yt-quality-option { width:100%; background:none; border:none; color:var(--ink-1); font-family:var(--f-sys); font-size:11px; padding:5px 10px; text-align:left; cursor:pointer; letter-spacing:.05em; }
+.yt-quality-option:hover { background:var(--accent-soft); color:var(--accent); }
+.yt-quality-option.active { color:var(--accent); }
+.yt-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.88); z-index:1000; display:flex; align-items:center; justify-content:center; }
+.yt-modal-container { width:min(92vw, 1100px); }
+.yt-modal-player .yt-expand-btn { font-size:16px; }

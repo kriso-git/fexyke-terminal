@@ -10,7 +10,7 @@ import { Heading } from '@/components/ui/Heading'
 import { Avatar } from '@/components/ui/Avatar'
 import { LiveTicks } from '@/components/ui/LiveTicks'
 import { NodeMap } from '@/components/ui/NodeMap'
-import { YouTubeThumbnail, extractYouTubeId } from '@/components/ui/YouTubePlayer'
+import { YouTubePlayer, YouTubeThumbnail, extractYouTubeId } from '@/components/ui/YouTubePlayer'
 import { createEntry, toggleReaction, fetchEntryById, deleteEntry } from '@/app/actions'
 import type { Entry, Operator, Thread } from '@/lib/types'
 
@@ -353,7 +353,7 @@ function EntryCard({ e, i, currentOperator, onDelete }: { e: Entry; i: number; c
     <div style={{ marginBottom:14 }}>
       <Link href={`/entries/${e.id}`} style={{ display:'block', textDecoration:'none' }}>
         <div className="entry-card panel" style={{ padding:0 }}>
-          <div style={{ display:'grid', gridTemplateColumns:'140px 1fr 220px', borderBottom:'1px solid var(--border-1)' }}>
+          <div style={{ display:'grid', gridTemplateColumns: isVideo ? '140px 1fr' : '140px 1fr 220px', borderBottom:'1px solid var(--border-1)' }}>
             {/* Left meta */}
             <div style={{ padding:'14px 12px', borderRight:'1px solid var(--border-1)', display:'flex', flexDirection:'column', gap:6, background:'rgba(0,0,0,.2)' }}>
               <Chip kind={chipKind}>{e.id}</Chip>
@@ -386,37 +386,44 @@ function EntryCard({ e, i, currentOperator, onDelete }: { e: Entry; i: number; c
               </div>
             </div>
 
-            {/* Right visual */}
-            <div style={{ borderLeft:'1px solid var(--border-1)', display:'flex', flexDirection:'column', background:'rgba(0,0,0,.15)' }}>
-              {hasMedia && e.media_type === 'youtube' ? (
-                <YouTubeThumbnail url={e.media_url!} height={120}/>
-              ) : hasMedia && e.media_type === 'image' ? (
-                <div style={{ height:120, overflow:'hidden' }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={e.media_url!} alt={e.media_label ?? ''} style={{ width:'100%', height:'100%', objectFit:'cover', opacity:.7 }}/>
+            {/* Right visual — hidden for video entries (player shown below) */}
+            {!isVideo && (
+              <div style={{ borderLeft:'1px solid var(--border-1)', display:'flex', flexDirection:'column', background:'rgba(0,0,0,.15)' }}>
+                {hasMedia && e.media_type === 'image' ? (
+                  <div style={{ height:120, overflow:'hidden' }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={e.media_url!} alt={e.media_label ?? ''} style={{ width:'100%', height:'100%', objectFit:'cover', opacity:.7 }}/>
+                  </div>
+                ) : (
+                  <div className="fig-ph" style={{ height:120, margin:'12px 12px 0' }}>
+                    <svg viewBox="0 0 200 120" style={{ position:'absolute', inset:0, width:'100%', height:'100%' }}>
+                      {Array.from({length:24}).map((_,j)=>{
+                        const x = 8+(j*11+i*7)%184; const y = 8+(j*17+i*13)%104
+                        return <circle key={j} cx={x} cy={y} r={j%5===0?2.2:1.2}
+                          fill={j%7===i?'var(--accent)':'var(--ink-3)'}
+                          style={j%7===i?{filter:'drop-shadow(0 0 3px var(--accent))'}:undefined}/>
+                      })}
+                    </svg>
+                    <span className="fig-label">FIG · {String(i+1).padStart(2,'0')}</span>
+                  </div>
+                )}
+                <div style={{ flex:1 }}/>
+                <div style={{ padding:'8px 12px', borderTop:'1px solid var(--border-1)', display:'flex', justifyContent:'space-between' }}>
+                  <span className="sys muted" style={{ fontSize:10 }}>◢ IDX {String(2481-i).padStart(4,'0')}</span>
+                  <span className="sys muted" style={{ fontSize:10 }}>◣ V.1</span>
                 </div>
-              ) : (
-                <div className="fig-ph" style={{ height:120, margin:'12px 12px 0' }}>
-                  <svg viewBox="0 0 200 120" style={{ position:'absolute', inset:0, width:'100%', height:'100%' }}>
-                    {Array.from({length:24}).map((_,j)=>{
-                      const x = 8+(j*11+i*7)%184; const y = 8+(j*17+i*13)%104
-                      return <circle key={j} cx={x} cy={y} r={j%5===0?2.2:1.2}
-                        fill={j%7===i?'var(--accent)':'var(--ink-3)'}
-                        style={j%7===i?{filter:'drop-shadow(0 0 3px var(--accent))'}:undefined}/>
-                    })}
-                  </svg>
-                  <span className="fig-label">FIG · {String(i+1).padStart(2,'0')}</span>
-                </div>
-              )}
-              <div style={{ flex:1 }}/>
-              <div style={{ padding:'8px 12px', borderTop:'1px solid var(--border-1)', display:'flex', justifyContent:'space-between' }}>
-                <span className="sys muted" style={{ fontSize:10 }}>◢ IDX {String(2481-i).padStart(4,'0')}</span>
-                <span className="sys muted" style={{ fontSize:10 }}>◣ V.1</span>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </Link>
+
+      {/* YouTube player — full width, outside the link */}
+      {isVideo && e.media_url && (
+        <div style={{ border:'1px solid var(--border-1)', borderTop:'none' }} onClick={ev => ev.stopPropagation()}>
+          <YouTubePlayer url={e.media_url}/>
+        </div>
+      )}
 
       {/* Reactions + delete row */}
       <div style={{ display:'flex', gap:6, alignItems:'center', padding:'7px 14px', background:'var(--bg-1)', border:'1px solid var(--border-1)', borderTop:'none', opacity: deleting ? 0.4 : 1 }}>
