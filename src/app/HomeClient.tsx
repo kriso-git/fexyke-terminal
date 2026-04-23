@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Chip } from '@/components/ui/Chip'
 import { Panel } from '@/components/ui/Panel'
@@ -13,31 +14,6 @@ import { YouTubeThumbnail, extractYouTubeId } from '@/components/ui/YouTubePlaye
 import { createEntry, toggleReaction } from '@/app/actions'
 import type { Entry, Operator, Thread } from '@/lib/types'
 
-/* ─── Seed data ─── */
-const SEED_ENTRIES: Entry[] = [
-  { id:'LOG-2481', kind:'ÁTVITEL', sigs:['//PROTOKOLL','//ŰR'], operator_id:'F3X-014', content:'', operator:{ id:'', auth_id:null, callsign:'NULLSET', level:3, role:'admin', node:'f3x-pri-01', joined_cycle:12, bio:null, created_at:'' }, title:'Átvitel 04 · protokoll-sodródás a hideg szektorokban', excerpt:'Bomlási minta észlelve a külső rácsban 11 relé csomóponton keresztül. Aláírás-eltérés rögzítve. Operátori beavatkozás javasolt a 048-as ciklus lezárása előtt.', cycle:47, reads:142, priority:true, alert:false, created_at:'2026-04-21T00:14:00Z' },
-  { id:'LOG-2480', kind:'RIASZTÁS', sigs:['//MEZŐ','//RELÉ'], operator_id:'F3X-022', content:'', operator:{ id:'', auth_id:null, callsign:'HALO', level:2, role:'operator', node:'f3x-pri-01', joined_cycle:18, bio:null, created_at:'' }, title:'Relé-14 offline · mezőnapló', excerpt:'A hideg szektorban lévő 14-es relé csomópont kilépett a hálózatból 00:02:14-kor. Automatikus visszacsatolási kísérlet kudarcot vallott.', cycle:47, reads:64, priority:false, alert:true, created_at:'2026-04-21T00:02:00Z' },
-  { id:'LOG-2479', kind:'MEMÓRIADIFF', sigs:['//MEMÓRIA'], operator_id:'F3X-014', content:'', operator:{ id:'', auth_id:null, callsign:'NULLSET', level:3, role:'admin', node:'f3x-pri-01', joined_cycle:12, bio:null, created_at:'' }, title:'Memóriadiff · 046 → 047 ciklus', excerpt:'Rekord-delta: +12 bejegyzés, +4 jelzéslánc, +1 operátor. Három ütközés fel lett oldva.', cycle:47, reads:38, priority:false, alert:false, created_at:'2026-04-21T00:00:00Z' },
-  { id:'LOG-2478', kind:'ADÁS', sigs:['//OPS'], operator_id:'F3X-001', content:'', operator:{ id:'', auth_id:null, callsign:'KURIER', level:4, role:'superadmin', node:'f3x-pri-01', joined_cycle:1, bio:null, created_at:'' }, title:'Kimenő küldemény · Nullset tanácsadás', excerpt:'Kézbesítve F3X-014 részére. Tartalom: relé-ellenőrzési protokoll újracsomagolva.', cycle:46, reads:27, priority:false, alert:false, created_at:'2026-04-20T23:47:00Z' },
-]
-
-const SEED_OPERATORS: Operator[] = [
-  { id:'1', auth_id:null, callsign:'KURIER',   level:4, role:'superadmin', node:'f3x-pri-01', joined_cycle:1,  bio:null, created_at:'' },
-  { id:'2', auth_id:null, callsign:'NULLSET',  level:3, role:'admin',      node:'f3x-pri-01', joined_cycle:12, bio:null, created_at:'' },
-  { id:'3', auth_id:null, callsign:'HALO',     level:2, role:'operator',   node:'f3x-pri-01', joined_cycle:18, bio:null, created_at:'' },
-  { id:'4', auth_id:null, callsign:'MOTH',     level:2, role:'operator',   node:'f3x-pri-01', joined_cycle:21, bio:null, created_at:'' },
-  { id:'5', auth_id:null, callsign:'PARALLAX', level:2, role:'operator',   node:'f3x-pri-01', joined_cycle:28, bio:null, created_at:'' },
-  { id:'6', auth_id:null, callsign:'VOID',     level:1, role:'operator',   node:'f3x-mir-01', joined_cycle:30, bio:null, created_at:'' },
-  { id:'7', auth_id:null, callsign:'CIPHER',   level:2, role:'operator',   node:'f3x-pri-01', joined_cycle:32, bio:null, created_at:'' },
-  { id:'8', auth_id:null, callsign:'RELAY',    level:1, role:'operator',   node:'f3x-mir-02', joined_cycle:34, bio:null, created_at:'' },
-]
-
-const SEED_THREADS: Thread[] = [
-  { id:'THR-0419', title:'Űr-protokoll töredékek',  created_at:'' },
-  { id:'THR-0418', title:'Leszerelt relé naplók',   created_at:'' },
-  { id:'THR-0417', title:'Parallax mezőnapló',       created_at:'' },
-  { id:'THR-0416', title:'Memóriadiffek · 04',       created_at:'' },
-]
 
 const ALLOWED_UPLOAD = new Set([
   'image/gif','image/jpeg','image/png','image/webp',
@@ -139,6 +115,7 @@ function Hero() {
 
 /* ─── Post panel (admin only) ─── */
 function PostPanel({ op }: { op: Operator | null }) {
+  const router = useRouter()
   const [open, setOpen]           = useState(true)
   const [kind, setKind]           = useState('ÁTVITEL')
   const [mediaTab, setMediaTab]   = useState<'text'|'youtube'|'image'|'audio'>('text')
@@ -188,6 +165,7 @@ function PostPanel({ op }: { op: Operator | null }) {
       setDone(true)
       ;(e.currentTarget as HTMLFormElement).reset()
       setContent(''); setYoutubeUrl(''); setUploadedFile(null); setMediaLabel('')
+      router.refresh()
       setTimeout(() => { setPending(false); setDone(false) }, 1800)
     }
   }
@@ -537,27 +515,6 @@ function OperatorRoster({ operators }: { operators: Operator[] }) {
   )
 }
 
-/* ─── Archive ─── */
-function Archive() {
-  return (
-    <div style={{ padding:'40px 0 56px' }}>
-      <div style={{ marginBottom:18 }}>
-        <Heading tag="SZEKCIÓ · 04" title="ARCHÍV · CIKLUSOK"/>
-      </div>
-      <div className="panel" style={{ padding:0 }}>
-        {[['041','2025·11·12','218 bejegyzés'],['038','2025·09·04','144 bejegyzés'],['032','2025·06·18','612 bejegyzés'],['028','2025·04·02','411 bejegyzés'],['021','2024·12·30','302 bejegyzés']].map((r,i)=>(
-          <div key={r[0]} style={{ display:'grid', gridTemplateColumns:'100px 160px 1fr 120px 40px', padding:'12px 16px', borderBottom:i<4?'1px solid var(--border-1)':'none', alignItems:'center' }}>
-            <Chip>CIKLUS {r[0]}</Chip>
-            <span className="mono muted">{r[1]}</span>
-            <span className="head" style={{ fontSize:15 }}>{r[2]}</span>
-            <Chip kind="dash">LEZÁRVA</Chip>
-            <span style={{ textAlign:'right', color:'var(--ink-3)' }}>↗</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
 
 /* ─── Root export ─── */
 interface HomeClientProps {
@@ -568,10 +525,6 @@ interface HomeClientProps {
 }
 
 export function HomeClient({ entries, operators, threads, currentOperator }: HomeClientProps) {
-  const displayEntries = entries.length  > 0 ? entries  : SEED_ENTRIES
-  const displayOps     = operators.length > 0 ? operators : SEED_OPERATORS
-  const displayThreads = threads.length  > 0 ? threads  : SEED_THREADS
-
   return (
     <div className="shell">
       <Hero/>
@@ -583,19 +536,20 @@ export function HomeClient({ entries, operators, threads, currentOperator }: Hom
           <div style={{ display:'flex', gap:6 }}>
             <Chip kind="accent">LEGÚJABB</Chip>
             <Chip>CIKLUS</Chip>
-            <Chip kind="dash">⌕ SZŰRŐ</Chip>
           </div>
         </div>
-        <div>
-          {displayEntries.map((e,i)=>(<EntryCard key={e.id} e={e} i={i} currentOperator={currentOperator}/>))}
-        </div>
-        <div className="panel" style={{ padding:14, textAlign:'center', borderStyle:'dashed', marginTop:10, color:'var(--ink-2)', fontFamily:'var(--f-sys)', fontSize:11, letterSpacing:'.2em' }}>
-          ◢ KÖVETKEZŐ CIKLUS BETÖLTÉSE · 046 → 045
-        </div>
+        {entries.length === 0 ? (
+          <div className="panel" style={{ padding:'32px 24px', textAlign:'center', borderStyle:'dashed' }}>
+            <div className="sys muted" style={{ fontSize:12, letterSpacing:'.2em' }}>◢ NINCS BEJEGYZÉS · A FOLYAM ÜRES</div>
+          </div>
+        ) : (
+          <div>
+            {entries.map((e,i)=>(<EntryCard key={e.id} e={e} i={i} currentOperator={currentOperator}/>))}
+          </div>
+        )}
       </div>
-      <ThreadIndex threads={displayThreads}/>
-      <OperatorRoster operators={displayOps}/>
-      <Archive/>
+      {operators.length > 0 && <OperatorRoster operators={operators}/>}
+      {threads.length > 0 && <ThreadIndex threads={threads}/>}
     </div>
   )
 }

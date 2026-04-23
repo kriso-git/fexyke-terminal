@@ -14,20 +14,6 @@ import type { Entry, Operator, Signal } from '@/lib/types'
 
 const EMOJIS = ['👍','🔥','💀','😂']
 
-const SEED_ENTRY: Entry = {
-  id:'LOG-2481', kind:'ÁTVITEL', sigs:['//PROTOKOLL','//ŰR'], operator_id:'F3X-014',
-  content:`A hideg szektor 11 relé csomópontján 046-os ciklus óta egyre erősödő fáziscsúszás figyelhető meg. A mérőrács 04-B konfigurációja szerint a sodródás exponenciálisan növekszik, és már megsérti a hálózati integritási küszöböt.\n\nAz eltérés nem véletlen hibának tűnik: az aláírás-mintázat szándékos vagy legalábbis strukturált. Három különböző kulcs-fingerprint rotál, mindháromnak a 9f-prefix csonkolt verzióját használva.`,
-  excerpt:'Bomlási minta észlelve a külső rácsban 11 relé csomóponton keresztül.',
-  title:'Átvitel 04 · protokoll-sodródás a hideg szektorokban',
-  cycle:47, reads:142, priority:true, alert:false,
-  operator:{ id:'F3X-014', auth_id:null, callsign:'NULLSET', level:3, role:'admin', node:'f3x-pri-01', joined_cycle:12, bio:null, created_at:'2026-04-21T00:14:00Z' },
-  created_at:'2026-04-21T00:14:00Z',
-}
-
-const SEED_SIGNALS: Signal[] = [
-  { id:'sig-1', entry_id:'LOG-2481', operator_id:'F3X-022', parent_id:null, text:'Megerősítem — a 14-es relé már 00:02:14-kor kiesett, és a szomszédos 15-ös fázisa is sodródik. Ajánlom a soft-rollback 04-B protokollt.', sigs:['//PROTOKOLL'], verified:true, created_at:'+02:11', operator:{ id:'F3X-022', auth_id:null, callsign:'HALO', level:2, role:'operator', node:'f3x-pri-01', joined_cycle:18, bio:null, created_at:'' } },
-  { id:'sig-2', entry_id:'LOG-2481', operator_id:'F3X-058', parent_id:null, text:'Mezőnaplóm (LOG-2476) alapján a mintázat már két ciklusa látható volt. Érdemes lenne a rács-térkép 04-B újrakalibrációját bekötni ebbe a jelzésláncba.', sigs:[], verified:false, created_at:'+04:02', operator:{ id:'F3X-058', auth_id:null, callsign:'PARALLAX', level:2, role:'operator', node:'f3x-pri-01', joined_cycle:28, bio:null, created_at:'' } },
-]
 
 function sanitizeHtml(html: string): string {
   if (!html) return ''
@@ -98,8 +84,17 @@ export function EntryDetailClient({ entry, signals, entryId, currentOperator, in
   const [userRx, setUserRx]       = useState<string[]>(initialUserReactions)
   const [rxPending, setRxPending] = useState<string|null>(null)
 
-  const e    = entry ?? SEED_ENTRY
-  const sigs = signals.length > 0 ? signals : SEED_SIGNALS
+  if (!entry) return (
+    <div className="shell" style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'60vh' }}>
+      <div style={{ textAlign:'center' }}>
+        <div className="sys muted" style={{ fontSize:12, letterSpacing:'.2em', marginBottom:12 }}>◢ BEJEGYZÉS NEM TALÁLHATÓ</div>
+        <Link href="/" className="btn">◢ VISSZAFŐOLDALRA</Link>
+      </div>
+    </div>
+  )
+
+  const e    = entry
+  const sigs = signals
 
   async function handleSignal(ev: React.FormEvent<HTMLFormElement>) {
     ev.preventDefault()
