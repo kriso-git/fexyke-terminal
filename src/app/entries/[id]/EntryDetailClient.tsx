@@ -1,0 +1,261 @@
+'use client'
+
+import { useState } from 'react'
+import Link from 'next/link'
+import { Chip } from '@/components/ui/Chip'
+import { Panel } from '@/components/ui/Panel'
+import { Meta } from '@/components/ui/Meta'
+import { Avatar } from '@/components/ui/Avatar'
+import { NodeMap } from '@/components/ui/NodeMap'
+import { createSignal } from '@/app/actions'
+import type { Entry, Operator, Signal } from '@/lib/types'
+
+/* Seed data for when there's no real entry */
+const SEED_ENTRY: Entry = {
+  id:'LOG-2481', kind:'ÁTVITEL', sigs:['//PROTOKOLL','//ŰR'], operator_id:'F3X-014', content:`A hideg szektor 11 relé csomópontján 046-os ciklus óta egyre erősödő fáziscsúszás figyelhető meg. A mérőrács 04-B konfigurációja szerint a sodródás exponenciálisan növekszik, és már megsérti a hálózati integritási küszöböt.\n\nAz eltérés nem véletlen hibának tűnik: az aláírás-mintázat szándékos vagy legalábbis strukturált. Három különböző kulcs-fingerprint rotál, mindháromnak a 9f-prefix csonkolt verzióját használva.`,
+  excerpt:'Bomlási minta észlelve a külső rácsban 11 relé csomóponton keresztül. Aláírás-eltérés rögzítve.',
+  title:'Átvitel 04 · protokoll-sodródás a hideg szektorokban',
+  cycle:47, reads:142, priority:true, alert:false,
+  operator:{ id:'F3X-014', auth_id:null, callsign:'NULLSET', level:3, role:'admin', node:'f3x-pri-01', joined_cycle:12, bio:null, created_at:'2026-04-21T00:14:00Z' },
+  created_at:'2026-04-21T00:14:00Z',
+}
+
+const SEED_SIGNALS: Signal[] = [
+  { id:'sig-1', entry_id:'LOG-2481', operator_id:'F3X-022', parent_id:null, text:'Megerősítem — a 14-es relé már 00:02:14-kor kiesett, és a szomszédos 15-ös fázisa is sodródik. Ajánlom a soft-rollback 04-B protokollt.', sigs:['//PROTOKOLL'], verified:true, created_at:'+02:11', operator:{ id:'F3X-022', auth_id:null, callsign:'HALO', level:2, role:'operator', node:'f3x-pri-01', joined_cycle:18, bio:null, created_at:'' } },
+  { id:'sig-2', entry_id:'LOG-2481', operator_id:'F3X-058', parent_id:null, text:'Mezőnaplóm (LOG-2476) alapján a mintázat már két ciklusa látható volt, csak más szignatúra alatt. Érdemes lenne a rács-térkép 04-B újrakalibrációját is bekötni ebbe a jelzésláncba.', sigs:[], verified:false, created_at:'+04:02', operator:{ id:'F3X-058', auth_id:null, callsign:'PARALLAX', level:2, role:'operator', node:'f3x-pri-01', joined_cycle:28, bio:null, created_at:'' } },
+]
+
+function SignalNode({ s, isLast }: { s: Signal; isLast: boolean }) {
+  const time = s.created_at.startsWith('+') ? s.created_at : new Date(s.created_at).toLocaleTimeString('hu-HU',{hour:'2-digit',minute:'2-digit'})
+  return (
+    <div style={{ display:'grid', gridTemplateColumns:'32px 1fr' }}>
+      <div style={{ position:'relative' }}>
+        <div style={{ position:'absolute', left:15, top:0, bottom:isLast?'50%':0, width:1, background:'var(--border-1)' }}/>
+        <div style={{ position:'absolute', left:15, top:'50%', width:16, height:1, background:'var(--border-1)' }}/>
+      </div>
+      <div style={{ padding:'10px 0 10px 6px' }}>
+        <div className="panel" style={{ padding:'12px 14px' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
+            <Avatar id={s.operator?.callsign ?? s.operator_id} size={28}/>
+            <div style={{flex:1}}>
+              <div className="head" style={{ fontSize:14 }}>{s.operator?.callsign ?? s.operator_id}</div>
+              <div className="sys muted">{s.operator_id} · {time}</div>
+            </div>
+            {s.verified && <Chip kind="accent" dot>VERIFIED</Chip>}
+          </div>
+          <div style={{ color:'var(--ink-1)', fontSize:13, lineHeight:1.55 }}>{s.text}</div>
+          <div style={{ display:'flex', gap:14, marginTop:10, paddingTop:8, borderTop:'1px dashed var(--border-1)' }}>
+            <span className="sys muted">▸ VÁLASZ</span>
+            <span className="sys muted">⟡ JELZÉS</span>
+            <span className="sys muted">◢ ALÁÍR</span>
+            <span style={{flex:1}}/>
+            <span className="sys dim">SIG-{s.id.slice(0,4).toUpperCase()}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+interface EntryDetailClientProps {
+  entry: Entry | null
+  signals: Signal[]
+  entryId: string
+  currentOperator: Operator | null
+}
+
+export function EntryDetailClient({ entry, signals, entryId, currentOperator }: EntryDetailClientProps) {
+  const [sigError, setSigError] = useState<string | null>(null)
+  const [sigPending, setSigPending] = useState(false)
+  const e = entry ?? SEED_ENTRY
+  const sigs = signals.length > 0 ? signals : SEED_SIGNALS
+
+  async function handleSignal(ev: React.FormEvent<HTMLFormElement>) {
+    ev.preventDefault()
+    setSigPending(true)
+    setSigError(null)
+    const res = await createSignal(new FormData(ev.currentTarget))
+    if (res?.error) { setSigError(res.error); setSigPending(false) }
+    else { (ev.currentTarget as HTMLFormElement).reset(); setSigPending(false) }
+  }
+  const prevId = 'LOG-' + String(parseInt(e.id.split('-')[1] ?? '2481') - 1)
+  const nextId = 'LOG-' + String(parseInt(e.id.split('-')[1] ?? '2481') + 1)
+
+  return (
+    <div className="shell">
+      {/* Breadcrumb */}
+      <div style={{ display:'flex', gap:10, padding:'12px 0', borderBottom:'1px solid var(--border-1)' }}>
+        <Link href="/" className="sys muted">◢ FŐOLDAL</Link><span className="sys dim">/</span>
+        <Link href="/entries" className="sys muted">BEJEGYZÉSEK</Link><span className="sys dim">/</span>
+        <span className="sys" style={{ color:'var(--accent)' }}>{e.id}</span>
+        <span style={{flex:1}}/>
+        <Link href={`/entries/${prevId}`} className="sys muted">⟵ {prevId}</Link>
+        <Link href={`/entries/${nextId}`} className="sys muted">{nextId} ⟶</Link>
+      </div>
+
+      {/* Header */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 340px', gap:24, padding:'36px 0 28px', borderBottom:'1px solid var(--border-1)' }}>
+        <div>
+          <div style={{ display:'flex', gap:8, marginBottom:14 }}>
+            <Chip kind="solid" dot>{e.id}</Chip>
+            <Chip kind="accent">{e.kind}</Chip>
+            {e.sigs.map(s=><Chip key={s} kind="dash">{s}</Chip>)}
+            {e.priority && <Chip kind="mag">PRIORITÁSOS</Chip>}
+          </div>
+          <h1 className="display" style={{ margin:0, fontSize:60, lineHeight:.95, letterSpacing:'-.02em' }}>
+            {e.title}
+          </h1>
+          <p style={{ maxWidth:600, color:'var(--ink-1)', fontSize:14, lineHeight:1.6, marginTop:18 }}>
+            <span className="sys muted">◢ ABSZTRAKT · </span>
+            {e.excerpt}
+          </p>
+        </div>
+        <Panel tag="◢ REKORD" title="RENDSZER TANÚSÍTVÁNY" className="panel-raised">
+          <Meta k="ID"       v={e.id}/>
+          <Meta k="CIKLUS"   v={`${e.cycle} / 2026·04·21`}/>
+          <Meta k="OPERÁTOR" v={`${e.operator_id} · ${e.operator?.callsign ?? '—'}`}/>
+          <Meta k="TÍPUS"    v={e.kind}/>
+          <Meta k="HASH"     v="9f·0a·72·c4·e1·ff"/>
+          <Meta k="ÁLLAPOT"  v="ÉLŐ · NYITOTT"/>
+          <div style={{ borderTop:'1px solid var(--border-1)', marginTop:10, paddingTop:10, display:'flex', gap:10 }}>
+            <span className="sys muted">◢ {e.reads} OLVASÓ</span>
+            <span className="sys muted">▸ {sigs.length} JELZÉS</span>
+          </div>
+        </Panel>
+      </div>
+
+      {/* Body */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 320px', gap:28, padding:'28px 0', borderBottom:'1px solid var(--border-1)' }}>
+        <article style={{ display:'flex', flexDirection:'column', gap:20 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'56px 1fr', gap:18 }}>
+            <span className="sys muted">§ 01</span>
+            <div style={{ fontSize:15, lineHeight:1.75, color:'var(--ink-0)' }}>
+              {e.content.split('\n\n').map((p,i)=>(
+                <p key={i} style={{ marginBottom:16 }}>{p}</p>
+              ))}
+            </div>
+          </div>
+
+          <div className="panel panel-raised" style={{ padding:'24px 28px' }}>
+            <div className="sys" style={{ color:'var(--accent)', marginBottom:10 }}>◢ KIEMELT RÉSZLET</div>
+            <div className="head" style={{ fontSize:26, lineHeight:1.15, color:'var(--ink-0)' }}>
+              A rács integritása a küszöb alá esett / javaslom a soft-rollback-et a 048-as commit előtt.
+            </div>
+          </div>
+
+          <div style={{ display:'grid', gridTemplateColumns:'56px 1fr', gap:18 }}>
+            <span className="sys muted">FIG 01</span>
+            <div>
+              <div className="fig-ph" style={{ height:300 }}>
+                <svg viewBox="0 0 400 300" style={{ position:'absolute', inset:0, width:'100%', height:'100%' }}>
+                  {Array.from({length:40}).map((_,j)=>{
+                    const x = 20+(j*43%360); const y = 20+(j*29%260); const hi = j%9===0
+                    return <g key={j}>
+                      <circle cx={x} cy={y} r={hi?4:1.8} fill={hi?'var(--accent)':'var(--ink-3)'} style={hi?{filter:'drop-shadow(0 0 4px var(--accent))'}:undefined}/>
+                      {hi && <circle cx={x} cy={y} r="10" fill="none" stroke="var(--accent)" strokeWidth="0.6" opacity="0.5"/>}
+                    </g>
+                  })}
+                  {Array.from({length:30}).map((_,j)=>{
+                    const x1=20+(j*43%360), y1=20+(j*29%260), x2=20+((j+3)*43%360), y2=20+((j+3)*29%260)
+                    return <line key={j} x1={x1} y1={y1} x2={x2} y2={y2} stroke="var(--border-1)" strokeWidth="0.5"/>
+                  })}
+                </svg>
+                <span className="fig-label">RELÉ BOMLÁSI TÉRKÉP · 046→047</span>
+              </div>
+              <div className="sys muted" style={{ marginTop:8 }}>FIG 01 · Jelbomlás 11 relé csomóponton át, 046→047 ciklus.</div>
+            </div>
+          </div>
+
+          {/* Signature */}
+          <div style={{ borderTop:'1px solid var(--border-1)', paddingTop:18, display:'grid', gridTemplateColumns:'1fr 220px', gap:14, alignItems:'end' }}>
+            <div style={{ display:'flex', gap:14, alignItems:'center' }}>
+              <Avatar id={e.operator?.callsign ?? 'F3X-014'} size={52}/>
+              <div>
+                <div className="sys muted">◢ ALÁÍRTA</div>
+                <div className="head" style={{ fontSize:18 }}>{e.operator_id} · {e.operator?.callsign ?? '—'}</div>
+                <div className="sys muted">CIKLUS {e.cycle} · UPLINK f3x-pri-01</div>
+              </div>
+            </div>
+            <div className="panel" style={{ padding:'10px 12px', fontFamily:'var(--f-mono)', fontSize:10, color:'var(--cyan)' }}>
+              SIG: 9f·0a·72·c4<br/>e1·ff·31·77<br/><span style={{color:'var(--accent)'}}>◉ VERIFIED</span>
+            </div>
+          </div>
+        </article>
+
+        {/* Aside */}
+        <aside style={{ display:'flex', flexDirection:'column', gap:18 }}>
+          <Panel tag="◢ LÁNC TÉRKÉP" title="THR-0419">
+            <div style={{ height:180, background:'var(--bg-2)', border:'1px solid var(--border-0)' }}>
+              <NodeMap count={12} highlight={5} seed={7}/>
+            </div>
+            <div className="sys muted" style={{ marginTop:8 }}>8 CSOMÓPONT · CIKLUS 043→047</div>
+          </Panel>
+          <Panel tag="◢ HIVATKOZÁS">
+            <div className="mono" style={{ fontSize:11, background:'var(--bg-2)', padding:'10px 12px', border:'1px solid var(--border-0)', color:'var(--cyan)' }}>
+              f3xykee://entry/{e.id}#cycle.{e.cycle}
+            </div>
+            <div style={{ display:'flex', gap:6, marginTop:10 }}>
+              <Chip>◢ MÁSOL</Chip>
+              <Chip>◢ EXPORT</Chip>
+              <Chip kind="dash">◢ ARCHÍV</Chip>
+            </div>
+          </Panel>
+        </aside>
+      </div>
+
+      {/* Signal composer */}
+      <div style={{ padding:'28px 0', borderBottom:'1px solid var(--border-1)' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
+          <Chip kind="accent" dot>◢ JELZÉS HOZZÁFŰZÉSE</Chip>
+          {currentOperator
+            ? <Chip kind="dash">MINT {currentOperator.id} · {currentOperator.callsign}</Chip>
+            : <Chip kind="dash">BEJELENTKEZÉS SZÜKSÉGES</Chip>}
+          <span style={{flex:1}}/>
+          <span className="sys muted">CIKLUS 047 · VÁZLAT</span>
+        </div>
+        {currentOperator ? (
+          <form onSubmit={handleSignal}>
+            <input type="hidden" name="entry_id" value={e.id}/>
+            <div className="panel" style={{ padding:14, display:'flex', flexDirection:'column', gap:10 }}>
+              <textarea name="text" className="input" rows={3} placeholder="// Gépeld be a jelzést · használj //TAG formát aláírásra · ◢ direktívákra"/>
+              {sigError && (
+                <div style={{ padding:'8px 12px', background:'rgba(255,58,58,.1)', border:'1px solid var(--red)', color:'var(--red)', fontFamily:'var(--f-sys)', fontSize:12 }}>◢ {sigError}</div>
+              )}
+              <div style={{ display:'flex', gap:8, alignItems:'center', paddingTop:8, borderTop:'1px dashed var(--border-1)' }}>
+                <Chip kind="cyan">//PROTOKOLL</Chip>
+                <Chip kind="dash">+ CSATOLMÁNY</Chip>
+                <span style={{flex:1}}/>
+                <button type="submit" className="btn btn-primary" disabled={sigPending}>
+                  {sigPending ? '◢ KÜLDÉS...' : '◢ TRANSMIT'}
+                </button>
+              </div>
+            </div>
+          </form>
+        ) : (
+          <div className="panel" style={{ padding:14, textAlign:'center', color:'var(--ink-3)', fontFamily:'var(--f-sys)', fontSize:12 }}>
+            <Link href="/gate" style={{ color:'var(--accent)' }}>◢ BELÉPÉS</Link> · jelzés küldéséhez
+          </div>
+        )}
+      </div>
+
+      {/* Thread */}
+      <div style={{ padding:'28px 0 56px' }}>
+        <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', marginBottom:18 }}>
+          <div>
+            <div className="sys muted" style={{marginBottom:6}}>◢ JELZÉSLÁNC · THR-0419</div>
+            <h2 className="display" style={{ margin:0, fontSize:28 }}>HOZZÁFŰZÖTT JELZÉSEK · {sigs.length}</h2>
+          </div>
+          <div style={{ display:'flex', gap:6 }}>
+            <Chip kind="accent">LEGÚJABB</Chip>
+            <Chip>IDŐREND</Chip>
+          </div>
+        </div>
+        <div>
+          {sigs.map((s,i)=>(
+            <SignalNode key={s.id} s={s} isLast={i===sigs.length-1}/>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
