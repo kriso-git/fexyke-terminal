@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase-server'
+import { createAdminClient } from '@/lib/supabase-admin'
 import { getCurrentOperator } from '@/lib/session'
 import type { EntryKind } from '@/lib/types'
 
@@ -10,12 +11,14 @@ import type { EntryKind } from '@/lib/types'
 
 export async function login(formData: FormData) {
   const supabase = await createClient()
-  const callsign = (formData.get('callsign') as string).trim().toUpperCase()
-  const password = formData.get('password') as string
+  const callsign = (formData.get('callsign') as string | null)?.trim().toUpperCase() ?? ''
+  const password = (formData.get('password') as string | null) ?? ''
 
-  // Callsign-t emailként kezeljük: callsign@f3xykee.net
+  if (!callsign || !password) {
+    return { error: 'Hívójel és jelszó megadása kötelező.' }
+  }
+
   const email = `${callsign}@f3xykee.net`
-
   const { error } = await supabase.auth.signInWithPassword({ email, password })
 
   if (error) {
@@ -26,18 +29,23 @@ export async function login(formData: FormData) {
 }
 
 export async function register(formData: FormData) {
-  const supabase = await createClient()
-  const callsign = (formData.get('callsign') as string).trim().toUpperCase()
-  const password = formData.get('password') as string
-  const witness  = (formData.get('witness') as string).trim().toUpperCase()
-  const purpose  = formData.get('purpose') as string
+  const callsign = (formData.get('callsign') as string | null)?.trim().toUpperCase() ?? ''
+  const password = (formData.get('password') as string | null) ?? ''
 
   if (!callsign || callsign.length < 3) {
     return { error: 'A hívójel legalább 3 karakter.' }
   }
+  if (!/^[A-Z0-9]+$/.test(callsign)) {
+    return { error: 'A hívójel csak betűket és számokat tartalmazhat.' }
+  }
+  if (!password || password.length < 6) {
+    return { error: 'A jelszó legalább 6 karakter.' }
+  }
+
+  const admin = createAdminClient()
 
   // Ellenőrzés: foglalt-e már a hívójel
-  const { data: existing } = await supabase
+  const { data: existing } = await admin
     .from('operators')
     .select('id')
     .eq('callsign', callsign)
@@ -48,19 +56,21 @@ export async function register(formData: FormData) {
   }
 
   const email = `${callsign}@f3xykee.net`
-  const { data: authData, error: authError } = await supabase.auth.signUp({
+
+  // Admin klienssel létrehozzuk a usert email-megerősítés nélkül
+  const { data: authData, error: authError } = await admin.auth.admin.createUser({
     email,
     password,
-    options: { data: { callsign, witness, purpose } },
+    email_confirm: true,
+    user_metadata: { callsign },
   })
 
   if (authError || !authData.user) {
     return { error: authError?.message ?? 'Regisztráció sikertelen.' }
   }
 
-  // Operator rekord létrehozása
   const opId = 'F3X-' + String(Math.floor(Math.random() * 900) + 100)
-  await supabase.from('operators').insert({
+  const { error: insertError } = await admin.from('operators').insert({
     id: opId,
     auth_id: authData.user.id,
     callsign,
@@ -68,8 +78,18 @@ export async function register(formData: FormData) {
     role: 'operator',
     node: 'f3x-pri-01',
     joined_cycle: 47,
-    bio: purpose || null,
+    bio: null,
   })
+
+  if (insertError) {
+    // Rollback: töröljük az auth usert ha az operator insert sikertelen
+    await admin.auth.admin.deleteUser(authData.user.id)
+    return { error: 'Operátor rekord létrehozása sikertelen: ' + insertError.message }
+  }
+
+  // Bejelentkezés a frissen létrehozott userrel
+  const regularClient = await createClient()
+  await regularClient.auth.signInWithPassword({ email, password })
 
   return { success: true }
 }

@@ -21,13 +21,18 @@ export function AuthClient() {
     e.preventDefault()
     setPending(true)
     setLoginError(null)
-    const res = await login(new FormData(e.currentTarget))
-    if (res?.error) {
-      setLoginError(res.error)
+    try {
+      const res = await login(new FormData(e.currentTarget))
+      if (res?.error) {
+        setLoginError(res.error)
+        setPending(false)
+      } else {
+        setSuccess(true)
+        setTimeout(() => router.push('/'), 600)
+      }
+    } catch {
+      setLoginError('Váratlan hiba. Próbáld újra.')
       setPending(false)
-    } else {
-      setSuccess(true)
-      setTimeout(() => router.push('/'), 600)
     }
   }
 
@@ -41,14 +46,18 @@ export function AuthClient() {
     setConfirmError(null)
     setPending(true)
     setRegError(null)
-    const fd = new FormData(form)
-    const res = await register(fd)
-    if (res?.error) {
-      setRegError(res.error)
+    try {
+      const res = await register(new FormData(form))
+      if (res?.error) {
+        setRegError(res.error)
+        setPending(false)
+      } else {
+        setSuccess(true)
+        setTimeout(() => router.push('/'), 600)
+      }
+    } catch {
+      setRegError('Váratlan hiba. Próbáld újra.')
       setPending(false)
-    } else {
-      setSuccess(true)
-      setTimeout(() => router.push('/'), 600)
     }
   }
 
