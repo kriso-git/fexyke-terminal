@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase-server'
 import { createAdminClient } from '@/lib/supabase-admin'
+// toggleReaction uses admin client to bypass RLS
 import { getCurrentOperator } from '@/lib/session'
 import type { EntryKind } from '@/lib/types'
 
@@ -116,49 +117,90 @@ export async function logout() {
 /* ─── Entries ─── */
 
 export async function createEntry(formData: FormData) {
-  const op = await getCurrentOperator()
-  if (!op || (op.role !== 'admin' && op.role !== 'superadmin')) {
-    return { error: 'Nincs jogosultságod bejegyzés létrehozásához.' }
+  try {
+    const op = await getCurrentOperator()
+    if (!op || (op.role !== 'admin' && op.role !== 'superadmin')) {
+      return { error: 'Nincs jogosultságod bejegyzés létrehozásához.' }
+    }
+
+    const title     = ((formData.get('title') as string) ?? '').trim()
+    const content   = ((formData.get('content') as string) ?? '').trim()
+    const kind      = (formData.get('kind') as string) as EntryKind
+    const sigsRaw   = (formData.get('sigs') as string) ?? ''
+    const sigs      = sigsRaw.split(',').map(s => s.trim()).filter(Boolean)
+    const mediaUrl  = ((formData.get('media_url') as string) ?? '').trim() || null
+    const mediaType = ((formData.get('media_type') as string) ?? '') || null
+    const mediaLabel = ((formData.get('media_label') as string) ?? '').trim() || null
+
+    if (!title) return { error: 'Cím megadása kötelező.' }
+    if (!content && !mediaUrl) return { error: 'Tartalom vagy média megadása kötelező.' }
+
+    const supabase = await createClient()
+    const { count } = await supabase.from('entries').select('*', { count:'exact', head:true })
+    const id = `LOG-${(count ?? 0) + 2482}`
+
+    const plainText = content.replace(/<[^>]+>/g, '')
+    const excerpt = plainText.slice(0, 180) || mediaLabel || ''
+
+    const { error } = await supabase.from('entries').insert({
+      id, title, content, kind, excerpt,
+      operator_id: op.id,
+      cycle: 47, sigs,
+      priority: formData.get('priority') === 'on',
+      alert: false,
+      media_url: mediaUrl,
+      media_type: mediaType,
+      media_label: mediaLabel,
+    })
+
+    if (error) return { error: error.message }
+
+    revalidatePath('/')
+    revalidatePath(`/entries/${id}`)
+    return { success: true, id }
+  } catch (err) {
+    console.error('createEntry error:', err)
+    return { error: 'Szerver hiba. Próbáld újra.' }
   }
+}
 
-  const title   = (formData.get('title') as string).trim()
-  const content = (formData.get('content') as string).trim()
-  const kind    = (formData.get('kind') as string) as EntryKind
-  const sigsRaw = (formData.get('sigs') as string) ?? ''
-  const sigs    = sigsRaw.split(',').map(s => s.trim()).filter(Boolean)
+export async function toggleReaction(entryId: string, emoji: string) {
+  try {
+    const op = await getCurrentOperator()
+    if (!op) return { error: 'Be kell lépni a reakcióhoz.' }
 
-  if (!title || !content) {
-    return { error: 'Cím és tartalom kötelező.' }
+    const admin = createAdminClient()
+
+    const { data: existing } = await admin
+      .from('entry_reactions')
+      .select('*')
+      .eq('entry_id', entryId)
+      .eq('operator_id', op.id)
+      .eq('emoji', emoji)
+      .maybeSingle()
+
+    if (existing) {
+      await admin.from('entry_reactions').delete()
+        .eq('entry_id', entryId).eq('operator_id', op.id).eq('emoji', emoji)
+    } else {
+      await admin.from('entry_reactions').insert({ entry_id: entryId, operator_id: op.id, emoji })
+    }
+
+    const { data: all } = await admin.from('entry_reactions').select('emoji, operator_id').eq('entry_id', entryId)
+    const counts: Record<string, number> = {}
+    const userRx: string[] = []
+    for (const r of all ?? []) {
+      counts[r.emoji] = (counts[r.emoji] ?? 0) + 1
+      if (r.operator_id === op.id) userRx.push(r.emoji)
+    }
+
+    revalidatePath('/')
+    revalidatePath(`/entries/${entryId}`)
+    return { success: true, reactions: counts, userReactions: userRx }
+  } catch (err) {
+    console.error('toggleReaction error:', err)
+    return { error: 'Reakció rögzítése sikertelen.' }
   }
-
-  const supabase = await createClient()
-
-  // Generate LOG ID
-  const { count } = await supabase
-    .from('entries')
-    .select('*', { count: 'exact', head: true })
-
-  const nextNum = (count ?? 0) + 2482
-  const id = `LOG-${nextNum}`
-
-  const { error } = await supabase.from('entries').insert({
-    id,
-    title,
-    content,
-    kind,
-    excerpt: content.slice(0, 180),
-    operator_id: op.id,
-    cycle: 47,
-    sigs,
-    priority: formData.get('priority') === 'on',
-    alert: false,
-  })
-
-  if (error) return { error: error.message }
-
-  revalidatePath('/')
-  revalidatePath(`/entries/${id}`)
-  return { success: true, id }
 }
 
 /* ─── Signals (jelzések bejegyzésre) ─── */

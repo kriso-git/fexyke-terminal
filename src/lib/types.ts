@@ -26,6 +26,17 @@ export interface Entry {
   reads: number
   created_at: string
   operator?: Operator
+  media_url?: string | null
+  media_type?: 'youtube' | 'image' | 'audio' | null
+  media_label?: string | null
+  reactions?: Record<string, number>
+}
+
+export interface EntryReaction {
+  entry_id: string
+  operator_id: string
+  emoji: string
+  created_at: string
 }
 
 export interface Signal {

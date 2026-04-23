@@ -7,13 +7,17 @@ import { Panel } from '@/components/ui/Panel'
 import { Meta } from '@/components/ui/Meta'
 import { Avatar } from '@/components/ui/Avatar'
 import { NodeMap } from '@/components/ui/NodeMap'
-import { createSignal } from '@/app/actions'
+import { YouTubePlayer } from '@/components/ui/YouTubePlayer'
+import { AudioPlayer } from '@/components/ui/AudioPlayer'
+import { createSignal, toggleReaction } from '@/app/actions'
 import type { Entry, Operator, Signal } from '@/lib/types'
 
-/* Seed data for when there's no real entry */
+const EMOJIS = ['👍','🔥','💀','😂']
+
 const SEED_ENTRY: Entry = {
-  id:'LOG-2481', kind:'ÁTVITEL', sigs:['//PROTOKOLL','//ŰR'], operator_id:'F3X-014', content:`A hideg szektor 11 relé csomópontján 046-os ciklus óta egyre erősödő fáziscsúszás figyelhető meg. A mérőrács 04-B konfigurációja szerint a sodródás exponenciálisan növekszik, és már megsérti a hálózati integritási küszöböt.\n\nAz eltérés nem véletlen hibának tűnik: az aláírás-mintázat szándékos vagy legalábbis strukturált. Három különböző kulcs-fingerprint rotál, mindháromnak a 9f-prefix csonkolt verzióját használva.`,
-  excerpt:'Bomlási minta észlelve a külső rácsban 11 relé csomóponton keresztül. Aláírás-eltérés rögzítve.',
+  id:'LOG-2481', kind:'ÁTVITEL', sigs:['//PROTOKOLL','//ŰR'], operator_id:'F3X-014',
+  content:`A hideg szektor 11 relé csomópontján 046-os ciklus óta egyre erősödő fáziscsúszás figyelhető meg. A mérőrács 04-B konfigurációja szerint a sodródás exponenciálisan növekszik, és már megsérti a hálózati integritási küszöböt.\n\nAz eltérés nem véletlen hibának tűnik: az aláírás-mintázat szándékos vagy legalábbis strukturált. Három különböző kulcs-fingerprint rotál, mindháromnak a 9f-prefix csonkolt verzióját használva.`,
+  excerpt:'Bomlási minta észlelve a külső rácsban 11 relé csomóponton keresztül.',
   title:'Átvitel 04 · protokoll-sodródás a hideg szektorokban',
   cycle:47, reads:142, priority:true, alert:false,
   operator:{ id:'F3X-014', auth_id:null, callsign:'NULLSET', level:3, role:'admin', node:'f3x-pri-01', joined_cycle:12, bio:null, created_at:'2026-04-21T00:14:00Z' },
@@ -22,8 +26,29 @@ const SEED_ENTRY: Entry = {
 
 const SEED_SIGNALS: Signal[] = [
   { id:'sig-1', entry_id:'LOG-2481', operator_id:'F3X-022', parent_id:null, text:'Megerősítem — a 14-es relé már 00:02:14-kor kiesett, és a szomszédos 15-ös fázisa is sodródik. Ajánlom a soft-rollback 04-B protokollt.', sigs:['//PROTOKOLL'], verified:true, created_at:'+02:11', operator:{ id:'F3X-022', auth_id:null, callsign:'HALO', level:2, role:'operator', node:'f3x-pri-01', joined_cycle:18, bio:null, created_at:'' } },
-  { id:'sig-2', entry_id:'LOG-2481', operator_id:'F3X-058', parent_id:null, text:'Mezőnaplóm (LOG-2476) alapján a mintázat már két ciklusa látható volt, csak más szignatúra alatt. Érdemes lenne a rács-térkép 04-B újrakalibrációját is bekötni ebbe a jelzésláncba.', sigs:[], verified:false, created_at:'+04:02', operator:{ id:'F3X-058', auth_id:null, callsign:'PARALLAX', level:2, role:'operator', node:'f3x-pri-01', joined_cycle:28, bio:null, created_at:'' } },
+  { id:'sig-2', entry_id:'LOG-2481', operator_id:'F3X-058', parent_id:null, text:'Mezőnaplóm (LOG-2476) alapján a mintázat már két ciklusa látható volt. Érdemes lenne a rács-térkép 04-B újrakalibrációját bekötni ebbe a jelzésláncba.', sigs:[], verified:false, created_at:'+04:02', operator:{ id:'F3X-058', auth_id:null, callsign:'PARALLAX', level:2, role:'operator', node:'f3x-pri-01', joined_cycle:28, bio:null, created_at:'' } },
 ]
+
+function sanitizeHtml(html: string): string {
+  if (!html) return ''
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/\son\w+\s*=\s*["'][^"']*["']/gi, '')
+    .replace(/href\s*=\s*["']\s*javascript:[^"']*["']/gi, 'href="#"')
+}
+
+function RenderContent({ content }: { content: string }) {
+  if (!content) return null
+  if (/<[a-z]/i.test(content)) {
+    return <div style={{ fontSize:15, lineHeight:1.75, color:'var(--ink-0)' }} dangerouslySetInnerHTML={{ __html: sanitizeHtml(content) }}/>
+  }
+  return (
+    <div style={{ fontSize:15, lineHeight:1.75, color:'var(--ink-0)' }}>
+      {content.split('\n\n').map((p,i)=><p key={i} style={{ marginBottom:16 }}>{p}</p>)}
+    </div>
+  )
+}
 
 function SignalNode({ s, isLast }: { s: Signal; isLast: boolean }) {
   const time = s.created_at.startsWith('+') ? s.created_at : new Date(s.created_at).toLocaleTimeString('hu-HU',{hour:'2-digit',minute:'2-digit'})
@@ -47,7 +72,6 @@ function SignalNode({ s, isLast }: { s: Signal; isLast: boolean }) {
           <div style={{ display:'flex', gap:14, marginTop:10, paddingTop:8, borderTop:'1px dashed var(--border-1)' }}>
             <span className="sys muted">▸ VÁLASZ</span>
             <span className="sys muted">⟡ JELZÉS</span>
-            <span className="sys muted">◢ ALÁÍR</span>
             <span style={{flex:1}}/>
             <span className="sys dim">SIG-{s.id.slice(0,4).toUpperCase()}</span>
           </div>
@@ -62,22 +86,38 @@ interface EntryDetailClientProps {
   signals: Signal[]
   entryId: string
   currentOperator: Operator | null
+  initialReactions?: Record<string, number>
+  initialUserReactions?: string[]
 }
 
-export function EntryDetailClient({ entry, signals, entryId, currentOperator }: EntryDetailClientProps) {
-  const [sigError, setSigError] = useState<string | null>(null)
+export function EntryDetailClient({ entry, signals, entryId, currentOperator, initialReactions = {}, initialUserReactions = [] }: EntryDetailClientProps) {
+  const [sigError, setSigError]   = useState<string|null>(null)
   const [sigPending, setSigPending] = useState(false)
-  const e = entry ?? SEED_ENTRY
+  const [sigDone, setSigDone]     = useState(false)
+  const [reactions, setReactions] = useState<Record<string,number>>(initialReactions)
+  const [userRx, setUserRx]       = useState<string[]>(initialUserReactions)
+  const [rxPending, setRxPending] = useState<string|null>(null)
+
+  const e    = entry ?? SEED_ENTRY
   const sigs = signals.length > 0 ? signals : SEED_SIGNALS
 
   async function handleSignal(ev: React.FormEvent<HTMLFormElement>) {
     ev.preventDefault()
-    setSigPending(true)
-    setSigError(null)
+    setSigPending(true); setSigError(null)
     const res = await createSignal(new FormData(ev.currentTarget))
     if (res?.error) { setSigError(res.error); setSigPending(false) }
-    else { (ev.currentTarget as HTMLFormElement).reset(); setSigPending(false) }
+    else { ;(ev.currentTarget as HTMLFormElement).reset(); setSigPending(false); setSigDone(true); setTimeout(()=>setSigDone(false),2000) }
   }
+
+  async function handleReact(emoji: string) {
+    if (!currentOperator || rxPending) return
+    setRxPending(emoji)
+    const res = await toggleReaction(e.id, emoji)
+    if (res?.reactions) setReactions(res.reactions)
+    if (res?.userReactions) setUserRx(res.userReactions)
+    setRxPending(null)
+  }
+
   const prevId = 'LOG-' + String(parseInt(e.id.split('-')[1] ?? '2481') - 1)
   const nextId = 'LOG-' + String(parseInt(e.id.split('-')[1] ?? '2481') + 1)
 
@@ -96,25 +136,30 @@ export function EntryDetailClient({ entry, signals, entryId, currentOperator }: 
       {/* Header */}
       <div style={{ display:'grid', gridTemplateColumns:'1fr 340px', gap:24, padding:'36px 0 28px', borderBottom:'1px solid var(--border-1)' }}>
         <div>
-          <div style={{ display:'flex', gap:8, marginBottom:14 }}>
+          <div style={{ display:'flex', gap:8, marginBottom:14, flexWrap:'wrap' }}>
             <Chip kind="solid" dot>{e.id}</Chip>
             <Chip kind="accent">{e.kind}</Chip>
             {e.sigs.map(s=><Chip key={s} kind="dash">{s}</Chip>)}
             {e.priority && <Chip kind="mag">PRIORITÁSOS</Chip>}
+            {e.media_type === 'youtube' && <Chip kind="dash">▶ YOUTUBE</Chip>}
+            {e.media_type === 'image'   && <Chip kind="dash">⊡ KÉP</Chip>}
+            {e.media_type === 'audio'   && <Chip kind="dash">♪ HANG</Chip>}
           </div>
-          <h1 className="display" style={{ margin:0, fontSize:60, lineHeight:.95, letterSpacing:'-.02em' }}>
+          <h1 className="display" style={{ margin:0, fontSize:56, lineHeight:.95, letterSpacing:'-.02em' }}>
             {e.title}
           </h1>
-          <p style={{ maxWidth:600, color:'var(--ink-1)', fontSize:14, lineHeight:1.6, marginTop:18 }}>
-            <span className="sys muted">◢ ABSZTRAKT · </span>
-            {e.excerpt}
-          </p>
+          {e.excerpt && (
+            <p style={{ maxWidth:600, color:'var(--ink-1)', fontSize:14, lineHeight:1.6, marginTop:18 }}>
+              <span className="sys muted">◢ ABSZTRAKT · </span>{e.excerpt}
+            </p>
+          )}
         </div>
         <Panel tag="◢ REKORD" title="RENDSZER TANÚSÍTVÁNY" className="panel-raised">
           <Meta k="ID"       v={e.id}/>
           <Meta k="CIKLUS"   v={`${e.cycle} / 2026·04·21`}/>
           <Meta k="OPERÁTOR" v={`${e.operator_id} · ${e.operator?.callsign ?? '—'}`}/>
           <Meta k="TÍPUS"    v={e.kind}/>
+          {e.media_type && <Meta k="MÉDIA" v={e.media_type.toUpperCase()}/>}
           <Meta k="HASH"     v="9f·0a·72·c4·e1·ff"/>
           <Meta k="ÁLLAPOT"  v="ÉLŐ · NYITOTT"/>
           <div style={{ borderTop:'1px solid var(--border-1)', marginTop:10, paddingTop:10, display:'flex', gap:10 }}>
@@ -127,42 +172,90 @@ export function EntryDetailClient({ entry, signals, entryId, currentOperator }: 
       {/* Body */}
       <div style={{ display:'grid', gridTemplateColumns:'1fr 320px', gap:28, padding:'28px 0', borderBottom:'1px solid var(--border-1)' }}>
         <article style={{ display:'flex', flexDirection:'column', gap:20 }}>
-          <div style={{ display:'grid', gridTemplateColumns:'56px 1fr', gap:18 }}>
-            <span className="sys muted">§ 01</span>
-            <div style={{ fontSize:15, lineHeight:1.75, color:'var(--ink-0)' }}>
-              {e.content.split('\n\n').map((p,i)=>(
-                <p key={i} style={{ marginBottom:16 }}>{p}</p>
-              ))}
-            </div>
-          </div>
 
-          <div className="panel panel-raised" style={{ padding:'24px 28px' }}>
-            <div className="sys" style={{ color:'var(--accent)', marginBottom:10 }}>◢ KIEMELT RÉSZLET</div>
-            <div className="head" style={{ fontSize:26, lineHeight:1.15, color:'var(--ink-0)' }}>
-              A rács integritása a küszöb alá esett / javaslom a soft-rollback-et a 048-as commit előtt.
-            </div>
-          </div>
-
-          <div style={{ display:'grid', gridTemplateColumns:'56px 1fr', gap:18 }}>
-            <span className="sys muted">FIG 01</span>
+          {/* Media */}
+          {e.media_type === 'youtube' && e.media_url && (
             <div>
-              <div className="fig-ph" style={{ height:300 }}>
-                <svg viewBox="0 0 400 300" style={{ position:'absolute', inset:0, width:'100%', height:'100%' }}>
-                  {Array.from({length:40}).map((_,j)=>{
-                    const x = 20+(j*43%360); const y = 20+(j*29%260); const hi = j%9===0
-                    return <g key={j}>
-                      <circle cx={x} cy={y} r={hi?4:1.8} fill={hi?'var(--accent)':'var(--ink-3)'} style={hi?{filter:'drop-shadow(0 0 4px var(--accent))'}:undefined}/>
-                      {hi && <circle cx={x} cy={y} r="10" fill="none" stroke="var(--accent)" strokeWidth="0.6" opacity="0.5"/>}
-                    </g>
-                  })}
-                  {Array.from({length:30}).map((_,j)=>{
-                    const x1=20+(j*43%360), y1=20+(j*29%260), x2=20+((j+3)*43%360), y2=20+((j+3)*29%260)
-                    return <line key={j} x1={x1} y1={y1} x2={x2} y2={y2} stroke="var(--border-1)" strokeWidth="0.5"/>
-                  })}
-                </svg>
-                <span className="fig-label">RELÉ BOMLÁSI TÉRKÉP · 046→047</span>
+              <div className="sys muted" style={{ fontSize:10, marginBottom:6 }}>◢ YOUTUBE · BEÁGYAZOTT VIDEÓ</div>
+              <YouTubePlayer url={e.media_url}/>
+              {e.media_label && <div className="sys muted" style={{ fontSize:11, marginTop:6 }}>◢ {e.media_label}</div>}
+            </div>
+          )}
+
+          {e.media_type === 'image' && e.media_url && (
+            <div>
+              {e.media_label && <div className="sys muted" style={{ fontSize:10, marginBottom:6 }}>◢ KÉP · {e.media_label}</div>}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={e.media_url} alt={e.media_label ?? ''} style={{ width:'100%', maxHeight:520, objectFit:'contain', background:'var(--bg-2)', border:'1px solid var(--border-1)' }}/>
+            </div>
+          )}
+
+          {e.media_type === 'audio' && e.media_url && (
+            <AudioPlayer url={e.media_url} label={e.media_label}/>
+          )}
+
+          {/* Text content */}
+          {e.content && (
+            <div style={{ display:'grid', gridTemplateColumns:'56px 1fr', gap:18 }}>
+              <span className="sys muted">§ 01</span>
+              <RenderContent content={e.content}/>
+            </div>
+          )}
+
+          {/* Figure (if no media) */}
+          {!e.media_type && (
+            <div style={{ display:'grid', gridTemplateColumns:'56px 1fr', gap:18 }}>
+              <span className="sys muted">FIG 01</span>
+              <div>
+                <div className="fig-ph" style={{ height:280 }}>
+                  <svg viewBox="0 0 400 280" style={{ position:'absolute', inset:0, width:'100%', height:'100%' }}>
+                    {Array.from({length:40}).map((_,j)=>{
+                      const x=20+(j*43%360); const y=20+(j*29%240); const hi=j%9===0
+                      return <g key={j}>
+                        <circle cx={x} cy={y} r={hi?4:1.8} fill={hi?'var(--accent)':'var(--ink-3)'} style={hi?{filter:'drop-shadow(0 0 4px var(--accent))'}:undefined}/>
+                        {hi && <circle cx={x} cy={y} r="10" fill="none" stroke="var(--accent)" strokeWidth="0.6" opacity="0.5"/>}
+                      </g>
+                    })}
+                    {Array.from({length:30}).map((_,j)=>{
+                      const x1=20+(j*43%360),y1=20+(j*29%240),x2=20+((j+3)*43%360),y2=20+((j+3)*29%240)
+                      return <line key={j} x1={x1} y1={y1} x2={x2} y2={y2} stroke="var(--border-1)" strokeWidth="0.5"/>
+                    })}
+                  </svg>
+                  <span className="fig-label">RELÉ BOMLÁSI TÉRKÉP · 046→047</span>
+                </div>
               </div>
-              <div className="sys muted" style={{ marginTop:8 }}>FIG 01 · Jelbomlás 11 relé csomóponton át, 046→047 ciklus.</div>
+            </div>
+          )}
+
+          {/* Reactions */}
+          <div style={{ borderTop:'1px solid var(--border-1)', paddingTop:16 }}>
+            <div className="sys muted" style={{ fontSize:10, marginBottom:10 }}>◢ REAKCIÓK</div>
+            <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+              {EMOJIS.map(emoji => {
+                const count = reactions[emoji] ?? 0
+                const active = userRx.includes(emoji)
+                return (
+                  <button key={emoji} onClick={()=>handleReact(emoji)}
+                    disabled={rxPending !== null || !currentOperator}
+                    style={{
+                      display:'flex', alignItems:'center', gap:6, padding:'6px 14px',
+                      border:`1px solid ${active?'var(--accent)':'var(--border-1)'}`,
+                      background: active?'var(--accent-soft)':'transparent',
+                      color: active?'var(--accent)':'var(--ink-1)',
+                      cursor: currentOperator?'pointer':'default',
+                      fontFamily:'var(--f-sys)', fontSize:13,
+                      opacity: rxPending === emoji ? 0.5 : 1,
+                      transition:'all .15s',
+                    }}
+                  >
+                    <span style={{ fontSize:18 }}>{emoji}</span>
+                    <span>{count}</span>
+                  </button>
+                )
+              })}
+              {!currentOperator && (
+                <span className="sys dim" style={{ fontSize:10, alignSelf:'center', marginLeft:4 }}>◢ BELÉPÉS SZÜKSÉGES</span>
+              )}
             </div>
           </div>
 
@@ -196,7 +289,6 @@ export function EntryDetailClient({ entry, signals, entryId, currentOperator }: 
             </div>
             <div style={{ display:'flex', gap:6, marginTop:10 }}>
               <Chip>◢ MÁSOL</Chip>
-              <Chip>◢ EXPORT</Chip>
               <Chip kind="dash">◢ ARCHÍV</Chip>
             </div>
           </Panel>
@@ -217,13 +309,10 @@ export function EntryDetailClient({ entry, signals, entryId, currentOperator }: 
           <form onSubmit={handleSignal}>
             <input type="hidden" name="entry_id" value={e.id}/>
             <div className="panel" style={{ padding:14, display:'flex', flexDirection:'column', gap:10 }}>
-              <textarea name="text" className="input" rows={3} placeholder="// Gépeld be a jelzést · használj //TAG formát aláírásra · ◢ direktívákra"/>
-              {sigError && (
-                <div style={{ padding:'8px 12px', background:'rgba(255,58,58,.1)', border:'1px solid var(--red)', color:'var(--red)', fontFamily:'var(--f-sys)', fontSize:12 }}>◢ {sigError}</div>
-              )}
+              <textarea name="text" className="input" rows={3} placeholder="// Gépeld be a jelzést · //TAG formát aláírásra"/>
+              {sigError && <div style={{ padding:'8px 12px', background:'rgba(255,58,58,.1)', border:'1px solid var(--red)', color:'var(--red)', fontFamily:'var(--f-sys)', fontSize:11 }}>◢ {sigError}</div>}
+              {sigDone  && <div style={{ padding:'8px 12px', background:'rgba(24,233,104,.1)', border:'1px solid var(--accent)', color:'var(--accent)', fontFamily:'var(--f-sys)', fontSize:11 }}>◢ JELZÉS ELKÜLDVE · TRANSMIT SIKERES</div>}
               <div style={{ display:'flex', gap:8, alignItems:'center', paddingTop:8, borderTop:'1px dashed var(--border-1)' }}>
-                <Chip kind="cyan">//PROTOKOLL</Chip>
-                <Chip kind="dash">+ CSATOLMÁNY</Chip>
                 <span style={{flex:1}}/>
                 <button type="submit" className="btn btn-primary" disabled={sigPending}>
                   {sigPending ? '◢ KÜLDÉS...' : '◢ TRANSMIT'}
@@ -251,9 +340,7 @@ export function EntryDetailClient({ entry, signals, entryId, currentOperator }: 
           </div>
         </div>
         <div>
-          {sigs.map((s,i)=>(
-            <SignalNode key={s.id} s={s} isLast={i===sigs.length-1}/>
-          ))}
+          {sigs.map((s,i)=>(<SignalNode key={s.id} s={s} isLast={i===sigs.length-1}/>))}
         </div>
       </div>
     </div>
