@@ -9,8 +9,8 @@ import type { Entry, Signal } from '@/lib/types'
 
 async function getData(id: string, operatorId?: string) {
   const [entryRes, signalsRes, rxRes] = await Promise.all([
-    supabase.from('entries').select('*, operator:operators(*)').eq('id', id).single(),
-    supabase.from('signals').select('*, operator:operators(*)').eq('entry_id', id).order('created_at'),
+    supabase.from('entries').select('*, operator:operators!operator_id(*)').eq('id', id).single(),
+    supabase.from('signals').select('*, operator:operators!operator_id(*)').eq('entry_id', id).order('created_at'),
     supabase.from('entry_reactions').select('emoji, operator_id').eq('entry_id', id),
   ])
 

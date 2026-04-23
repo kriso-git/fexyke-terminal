@@ -121,7 +121,7 @@ export async function fetchEntryById(id: string) {
     const admin = createAdminClient()
     const { data } = await admin
       .from('entries')
-      .select('*, operator:operators(*)')
+      .select('*, operator:operators!operator_id(*)')
       .eq('id', id)
       .single()
     return data
@@ -139,7 +139,7 @@ export async function createEntry(formData: FormData) {
 
     const title      = ((formData.get('title') as string) ?? '').trim()
     const content    = ((formData.get('content') as string) ?? '').trim()
-    const kind       = ((formData.get('kind') as string) ?? 'POSZT') as EntryKind
+    const uiKind     = ((formData.get('kind') as string) ?? 'POSZT')
     const sigsRaw    = (formData.get('sigs') as string) ?? ''
     const sigs       = sigsRaw.split(',').map(s => s.trim()).filter(Boolean)
     const mediaUrl   = ((formData.get('media_url') as string) ?? '').trim() || null
@@ -149,7 +149,9 @@ export async function createEntry(formData: FormData) {
     if (!title) return { error: 'Cím megadása kötelező.' }
     if (!content && !mediaUrl) return { error: 'Tartalom vagy média megadása kötelező.' }
 
-    // Use admin client to bypass RLS for insert
+    // Map UI kind → DB kind (uses only values allowed by the existing constraint)
+    const dbKind: EntryKind = uiKind === 'VIDEÓ' ? 'ADÁS' : 'ÁTVITEL'
+
     const admin = createAdminClient()
     const { count } = await admin.from('entries').select('*', { count:'exact', head:true })
     const id = `LOG-${(count ?? 0) + 2482}`
@@ -157,23 +159,21 @@ export async function createEntry(formData: FormData) {
     const plainText = content.replace(/<[^>]+>/g, '')
     const excerpt   = plainText.slice(0, 180) || mediaLabel || title.slice(0, 180)
 
-    // Only include media fields when they have values (avoids errors if migration not yet run)
     const baseRow = {
-      id, title, content, kind, excerpt,
+      id, title, content, excerpt,
+      kind: dbKind,
       operator_id: op.id,
       cycle: 47, sigs,
       priority: formData.get('priority') === 'on',
       alert: false,
     }
-    const mediaRow = mediaUrl
-      ? { media_url: mediaUrl, media_type: mediaType, media_label: mediaLabel }
-      : {}
 
+    // Try insert with media fields first; if columns don't exist yet, retry without them
+    const mediaRow = mediaUrl ? { media_url: mediaUrl, media_type: mediaType, media_label: mediaLabel } : {}
     const { error } = await admin.from('entries').insert({ ...baseRow, ...mediaRow })
 
     if (error) {
-      // If media columns missing (migration not run), retry without them
-      if (error.message.includes('media_') || error.message.includes('column')) {
+      if (mediaUrl && (error.message.includes('media_') || error.message.includes('column'))) {
         const { error: e2 } = await admin.from('entries').insert(baseRow)
         if (e2) return { error: e2.message }
       } else {

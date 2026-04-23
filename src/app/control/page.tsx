@@ -9,7 +9,7 @@ import type { Operator, Entry } from '@/lib/types'
 async function getData() {
   const [opsRes, entriesRes] = await Promise.all([
     supabase.from('operators').select('*').order('created_at'),
-    supabase.from('entries').select('*, operator:operators(*)').order('created_at', { ascending:false }).limit(20),
+    supabase.from('entries').select('*, operator:operators!operator_id(*)').order('created_at', { ascending:false }).limit(20),
   ])
   return {
     operators: (opsRes.data ?? []) as Operator[],

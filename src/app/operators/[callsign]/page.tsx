@@ -19,7 +19,7 @@ async function getData(callsign: string) {
   const opId = (op as Operator).id
   const [entriesRes, signalsRes] = await Promise.all([
     supabase.from('entries').select('*').eq('operator_id', opId).order('created_at', { ascending: false }).limit(10),
-    supabase.from('profile_signals').select('*, author:operators(*)').eq('target_id', opId).order('created_at', { ascending: false }),
+    supabase.from('profile_signals').select('*, author:operators!author_id(*)').eq('target_id', opId).order('created_at', { ascending: false }),
   ])
 
   return {

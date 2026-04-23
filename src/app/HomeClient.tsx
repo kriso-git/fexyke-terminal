@@ -325,7 +325,7 @@ function EntryCard({ e, i, currentOperator }: { e: Entry; i: number; currentOper
   const [rxPending, setRxPending] = useState<string|null>(null)
   const chipKind = e.priority ? 'solid' : 'accent'
   const time    = new Date(e.created_at).toLocaleTimeString('hu-HU', { hour:'2-digit', minute:'2-digit' })
-  const isVideo = e.kind === 'VIDEÓ' || e.media_type === 'youtube'
+  const isVideo = e.kind === 'VIDEÓ' || e.kind === 'ADÁS' || e.media_type === 'youtube'
 
   async function handleReact(emoji: string) {
     if (!currentOperator || rxPending) return
@@ -517,10 +517,11 @@ export function HomeClient({ entries: initialEntries, operators, threads, curren
     if (entry) setEntries(prev => [{ ...(entry as Entry), reactions: {} }, ...prev])
   }
 
+  const isVideoEntry = (e: Entry) => e.kind === 'VIDEÓ' || e.kind === 'ADÁS' || e.media_type === 'youtube'
   const filtered = filter === 'mind' ? entries
     : filter === 'videók'
-      ? entries.filter(e => e.kind === 'VIDEÓ' || e.media_type === 'youtube')
-      : entries.filter(e => e.kind !== 'VIDEÓ' && e.media_type !== 'youtube')
+      ? entries.filter(isVideoEntry)
+      : entries.filter(e => !isVideoEntry(e))
 
   return (
     <div className="shell">
