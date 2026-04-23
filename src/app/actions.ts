@@ -116,6 +116,20 @@ export async function logout() {
 
 /* ─── Entries ─── */
 
+export async function fetchEntryById(id: string) {
+  try {
+    const admin = createAdminClient()
+    const { data } = await admin
+      .from('entries')
+      .select('*, operator:operators(*)')
+      .eq('id', id)
+      .single()
+    return data
+  } catch {
+    return null
+  }
+}
+
 export async function createEntry(formData: FormData) {
   try {
     const op = await getCurrentOperator()

@@ -11,7 +11,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { LiveTicks } from '@/components/ui/LiveTicks'
 import { NodeMap } from '@/components/ui/NodeMap'
 import { YouTubeThumbnail, extractYouTubeId } from '@/components/ui/YouTubePlayer'
-import { createEntry, toggleReaction } from '@/app/actions'
+import { createEntry, toggleReaction, fetchEntryById } from '@/app/actions'
 import type { Entry, Operator, Thread } from '@/lib/types'
 
 
@@ -114,7 +114,7 @@ function Hero() {
 }
 
 /* ─── Post panel (admin only) ─── */
-function PostPanel({ op }: { op: Operator | null }) {
+function PostPanel({ op, onPost }: { op: Operator | null; onPost: (id: string) => void }) {
   const router = useRouter()
   const [open, setOpen]             = useState(true)
   const [kind, setKind]             = useState<'POSZT'|'VIDEÓ'>('POSZT')
@@ -173,7 +173,7 @@ function PostPanel({ op }: { op: Operator | null }) {
       setDone(true)
       ;(e.currentTarget as HTMLFormElement).reset()
       setContent(''); setYoutubeUrl(''); setTags(''); setUploadedFile(null); setMediaLabel('')
-      router.refresh()
+      if (res?.id) onPost(res.id)
       setTimeout(() => { setPending(false); setDone(false) }, 1800)
     }
   }
@@ -508,8 +508,14 @@ interface HomeClientProps {
   currentOperator: Operator | null
 }
 
-export function HomeClient({ entries, operators, threads, currentOperator }: HomeClientProps) {
-  const [filter, setFilter] = useState<'mind'|'posztok'|'videók'>('mind')
+export function HomeClient({ entries: initialEntries, operators, threads, currentOperator }: HomeClientProps) {
+  const [entries, setEntries] = useState<Entry[]>(initialEntries)
+  const [filter, setFilter]   = useState<'mind'|'posztok'|'videók'>('mind')
+
+  async function handlePost(id: string) {
+    const entry = await fetchEntryById(id)
+    if (entry) setEntries(prev => [{ ...(entry as Entry), reactions: {} }, ...prev])
+  }
 
   const filtered = filter === 'mind' ? entries
     : filter === 'videók'
@@ -520,7 +526,7 @@ export function HomeClient({ entries, operators, threads, currentOperator }: Hom
     <div className="shell">
       <Hero/>
       <div style={{ padding:'28px 0 0' }}>
-        <PostPanel op={currentOperator}/>
+        <PostPanel op={currentOperator} onPost={handlePost}/>
 
         {/* Feed header + filter */}
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18 }}>
