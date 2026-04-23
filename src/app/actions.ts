@@ -190,6 +190,21 @@ export async function createEntry(formData: FormData) {
   }
 }
 
+export async function deleteEntry(entryId: string) {
+  try {
+    const op = await getCurrentOperator()
+    if (!op || op.role !== 'superadmin') return { error: 'Csak superadmin törölhet bejegyzést.' }
+    const admin = createAdminClient()
+    const { error } = await admin.from('entries').delete().eq('id', entryId)
+    if (error) return { error: error.message }
+    revalidatePath('/', 'layout')
+    return { success: true }
+  } catch (err) {
+    console.error('deleteEntry error:', err)
+    return { error: 'Szerver hiba.' }
+  }
+}
+
 export async function toggleReaction(entryId: string, emoji: string) {
   try {
     const op = await getCurrentOperator()

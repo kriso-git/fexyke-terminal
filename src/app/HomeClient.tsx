@@ -11,7 +11,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { LiveTicks } from '@/components/ui/LiveTicks'
 import { NodeMap } from '@/components/ui/NodeMap'
 import { YouTubeThumbnail, extractYouTubeId } from '@/components/ui/YouTubePlayer'
-import { createEntry, toggleReaction, fetchEntryById } from '@/app/actions'
+import { createEntry, toggleReaction, fetchEntryById, deleteEntry } from '@/app/actions'
 import type { Entry, Operator, Thread } from '@/lib/types'
 
 
@@ -319,13 +319,23 @@ function PostPanel({ op, onPost }: { op: Operator | null; onPost: (id: string) =
 }
 
 /* ─── Entry card ─── */
-function EntryCard({ e, i, currentOperator }: { e: Entry; i: number; currentOperator: Operator | null }) {
+function EntryCard({ e, i, currentOperator, onDelete }: { e: Entry; i: number; currentOperator: Operator | null; onDelete: (id: string) => void }) {
   const [reactions, setReactions] = useState<Record<string,number>>(e.reactions ?? {})
   const [userRx, setUserRx]       = useState<string[]>([])
   const [rxPending, setRxPending] = useState<string|null>(null)
+  const [deleting, setDeleting]   = useState(false)
   const chipKind = e.priority ? 'solid' : 'accent'
   const time    = new Date(e.created_at).toLocaleTimeString('hu-HU', { hour:'2-digit', minute:'2-digit' })
   const isVideo = e.kind === 'VIDEÓ' || e.kind === 'ADÁS' || e.media_type === 'youtube'
+  const isSuperadmin = currentOperator?.role === 'superadmin'
+
+  async function handleDelete() {
+    if (!confirm('Biztosan törlöd ezt a bejegyzést?')) return
+    setDeleting(true)
+    const res = await deleteEntry(e.id)
+    if (res?.error) { alert(res.error); setDeleting(false) }
+    else onDelete(e.id)
+  }
 
   async function handleReact(emoji: string) {
     if (!currentOperator || rxPending) return
@@ -408,14 +418,14 @@ function EntryCard({ e, i, currentOperator }: { e: Entry; i: number; currentOper
         </div>
       </Link>
 
-      {/* Reactions row — outside link */}
-      <div style={{ display:'flex', gap:6, alignItems:'center', padding:'7px 14px', background:'var(--bg-1)', border:'1px solid var(--border-1)', borderTop:'none' }}>
+      {/* Reactions + delete row */}
+      <div style={{ display:'flex', gap:6, alignItems:'center', padding:'7px 14px', background:'var(--bg-1)', border:'1px solid var(--border-1)', borderTop:'none', opacity: deleting ? 0.4 : 1 }}>
         {EMOJIS.map(emoji => {
           const count = reactions[emoji] ?? 0
           const active = userRx.includes(emoji)
           return (
             <button key={emoji} onClick={()=>handleReact(emoji)}
-              disabled={rxPending !== null}
+              disabled={rxPending !== null || deleting}
               style={{
                 display:'flex', alignItems:'center', gap:4, padding:'2px 8px',
                 border:`1px solid ${active?'var(--accent)':'var(--border-1)'}`,
@@ -432,8 +442,20 @@ function EntryCard({ e, i, currentOperator }: { e: Entry; i: number; currentOper
             </button>
           )
         })}
-        {!currentOperator && (
-          <span className="sys dim" style={{ fontSize:9, marginLeft:'auto' }}>◢ BELÉPÉS SZÜKSÉGES A REAKCIÓHOZ</span>
+        <span style={{ flex:1 }}/>
+        {isSuperadmin && (
+          <button onClick={handleDelete} disabled={deleting}
+            style={{
+              background:'none', border:'1px solid var(--border-1)', color:'var(--red)',
+              fontFamily:'var(--f-sys)', fontSize:10, padding:'2px 8px', cursor:'pointer',
+              letterSpacing:'.08em', opacity: deleting ? 0.5 : 1,
+              transition:'border-color .15s',
+            }}
+            onMouseOver={e=>(e.currentTarget.style.borderColor='var(--red)')}
+            onMouseOut={e=>(e.currentTarget.style.borderColor='var(--border-1)')}
+          >
+            {deleting ? '◢ TÖRLÉS...' : '◢ TÖRLÉS'}
+          </button>
         )}
       </div>
     </div>
@@ -517,6 +539,10 @@ export function HomeClient({ entries: initialEntries, operators, threads, curren
     if (entry) setEntries(prev => [{ ...(entry as Entry), reactions: {} }, ...prev])
   }
 
+  function handleDelete(id: string) {
+    setEntries(prev => prev.filter(e => e.id !== id))
+  }
+
   const isVideoEntry = (e: Entry) => e.kind === 'VIDEÓ' || e.kind === 'ADÁS' || e.media_type === 'youtube'
   const filtered = filter === 'mind' ? entries
     : filter === 'videók'
@@ -557,7 +583,7 @@ export function HomeClient({ entries: initialEntries, operators, threads, curren
           </div>
         ) : (
           <div>
-            {filtered.map((e,i)=>(<EntryCard key={e.id} e={e} i={i} currentOperator={currentOperator}/>))}
+            {filtered.map((e,i)=>(<EntryCard key={e.id} e={e} i={i} currentOperator={currentOperator} onDelete={handleDelete}/>))}
           </div>
         )}
       </div>
