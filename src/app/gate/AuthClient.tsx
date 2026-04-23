@@ -62,9 +62,9 @@ export function AuthClient() {
   }
 
   return (
-    <div style={{ flex:1, display:'grid', gridTemplateColumns:'1fr 420px', borderTop:'1px solid var(--border-1)' }}>
-      {/* LEFT hero */}
-      <div style={{ position:'relative', padding:'64px 56px', borderRight:'1px solid var(--border-1)', background:'radial-gradient(ellipse at 30% 40%, rgba(24,233,104,.08), transparent 60%)' }}>
+    <div className="r-gate">
+      {/* LEFT hero — hidden on mobile */}
+      <div className="gate-hero" style={{ position:'relative', padding:'64px 56px', borderRight:'1px solid var(--border-1)', background:'radial-gradient(ellipse at 30% 40%, rgba(24,233,104,.08), transparent 60%)' }}>
         <div style={{ position:'absolute', inset:0, overflow:'hidden', pointerEvents:'none' }}>
           <svg viewBox="0 0 600 800" style={{ position:'absolute', inset:0, width:'100%', height:'100%', opacity:.35 }}>
             {Array.from({length:60}).map((_,j)=>{
@@ -104,7 +104,7 @@ export function AuthClient() {
       </div>
 
       {/* RIGHT form */}
-      <div style={{ padding:'40px 28px', display:'flex', flexDirection:'column', gap:16, background:'var(--bg-1)' }}>
+      <div className="gate-form" style={{ display:'flex', flexDirection:'column', gap:16, background:'var(--bg-1)' }}>
         <div className="tabs">
           {(['login','req'] as const).map((m, i) => {
             const labels = ['BELÉPÉS','REGISZTRÁCIÓ']

@@ -129,7 +129,7 @@ export function EntryDetailClient({ entry, signals, entryId, currentOperator, in
       </div>
 
       {/* Header */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 340px', gap:24, padding:'36px 0 28px', borderBottom:'1px solid var(--border-1)' }}>
+      <div className="r-detail-header">
         <div>
           <div style={{ display:'flex', gap:8, marginBottom:14, flexWrap:'wrap' }}>
             <Chip kind="solid" dot>{e.id}</Chip>
@@ -165,7 +165,7 @@ export function EntryDetailClient({ entry, signals, entryId, currentOperator, in
       </div>
 
       {/* Body */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 320px', gap:28, padding:'28px 0', borderBottom:'1px solid var(--border-1)' }}>
+      <div className="r-detail">
         <article style={{ display:'flex', flexDirection:'column', gap:20 }}>
 
           {/* Media */}
@@ -271,7 +271,7 @@ export function EntryDetailClient({ entry, signals, entryId, currentOperator, in
         </article>
 
         {/* Aside */}
-        <aside style={{ display:'flex', flexDirection:'column', gap:18 }}>
+        <aside className="detail-aside" style={{ display:'flex', flexDirection:'column', gap:18 }}>
           <Panel tag="◢ LÁNC TÉRKÉP" title="THR-0419">
             <div style={{ height:180, background:'var(--bg-2)', border:'1px solid var(--border-0)' }}>
               <NodeMap count={12} highlight={5} seed={7}/>

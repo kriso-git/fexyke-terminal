@@ -280,7 +280,23 @@ textarea.input { resize:vertical; }
 /* ─── Superadmin banner ─── */
 .superadmin-banner { background:rgba(255,77,191,.06); border-bottom:1px solid rgba(255,77,191,.3); padding:6px 56px; font-family:var(--f-sys); font-size:10px; letter-spacing:.2em; color:var(--magenta); display:flex; gap:14px; align-items:center; }
 
-/* ─── YouTube Player ─── */
+/* ─── Responsive layout classes (used by components) ─── */
+/* These are set as className and overridden at mobile breakpoints */
+
+.r-hero    { display:grid; grid-template-columns:1fr 380px; gap:24px; padding:40px 0 32px; border-bottom:1px solid var(--border-1); }
+.r-gate    { flex:1; display:grid; grid-template-columns:1fr 420px; border-top:1px solid var(--border-1); }
+.r-form    { display:grid; grid-template-columns:1fr 220px; gap:16px; }
+.r-detail  { display:grid; grid-template-columns:1fr 340px; gap:28px; padding:28px 0; border-bottom:1px solid var(--border-1); }
+.r-detail-header { display:grid; grid-template-columns:1fr 340px; gap:24px; padding:36px 0 28px; border-bottom:1px solid var(--border-1); }
+.r-4col    { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+.r-4col-sm { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.r-entry   { display:grid; grid-template-columns:140px 1fr 220px; border-bottom:1px solid var(--border-1); }
+.r-entry-v { display:grid; grid-template-columns:140px 1fr; border-bottom:1px solid var(--border-1); }
+.r-display { font-size:84px; line-height:.92; letter-spacing:-.02em; }
+.r-display-gate { font-size:88px; line-height:.9; letter-spacing:-.03em; }
+.gate-form { padding: 40px 28px; }
+
+/* YouTube Player ─── */
 .yt-player-wrap { width:100%; margin:0; }
 .yt-video-area { position:relative; width:100%; aspect-ratio:16/9; overflow:hidden; background:#000; }
 .yt-iframe-slot { position:absolute; inset:0; width:100%; height:100%; }
@@ -313,3 +329,78 @@ textarea.input { resize:vertical; }
 .yt-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.88); z-index:1000; display:flex; align-items:center; justify-content:center; }
 .yt-modal-container { width:min(92vw, 1100px); }
 .yt-modal-player .yt-expand-btn { font-size:16px; }
+
+/* ─── Mobile: 768px ─── */
+@media (max-width: 768px) {
+  html, body { overflow-x: hidden; }
+
+  /* Sidebars off */
+  .datastream { display: none; }
+
+  /* Shell */
+  .shell { padding: 0 16px; }
+  .superadmin-banner { padding: 6px 16px; }
+
+  /* TopBar — show only brand + user */
+  .topbar-hide { display: none !important; }
+  .topbar .cell.brand { font-size: 11px; letter-spacing: .12em; }
+  .topbar .cell.grow { display: none; }
+
+  /* Nav — horizontal scroll */
+  .nav { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav .item { flex-shrink: 0; padding: 10px 12px; font-size: 10px; }
+  .nav .spacer { display: none; }
+
+  /* Responsive layout overrides */
+  .r-hero    { grid-template-columns: 1fr; padding: 24px 0 20px; gap: 16px; }
+  .r-gate    { grid-template-columns: 1fr; }
+  .r-form    { grid-template-columns: 1fr; }
+  .r-detail  { grid-template-columns: 1fr; }
+  .r-detail-header { grid-template-columns: 1fr; }
+  .r-4col    { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .r-4col-sm { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .r-entry   { grid-template-columns: 100px 1fr; }
+  .r-entry-v { grid-template-columns: 100px 1fr; }
+
+  /* Gate hero hidden on mobile */
+  .gate-hero { display: none; }
+  /* Gate form full width on mobile */
+  .gate-form { padding: 24px 16px !important; }
+
+  /* Display font scaling */
+  .r-display      { font-size: clamp(36px, 10vw, 84px); }
+  .r-display-gate { font-size: clamp(40px, 12vw, 88px); }
+
+  /* Entry card right column off */
+  .entry-col-right { display: none !important; }
+
+  /* Detail aside off on mobile */
+  .detail-aside { display: none; }
+
+  /* Touch targets */
+  .btn { min-height: 44px; }
+  .tabs .tab { min-height: 44px; }
+  .chip { padding: 5px 9px; }
+
+  /* YouTube mobile */
+  .yt-volume-slider { display: none; }
+  .yt-expand-btn    { opacity: 1 !important; }
+  .yt-play-btn      { width: 36px !important; height: 36px !important; }
+  .yt-controls      { padding: 8px !important; gap: 6px !important; }
+  .yt-play-overlay-icon { width: 48px !important; height: 48px !important; }
+}
+
+@media (max-width: 480px) {
+  .shell { padding: 0 12px; }
+  .r-4col    { grid-template-columns: 1fr 1fr; }
+  .r-4col-sm { grid-template-columns: 1fr 1fr; }
+  .r-entry   { grid-template-columns: 84px 1fr; }
+  .r-entry-v { grid-template-columns: 84px 1fr; }
+  .r-display { font-size: clamp(28px, 9vw, 84px); }
+}
+
+/* Safari safe area */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .footer { padding-bottom: max(0px, env(safe-area-inset-bottom)); }
+}

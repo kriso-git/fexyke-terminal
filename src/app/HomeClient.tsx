@@ -56,7 +56,7 @@ function uploadWithProgress(file: File, onProgress: (pct: number) => void): Prom
 /* ─── Hero ─── */
 function Hero() {
   return (
-    <div style={{ display:'grid', gridTemplateColumns:'1fr 380px', gap:24, padding:'40px 0 32px', borderBottom:'1px solid var(--border-1)' }}>
+    <div className="r-hero">
       <div>
         <div style={{ display:'flex', gap:8, marginBottom:18 }}>
           <Chip kind="accent" dot>◢ ADÁSBAN</Chip>
@@ -64,7 +64,7 @@ function Hero() {
           <Chip kind="cyan">UPLINK · STABIL</Chip>
           <Chip kind="dash">V0.1.0</Chip>
         </div>
-        <h1 className="display" style={{ margin:0, fontSize:84, lineHeight:.92, letterSpacing:'-.02em', color:'var(--ink-0)' }}>
+        <h1 className="display r-display" style={{ margin:0, color:'var(--ink-0)' }}>
           F3XYKEE /<br/>
           <span style={{ color:'var(--accent)', textShadow:'0 0 12px rgba(24,233,104,.35)' }}>ADATHÁLÓZATI</span><br/>
           TERMINÁL
@@ -189,7 +189,7 @@ function PostPanel({ op, onPost }: { op: Operator | null; onPost: (id: string) =
     >
       {open && (
         <form onSubmit={handleSubmit}>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 220px', gap:16 }}>
+          <div className="r-form">
             <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
 
               {/* Kind tabs */}
@@ -353,7 +353,7 @@ function EntryCard({ e, i, currentOperator, onDelete }: { e: Entry; i: number; c
     <div style={{ marginBottom:14 }}>
       <Link href={`/entries/${e.id}`} style={{ display:'block', textDecoration:'none' }}>
         <div className="entry-card panel" style={{ padding:0 }}>
-          <div style={{ display:'grid', gridTemplateColumns: isVideo ? '140px 1fr' : '140px 1fr 220px', borderBottom:'1px solid var(--border-1)' }}>
+          <div className={isVideo ? 'r-entry-v' : 'r-entry'}>
             {/* Left meta */}
             <div style={{ padding:'14px 12px', borderRight:'1px solid var(--border-1)', display:'flex', flexDirection:'column', gap:6, background:'rgba(0,0,0,.2)' }}>
               <Chip kind={chipKind}>{e.id}</Chip>
@@ -386,9 +386,9 @@ function EntryCard({ e, i, currentOperator, onDelete }: { e: Entry; i: number; c
               </div>
             </div>
 
-            {/* Right visual — hidden for video entries (player shown below) */}
+            {/* Right visual — hidden for video entries and on mobile */}
             {!isVideo && (
-              <div style={{ borderLeft:'1px solid var(--border-1)', display:'flex', flexDirection:'column', background:'rgba(0,0,0,.15)' }}>
+              <div className="entry-col-right" style={{ borderLeft:'1px solid var(--border-1)', display:'flex', flexDirection:'column', background:'rgba(0,0,0,.15)' }}>
                 {hasMedia && e.media_type === 'image' ? (
                   <div style={{ height:120, overflow:'hidden' }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -481,7 +481,7 @@ function ThreadIndex({ threads }: { threads: Thread[] }) {
           <Chip kind="dash">4 ARCHIVÁLT</Chip>
         </div>
       </div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14 }}>
+      <div className="r-4col">
         {threads.map((t,i)=>(
           <Panel key={t.id} tag={t.id} chips={<Chip kind="accent">11 CSOMÓPONT</Chip>} style={{ background:'var(--panel)' }}>
             <h4 className="head" style={{ margin:'0 0 10px', fontSize:18, lineHeight:1.1 }}>{t.title}</h4>
@@ -509,7 +509,7 @@ function OperatorRoster({ operators }: { operators: Operator[] }) {
           sub="142 regisztrált operátor · 17 online · rangsorolás csatlakozási ciklus alapján."/>
         <Chip kind="cyan">↗ TELJES LISTA</Chip>
       </div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8 }}>
+      <div className="r-4col-sm">
         {operators.map(op=>{
           const st = statusOf(op)
           return (
