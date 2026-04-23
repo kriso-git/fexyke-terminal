@@ -1,4 +1,4 @@
-export type EntryKind = 'ÁTVITEL' | 'RIASZTÁS' | 'MEZŐNAPLÓ' | 'MEMÓRIADIFF' | 'ADÁS'
+export type EntryKind = 'POSZT' | 'VIDEÓ' | 'ÁTVITEL' | 'RIASZTÁS' | 'MEZŐNAPLÓ' | 'MEMÓRIADIFF' | 'ADÁS'
 
 export interface Operator {
   id: string

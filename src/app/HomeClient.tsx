@@ -116,22 +116,21 @@ function Hero() {
 /* ─── Post panel (admin only) ─── */
 function PostPanel({ op }: { op: Operator | null }) {
   const router = useRouter()
-  const [open, setOpen]           = useState(true)
-  const [kind, setKind]           = useState('ÁTVITEL')
-  const [mediaTab, setMediaTab]   = useState<'text'|'youtube'|'image'|'audio'>('text')
-  const [content, setContent]     = useState('')
+  const [open, setOpen]             = useState(true)
+  const [kind, setKind]             = useState<'POSZT'|'VIDEÓ'>('POSZT')
+  const [content, setContent]       = useState('')
   const [youtubeUrl, setYoutubeUrl] = useState('')
+  const [tags, setTags]             = useState('')
   const [uploadedFile, setUploadedFile] = useState<{url:string;name:string;type:string}|null>(null)
   const [mediaLabel, setMediaLabel] = useState('')
-  const [uploading, setUploading] = useState(false)
-  const [uploadPct, setUploadPct] = useState(0)
-  const [dragOver, setDragOver]   = useState(false)
-  const [error, setError]         = useState<string|null>(null)
-  const [pending, setPending]     = useState(false)
-  const [done, setDone]           = useState(false)
-  const contentRef  = useRef<HTMLTextAreaElement>(null)
+  const [uploading, setUploading]   = useState(false)
+  const [uploadPct, setUploadPct]   = useState(0)
+  const [dragOver, setDragOver]     = useState(false)
+  const [error, setError]           = useState<string|null>(null)
+  const [pending, setPending]       = useState(false)
+  const [done, setDone]             = useState(false)
+  const contentRef   = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const KINDS = ['ÁTVITEL','RIASZTÁS','MEZŐNAPLÓ','MEMÓRIADIFF','ADÁS']
 
   if (!op || (op.role !== 'admin' && op.role !== 'superadmin')) return null
 
@@ -143,8 +142,7 @@ function PostPanel({ op }: { op: Operator | null }) {
     try {
       const result = await uploadWithProgress(file, setUploadPct)
       setUploadedFile(result)
-      setMediaTab(file.type.startsWith('audio/') ? 'audio' : 'image')
-      if (!mediaLabel) setMediaLabel(file.name.replace(/\.[^.]+$/, '').toUpperCase())
+      if (!mediaLabel) setMediaLabel(file.name.replace(/\.[^.]+$/, ''))
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Feltöltési hiba')
     } finally { setUploading(false) }
@@ -152,175 +150,164 @@ function PostPanel({ op }: { op: Operator | null }) {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    if (kind === 'VIDEÓ' && !youtubeUrl.trim()) { setError('YouTube URL megadása kötelező videóhoz.'); return }
     setPending(true); setError(null)
     const fd = new FormData(e.currentTarget)
     fd.set('kind', kind)
     fd.set('content', content)
-    fd.set('media_type', mediaTab === 'text' ? '' : mediaTab)
-    fd.set('media_url', mediaTab === 'youtube' ? youtubeUrl : (uploadedFile?.url ?? ''))
-    fd.set('media_label', mediaLabel)
+    fd.set('sigs', tags)
+    if (kind === 'VIDEÓ') {
+      fd.set('media_type', 'youtube')
+      fd.set('media_url', youtubeUrl.trim())
+      fd.set('media_label', '')
+    } else if (uploadedFile) {
+      fd.set('media_type', uploadedFile.type.startsWith('audio/') ? 'audio' : 'image')
+      fd.set('media_url', uploadedFile.url)
+      fd.set('media_label', mediaLabel)
+    } else {
+      fd.set('media_type', ''); fd.set('media_url', ''); fd.set('media_label', '')
+    }
     const res = await createEntry(fd)
     if (res?.error) { setError(res.error); setPending(false) }
     else {
       setDone(true)
       ;(e.currentTarget as HTMLFormElement).reset()
-      setContent(''); setYoutubeUrl(''); setUploadedFile(null); setMediaLabel('')
+      setContent(''); setYoutubeUrl(''); setTags(''); setUploadedFile(null); setMediaLabel('')
       router.refresh()
       setTimeout(() => { setPending(false); setDone(false) }, 1800)
     }
   }
 
   const ytId = extractYouTubeId(youtubeUrl)
-  const roleTag = op.role === 'superadmin' ? '◢ SUPERADMIN · INPUT MODUL' : '◢ ADMIN · INPUT MODUL'
 
   return (
-    <Panel tag={roleTag} title="BEJEGYZÉS LÉTREHOZÁSA" className="panel-raised"
+    <Panel tag="◢ ÚJ BEJEGYZÉS" title="LÉTREHOZÁS" className="panel-raised"
       chips={<>
-        <Chip kind="accent" dot>JOGOSULTSÁG · LVL-03+</Chip>
         <button type="button" onClick={()=>setOpen(o=>!o)} className="btn btn-ghost btn-sm">{open?'◢ BEZÁR':'◢ NYIT'}</button>
       </>}
       style={{ marginBottom:28 }}
     >
       {open && (
         <form onSubmit={handleSubmit}>
-          <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 220px', gap:16 }}>
+            <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
 
-            {/* Kind + Media tabs */}
-            <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-              {KINDS.map(k=>(
-                <button key={k} type="button" onClick={()=>setKind(k)} className="chip" style={{
-                  cursor:'pointer', borderColor:kind===k?'var(--accent)':'var(--border-1)',
-                  color:kind===k?'var(--accent)':'var(--ink-2)', background:kind===k?'var(--accent-soft)':'transparent',
-                }}>{k}</button>
-              ))}
-            </div>
-            <div style={{ display:'flex', gap:6 }}>
-              {([['text','◢ SZÖVEG'],['youtube','▶ YOUTUBE'],['image','⊡ KÉP'],['audio','♪ HANG']] as const).map(([t,label])=>(
-                <button key={t} type="button" onClick={()=>{ setMediaTab(t); setUploadedFile(null); setError(null) }} className="chip" style={{
-                  cursor:'pointer', fontSize:10,
-                  borderColor:mediaTab===t?'var(--cyan)':'var(--border-1)',
-                  color:mediaTab===t?'var(--cyan)':'var(--ink-3)',
-                  background:mediaTab===t?'rgba(77,240,255,.06)':'transparent',
-                }}>{label}</button>
-              ))}
-            </div>
-
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 240px', gap:16 }}>
-              <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-                {/* Title */}
-                <input name="title" className="input" placeholder="Bejegyzés címe..."
-                  style={{ fontFamily:'var(--f-head)', fontSize:18, textTransform:'uppercase' }}/>
-
-                {/* Body / rich text */}
-                <div>
-                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
-                    <span className="sys muted" style={{ fontSize:10 }}>◢ TARTALOM {mediaTab!=='text'?'(opcionális)':''}</span>
-                    <div style={{ display:'flex', gap:4 }}>
-                      {([['b','B','Félkövér'],['i','I','Dőlt'],['u','U','Aláhúzott'],['s','S','Áthúzott']] as const).map(([tag,label,title])=>(
-                        <button key={tag} type="button" title={title}
-                          onMouseDown={e=>{ e.preventDefault(); if(contentRef.current) applyFormat(tag,contentRef.current,content,setContent) }}
-                          style={{ width:22, height:22, border:'1px solid var(--border-1)', background:'var(--bg-2)', color:'var(--ink-1)', cursor:'pointer', fontSize:11,
-                            fontWeight:tag==='b'?700:'normal', fontStyle:tag==='i'?'italic':'normal',
-                            textDecoration:tag==='u'?'underline':tag==='s'?'line-through':'none',
-                          }}>{label}</button>
-                      ))}
-                    </div>
-                  </div>
-                  <textarea ref={contentRef} className="input" rows={5}
-                    value={content} onChange={e=>setContent(e.target.value)}
-                    placeholder="// Tartalom · //TAG formát aláírásra..."
-                    style={{ resize:'vertical', minHeight:100 }}/>
-                </div>
-
-                {/* YouTube URL */}
-                {mediaTab === 'youtube' && (
-                  <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                    <span className="sys muted" style={{ fontSize:10 }}>◢ YOUTUBE URL</span>
-                    <input className="input" value={youtubeUrl} onChange={e=>setYoutubeUrl(e.target.value)}
-                      placeholder="https://youtube.com/watch?v=... vagy youtu.be/..."/>
-                    {ytId && (
-                      <YouTubeThumbnail url={youtubeUrl} height={100}/>
-                    )}
-                  </div>
-                )}
-
-                {/* File upload */}
-                {(mediaTab === 'image' || mediaTab === 'audio') && (
-                  <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                    <div
-                      onDrop={e=>{ e.preventDefault(); setDragOver(false); handleFile(e.dataTransfer.files[0]) }}
-                      onDragOver={e=>{ e.preventDefault(); setDragOver(true) }}
-                      onDragLeave={()=>setDragOver(false)}
-                      onClick={()=>!uploading && fileInputRef.current?.click()}
-                      style={{
-                        border:`2px dashed ${dragOver?'var(--accent)':'var(--border-1)'}`,
-                        padding:'20px 16px', textAlign:'center', cursor:'pointer',
-                        background: dragOver?'var(--accent-soft)':'transparent',
-                        transition:'border-color .15s, background .15s',
-                      }}
-                    >
-                      {uploading ? (
-                        <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                          <div className="sys muted" style={{ fontSize:11 }}>◢ FELTÖLTÉS · {uploadPct}%</div>
-                          <div className="bar-track"><div className="bar-fill" style={{ width:`${uploadPct}%`, transition:'width .2s' }}/></div>
-                        </div>
-                      ) : uploadedFile ? (
-                        <div className="sys" style={{ color:'var(--accent)', fontSize:11 }}>
-                          ✓ {uploadedFile.name} · klikk a cserére
-                        </div>
-                      ) : (
-                        <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-                          <div className="sys muted">⬆ Húzd ide vagy klikkelj</div>
-                          <div className="sys dim" style={{ fontSize:10 }}>
-                            {mediaTab==='image' ? 'gif · jpg · png · webp — max 100 MB' : 'mp3 · wav · ogg · flac — max 100 MB'}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <input ref={fileInputRef} type="file" style={{ display:'none' }}
-                      accept={mediaTab==='image' ? 'image/gif,image/jpeg,image/png,image/webp' : 'audio/mpeg,audio/ogg,audio/wav,audio/flac'}
-                      onChange={e=>handleFile(e.target.files?.[0])}/>
-                    {uploadedFile && (
-                      <input className="input" value={mediaLabel} onChange={e=>setMediaLabel(e.target.value)}
-                        placeholder="Felirat / cím (opcionális)" style={{ fontSize:12 }}/>
-                    )}
-                  </div>
-                )}
-
-                {/* Sigs */}
-                <div style={{ display:'flex', gap:6, alignItems:'center', paddingTop:8, borderTop:'1px dashed var(--border-1)', marginTop:4 }}>
-                  <span className="sys muted" style={{ fontSize:10 }}>◢ ALÁÍRÁSOK ·</span>
-                  <input name="sigs" className="input" placeholder="//PROTOKOLL, //ŰR" style={{ flex:1, fontSize:11 }}/>
-                </div>
-
-                {error && (
-                  <div style={{ padding:'8px 12px', background:'rgba(255,58,58,.1)', border:'1px solid var(--red)', color:'var(--red)', fontFamily:'var(--f-sys)', fontSize:11 }}>◢ {error}</div>
-                )}
-                {done && (
-                  <div style={{ padding:'8px 12px', background:'rgba(24,233,104,.1)', border:'1px solid var(--accent)', color:'var(--accent)', fontFamily:'var(--f-sys)', fontSize:11 }}>◢ BEJEGYZÉS LÉTREHOZVA · TRANSMIT SIKERES</div>
-                )}
+              {/* Kind tabs */}
+              <div style={{ display:'flex', gap:8 }}>
+                {(['POSZT','VIDEÓ'] as const).map(k => (
+                  <button key={k} type="button" onClick={()=>{ setKind(k); setUploadedFile(null); setError(null) }}
+                    style={{
+                      padding:'6px 18px', cursor:'pointer', fontFamily:'var(--f-sys)', fontSize:13,
+                      letterSpacing:'.1em', border:'1px solid',
+                      borderColor: kind===k ? 'var(--accent)' : 'var(--border-1)',
+                      color: kind===k ? 'var(--accent)' : 'var(--ink-2)',
+                      background: kind===k ? 'var(--accent-soft)' : 'transparent',
+                    }}
+                  >{kind===k ? '◉ ' : '◯ '}{k}</button>
+                ))}
               </div>
 
-              {/* Right props */}
-              <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-                <div className="sys muted" style={{ fontSize:10 }}>◢ TULAJDONSÁGOK</div>
-                <Meta k="TÍPUS"      v={kind}/>
-                <Meta k="MÉDIA"      v={mediaTab.toUpperCase()}/>
-                <Meta k="CIKLUS"     v="047"/>
-                <Meta k="LÁTHATÓSÁG" v="HÁLÓZAT"/>
-                <div style={{ borderTop:'1px solid var(--border-1)', paddingTop:12, marginTop:4 }}>
-                  <div style={{ display:'flex', gap:6, alignItems:'center' }}>
-                    <span className="dot"/><span className="mono" style={{ fontSize:11 }}>KÉSZEN · UNCOMMITTED</span>
-                  </div>
-                  <div className="bar-track" style={{ marginTop:8 }}><div className="bar-fill" style={{ width:'82%' }}/></div>
-                  <div className="sys muted" style={{ marginTop:4, fontSize:10 }}>INTEGRITÁS · 82%</div>
+              {/* Title */}
+              <input name="title" className="input" required
+                placeholder={kind === 'VIDEÓ' ? 'Videó címe...' : 'Poszt címe...'}
+                style={{ fontSize:17 }}/>
+
+              {/* VIDEÓ: YouTube URL */}
+              {kind === 'VIDEÓ' && (
+                <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                  <span className="sys muted" style={{ fontSize:10 }}>▶ YOUTUBE URL</span>
+                  <input className="input" value={youtubeUrl} onChange={e=>setYoutubeUrl(e.target.value)}
+                    placeholder="https://youtube.com/watch?v=... vagy youtu.be/..."/>
+                  {ytId && <YouTubeThumbnail url={youtubeUrl} height={110}/>}
                 </div>
-                <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer' }}>
+              )}
+
+              {/* Body with rich text toolbar */}
+              <div>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
+                  <span className="sys muted" style={{ fontSize:10 }}>
+                    {kind === 'VIDEÓ' ? 'LEÍRÁS (opcionális)' : 'SZÖVEG'}
+                  </span>
+                  <div style={{ display:'flex', gap:4 }}>
+                    {([['b','B','Félkövér'],['i','I','Dőlt'],['u','U','Aláhúzott'],['s','S','Áthúzott']] as const).map(([tag,label,title])=>(
+                      <button key={tag} type="button" title={title}
+                        onMouseDown={ev=>{ ev.preventDefault(); if(contentRef.current) applyFormat(tag,contentRef.current,content,setContent) }}
+                        style={{ width:22, height:22, border:'1px solid var(--border-1)', background:'var(--bg-2)', color:'var(--ink-1)', cursor:'pointer', fontSize:11,
+                          fontWeight:tag==='b'?700:'normal', fontStyle:tag==='i'?'italic':'normal',
+                          textDecoration:tag==='u'?'underline':tag==='s'?'line-through':'none',
+                        }}>{label}</button>
+                    ))}
+                  </div>
+                </div>
+                <textarea ref={contentRef} className="input" rows={kind==='VIDEÓ'?3:5}
+                  value={content} onChange={e=>setContent(e.target.value)}
+                  placeholder={kind==='VIDEÓ' ? 'Rövid leírás a videóhoz...' : 'Írd be a poszt szövegét...'}
+                  style={{ resize:'vertical' }}/>
+              </div>
+
+              {/* POSZT: file upload */}
+              {kind === 'POSZT' && (
+                <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                  <span className="sys muted" style={{ fontSize:10 }}>⊡ KÉP VAGY ♪ HANG (opcionális)</span>
+                  <div
+                    onDrop={e=>{ e.preventDefault(); setDragOver(false); handleFile(e.dataTransfer.files[0]) }}
+                    onDragOver={e=>{ e.preventDefault(); setDragOver(true) }}
+                    onDragLeave={()=>setDragOver(false)}
+                    onClick={()=>!uploading && fileInputRef.current?.click()}
+                    style={{
+                      border:`2px dashed ${dragOver?'var(--accent)':'var(--border-1)'}`,
+                      padding:'16px', textAlign:'center', cursor:'pointer',
+                      background: dragOver?'var(--accent-soft)':'transparent',
+                    }}
+                  >
+                    {uploading ? (
+                      <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                        <div className="sys muted" style={{ fontSize:11 }}>Feltöltés · {uploadPct}%</div>
+                        <div className="bar-track"><div className="bar-fill" style={{ width:`${uploadPct}%` }}/></div>
+                      </div>
+                    ) : uploadedFile ? (
+                      <span className="sys" style={{ color:'var(--accent)', fontSize:11 }}>✓ {uploadedFile.name} · klikk a cserére</span>
+                    ) : (
+                      <span className="sys muted" style={{ fontSize:11 }}>⬆ Húzd ide vagy kattints · gif · jpg · png · mp3 · wav — max 100 MB</span>
+                    )}
+                  </div>
+                  <input ref={fileInputRef} type="file" style={{ display:'none' }}
+                    accept="image/gif,image/jpeg,image/png,image/webp,audio/mpeg,audio/ogg,audio/wav,audio/flac"
+                    onChange={e=>handleFile(e.target.files?.[0])}/>
+                  {uploadedFile && (
+                    <input className="input" value={mediaLabel} onChange={e=>setMediaLabel(e.target.value)}
+                      placeholder="Felirat (opcionális)" style={{ fontSize:12 }}/>
+                  )}
+                </div>
+              )}
+
+              {/* Tags — for both but labeled differently */}
+              <div style={{ display:'flex', gap:8, alignItems:'center', paddingTop:8, borderTop:'1px dashed var(--border-1)' }}>
+                <span className="sys muted" style={{ fontSize:10, flexShrink:0 }}>
+                  {kind === 'VIDEÓ' ? '# TAGEK' : '# TAGEK'}
+                </span>
+                <input className="input" value={tags} onChange={e=>setTags(e.target.value)}
+                  placeholder={kind === 'VIDEÓ' ? '#gaming, #tutorial, #review' : '#hírek, #vélemény'}
+                  style={{ flex:1, fontSize:12 }}/>
+              </div>
+
+              {error && <div style={{ padding:'8px 12px', background:'rgba(255,58,58,.1)', border:'1px solid var(--red)', color:'var(--red)', fontFamily:'var(--f-sys)', fontSize:11 }}>◢ {error}</div>}
+              {done  && <div style={{ padding:'8px 12px', background:'rgba(24,233,104,.1)', border:'1px solid var(--accent)', color:'var(--accent)', fontFamily:'var(--f-sys)', fontSize:11 }}>◢ {kind === 'VIDEÓ' ? 'Videó' : 'Poszt'} sikeresen létrehozva!</div>}
+            </div>
+
+            {/* Right */}
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              <div className="sys muted" style={{ fontSize:10 }}>◢ ÖSSZEFOGLALÓ</div>
+              <Meta k="TÍPUS"  v={kind}/>
+              {kind==='VIDEÓ' && ytId && <Meta k="VIDEÓ ID" v={ytId}/>}
+              {kind==='POSZT' && uploadedFile && <Meta k="FÁJL" v={uploadedFile.type.startsWith('audio/')? 'HANG':'KÉP'}/>}
+              <div style={{ borderTop:'1px solid var(--border-1)', paddingTop:10, marginTop:4 }}>
+                <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', marginBottom:10 }}>
                   <input type="checkbox" name="priority" style={{ accentColor:'var(--accent)' }}/>
-                  <span className="sys muted" style={{ fontSize:11 }}>PRIORITÁSOS</span>
+                  <span className="sys muted" style={{ fontSize:11 }}>Kiemelés (prioritás)</span>
                 </label>
-                <button type="submit" className="btn btn-primary" style={{ justifyContent:'center', marginTop:'auto' }} disabled={pending || uploading}>
-                  {done ? '◢ SIKERES!' : pending ? '◢ KÜLDÉS...' : '◢ PUBLIKÁLÁS · TRANSMIT'}
+                <button type="submit" className="btn btn-primary" style={{ width:'100%', justifyContent:'center' }} disabled={pending || uploading}>
+                  {done ? '✓ Sikeres!' : pending ? 'Küldés...' : kind === 'VIDEÓ' ? '▶ Videó közzététele' : '◢ Poszt közzététele'}
                 </button>
               </div>
             </div>
@@ -336,8 +323,9 @@ function EntryCard({ e, i, currentOperator }: { e: Entry; i: number; currentOper
   const [reactions, setReactions] = useState<Record<string,number>>(e.reactions ?? {})
   const [userRx, setUserRx]       = useState<string[]>([])
   const [rxPending, setRxPending] = useState<string|null>(null)
-  const chipKind = e.priority ? 'solid' : e.alert ? 'mag' : 'accent'
-  const time = new Date(e.created_at).toLocaleTimeString('hu-HU', { hour:'2-digit', minute:'2-digit' })
+  const chipKind = e.priority ? 'solid' : 'accent'
+  const time    = new Date(e.created_at).toLocaleTimeString('hu-HU', { hour:'2-digit', minute:'2-digit' })
+  const isVideo = e.kind === 'VIDEÓ' || e.media_type === 'youtube'
 
   async function handleReact(emoji: string) {
     if (!currentOperator || rxPending) return
@@ -369,14 +357,10 @@ function EntryCard({ e, i, currentOperator }: { e: Entry; i: number; currentOper
             {/* Middle */}
             <div style={{ padding:'16px 18px', display:'flex', flexDirection:'column', gap:10 }}>
               <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                <Chip kind="accent">{e.kind}</Chip>
+                <Chip kind="accent">{isVideo ? 'VIDEÓ' : 'POSZT'}</Chip>
                 {e.sigs.map(s=><Chip key={s} kind="dash">{s}</Chip>)}
-                <Chip kind="cyan">◢ {e.operator?.callsign ?? '—'}</Chip>
-                {e.priority && <Chip kind="solid" dot>PRIORITÁSOS</Chip>}
-                {e.alert && <Chip kind="mag" dot>RIASZTÁS · ÉLŐ</Chip>}
-                {e.media_type === 'youtube' && <Chip kind="dash">▶ YOUTUBE</Chip>}
-                {e.media_type === 'image'   && <Chip kind="dash">⊡ KÉP</Chip>}
-                {e.media_type === 'audio'   && <Chip kind="dash">♪ HANG</Chip>}
+                <Chip kind="cyan">{e.operator?.callsign ?? '—'}</Chip>
+                {e.priority && <Chip kind="solid" dot>KIEMELT</Chip>}
               </div>
               <h3 className="entry-title head" style={{ margin:0, fontSize:e.priority?28:22, lineHeight:1.05, color:'var(--ink-0)' }}>
                 {e.title}
@@ -525,26 +509,48 @@ interface HomeClientProps {
 }
 
 export function HomeClient({ entries, operators, threads, currentOperator }: HomeClientProps) {
+  const [filter, setFilter] = useState<'mind'|'posztok'|'videók'>('mind')
+
+  const filtered = filter === 'mind' ? entries
+    : filter === 'videók'
+      ? entries.filter(e => e.kind === 'VIDEÓ' || e.media_type === 'youtube')
+      : entries.filter(e => e.kind !== 'VIDEÓ' && e.media_type !== 'youtube')
+
   return (
     <div className="shell">
       <Hero/>
       <div style={{ padding:'28px 0 0' }}>
         <PostPanel op={currentOperator}/>
-        <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', marginBottom:18 }}>
+
+        {/* Feed header + filter */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18 }}>
           <Heading tag="SZEKCIÓ · 01" title="BEJEGYZÉS FOLYAM"
-            sub="Legújabb átvitelek, riasztások és memóriadiffek. Sorrend: ciklus-index, nem algoritmus."/>
+            sub="Posztok és videók időrendben."/>
           <div style={{ display:'flex', gap:6 }}>
-            <Chip kind="accent">LEGÚJABB</Chip>
-            <Chip>CIKLUS</Chip>
+            {(['mind','posztok','videók'] as const).map(f => (
+              <button key={f} type="button" onClick={()=>setFilter(f)}
+                className="chip"
+                style={{
+                  cursor:'pointer', textTransform:'uppercase', fontSize:11,
+                  borderColor: filter===f ? 'var(--accent)' : 'var(--border-1)',
+                  color:       filter===f ? 'var(--accent)' : 'var(--ink-2)',
+                  background:  filter===f ? 'var(--accent-soft)' : 'transparent',
+                }}>
+                {f === 'mind' ? 'Összes' : f === 'posztok' ? 'Posztok' : '▶ Videók'}
+              </button>
+            ))}
           </div>
         </div>
-        {entries.length === 0 ? (
+
+        {filtered.length === 0 ? (
           <div className="panel" style={{ padding:'32px 24px', textAlign:'center', borderStyle:'dashed' }}>
-            <div className="sys muted" style={{ fontSize:12, letterSpacing:'.2em' }}>◢ NINCS BEJEGYZÉS · A FOLYAM ÜRES</div>
+            <div className="sys muted" style={{ fontSize:12, letterSpacing:'.1em' }}>
+              {entries.length === 0 ? 'Még nincsenek bejegyzések.' : `Nincs ${filter === 'videók' ? 'videó' : 'poszt'} a folyamban.`}
+            </div>
           </div>
         ) : (
           <div>
-            {entries.map((e,i)=>(<EntryCard key={e.id} e={e} i={i} currentOperator={currentOperator}/>))}
+            {filtered.map((e,i)=>(<EntryCard key={e.id} e={e} i={i} currentOperator={currentOperator}/>))}
           </div>
         )}
       </div>

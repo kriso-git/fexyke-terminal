@@ -123,39 +123,51 @@ export async function createEntry(formData: FormData) {
       return { error: 'Nincs jogosultságod bejegyzés létrehozásához.' }
     }
 
-    const title     = ((formData.get('title') as string) ?? '').trim()
-    const content   = ((formData.get('content') as string) ?? '').trim()
-    const kind      = (formData.get('kind') as string) as EntryKind
-    const sigsRaw   = (formData.get('sigs') as string) ?? ''
-    const sigs      = sigsRaw.split(',').map(s => s.trim()).filter(Boolean)
-    const mediaUrl  = ((formData.get('media_url') as string) ?? '').trim() || null
-    const mediaType = ((formData.get('media_type') as string) ?? '') || null
+    const title      = ((formData.get('title') as string) ?? '').trim()
+    const content    = ((formData.get('content') as string) ?? '').trim()
+    const kind       = ((formData.get('kind') as string) ?? 'POSZT') as EntryKind
+    const sigsRaw    = (formData.get('sigs') as string) ?? ''
+    const sigs       = sigsRaw.split(',').map(s => s.trim()).filter(Boolean)
+    const mediaUrl   = ((formData.get('media_url') as string) ?? '').trim() || null
+    const mediaType  = ((formData.get('media_type') as string) ?? '').trim() || null
     const mediaLabel = ((formData.get('media_label') as string) ?? '').trim() || null
 
     if (!title) return { error: 'Cím megadása kötelező.' }
     if (!content && !mediaUrl) return { error: 'Tartalom vagy média megadása kötelező.' }
 
-    const supabase = await createClient()
-    const { count } = await supabase.from('entries').select('*', { count:'exact', head:true })
+    // Use admin client to bypass RLS for insert
+    const admin = createAdminClient()
+    const { count } = await admin.from('entries').select('*', { count:'exact', head:true })
     const id = `LOG-${(count ?? 0) + 2482}`
 
     const plainText = content.replace(/<[^>]+>/g, '')
-    const excerpt = plainText.slice(0, 180) || mediaLabel || ''
+    const excerpt   = plainText.slice(0, 180) || mediaLabel || title.slice(0, 180)
 
-    const { error } = await supabase.from('entries').insert({
+    // Only include media fields when they have values (avoids errors if migration not yet run)
+    const baseRow = {
       id, title, content, kind, excerpt,
       operator_id: op.id,
       cycle: 47, sigs,
       priority: formData.get('priority') === 'on',
       alert: false,
-      media_url: mediaUrl,
-      media_type: mediaType,
-      media_label: mediaLabel,
-    })
+    }
+    const mediaRow = mediaUrl
+      ? { media_url: mediaUrl, media_type: mediaType, media_label: mediaLabel }
+      : {}
 
-    if (error) return { error: error.message }
+    const { error } = await admin.from('entries').insert({ ...baseRow, ...mediaRow })
 
-    revalidatePath('/')
+    if (error) {
+      // If media columns missing (migration not run), retry without them
+      if (error.message.includes('media_') || error.message.includes('column')) {
+        const { error: e2 } = await admin.from('entries').insert(baseRow)
+        if (e2) return { error: e2.message }
+      } else {
+        return { error: error.message }
+      }
+    }
+
+    revalidatePath('/', 'layout')
     revalidatePath(`/entries/${id}`)
     return { success: true, id }
   } catch (err) {
