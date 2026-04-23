@@ -10,88 +10,101 @@ import type { EntryKind } from '@/lib/types'
 /* ─── Auth ─── */
 
 export async function login(formData: FormData) {
-  const supabase = await createClient()
-  const callsign = (formData.get('callsign') as string | null)?.trim().toUpperCase() ?? ''
-  const password = (formData.get('password') as string | null) ?? ''
+  try {
+    const supabase = await createClient()
+    const callsign = (formData.get('callsign') as string | null)?.trim().toUpperCase() ?? ''
+    const password = (formData.get('password') as string | null) ?? ''
 
-  if (!callsign || !password) {
-    return { error: 'Hívójel és jelszó megadása kötelező.' }
+    if (!callsign || !password) {
+      return { error: 'Hívójel és jelszó megadása kötelező.' }
+    }
+
+    const email = `${callsign}@f3xykee.net`
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+
+    if (error) {
+      return { error: 'HITELESÍTÉS SIKERTELEN · Hibás hívójel vagy jelszó.' }
+    }
+
+    return { success: true }
+  } catch (err) {
+    console.error('login error:', err)
+    return { error: 'Szerver hiba történt. Próbáld újra.' }
   }
-
-  const email = `${callsign}@f3xykee.net`
-  const { error } = await supabase.auth.signInWithPassword({ email, password })
-
-  if (error) {
-    return { error: 'HITELESÍTÉS SIKERTELEN · Hibás hívójel vagy jelszó.' }
-  }
-
-  return { success: true }
 }
 
 export async function register(formData: FormData) {
-  const callsign = (formData.get('callsign') as string | null)?.trim().toUpperCase() ?? ''
-  const password = (formData.get('password') as string | null) ?? ''
+  try {
+    const callsign = (formData.get('callsign') as string | null)?.trim().toUpperCase() ?? ''
+    const password = (formData.get('password') as string | null) ?? ''
 
-  if (!callsign || callsign.length < 3) {
-    return { error: 'A hívójel legalább 3 karakter.' }
+    if (!callsign || callsign.length < 3) {
+      return { error: 'A hívójel legalább 3 karakter.' }
+    }
+    if (!/^[A-Z0-9]+$/.test(callsign)) {
+      return { error: 'A hívójel csak betűket és számokat tartalmazhat.' }
+    }
+    if (!password || password.length < 6) {
+      return { error: 'A jelszó legalább 6 karakter.' }
+    }
+
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!serviceKey) {
+      return { error: 'Szerver konfiguráció hiányzik. Értesítsd az adminisztrátort.' }
+    }
+
+    const admin = createAdminClient()
+    const email = `${callsign}@f3xykee.net`
+
+    // Ellenőrzés: foglalt-e már a hívójel
+    const { data: existing } = await admin
+      .from('operators')
+      .select('id')
+      .eq('callsign', callsign)
+      .single()
+
+    if (existing) {
+      return { error: 'Ez a hívójel már foglalt.' }
+    }
+
+    // Admin klienssel létrehozzuk a usert email-megerősítés nélkül
+    const { data: authData, error: authError } = await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { callsign },
+    })
+
+    if (authError || !authData.user) {
+      return { error: authError?.message ?? 'Regisztráció sikertelen.' }
+    }
+
+    const opId = 'F3X-' + String(Math.floor(Math.random() * 900) + 100)
+    const { error: insertError } = await admin.from('operators').insert({
+      id: opId,
+      auth_id: authData.user.id,
+      callsign,
+      level: 1,
+      role: 'operator',
+      node: 'f3x-pri-01',
+      joined_cycle: 47,
+      bio: null,
+    })
+
+    if (insertError) {
+      await admin.auth.admin.deleteUser(authData.user.id)
+      return { error: 'Operátor rekord létrehozása sikertelen: ' + insertError.message }
+    }
+
+    // Bejelentkezés a frissen létrehozott userrel
+    const regularClient = await createClient()
+    await regularClient.auth.signInWithPassword({ email, password })
+
+    return { success: true }
+  } catch (err) {
+    console.error('register error:', err)
+    return { error: 'Szerver hiba történt. Próbáld újra.' }
   }
-  if (!/^[A-Z0-9]+$/.test(callsign)) {
-    return { error: 'A hívójel csak betűket és számokat tartalmazhat.' }
-  }
-  if (!password || password.length < 6) {
-    return { error: 'A jelszó legalább 6 karakter.' }
-  }
-
-  const admin = createAdminClient()
-
-  // Ellenőrzés: foglalt-e már a hívójel
-  const { data: existing } = await admin
-    .from('operators')
-    .select('id')
-    .eq('callsign', callsign)
-    .single()
-
-  if (existing) {
-    return { error: 'Ez a hívójel már foglalt.' }
-  }
-
-  const email = `${callsign}@f3xykee.net`
-
-  // Admin klienssel létrehozzuk a usert email-megerősítés nélkül
-  const { data: authData, error: authError } = await admin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: { callsign },
-  })
-
-  if (authError || !authData.user) {
-    return { error: authError?.message ?? 'Regisztráció sikertelen.' }
-  }
-
-  const opId = 'F3X-' + String(Math.floor(Math.random() * 900) + 100)
-  const { error: insertError } = await admin.from('operators').insert({
-    id: opId,
-    auth_id: authData.user.id,
-    callsign,
-    level: 1,
-    role: 'operator',
-    node: 'f3x-pri-01',
-    joined_cycle: 47,
-    bio: null,
-  })
-
-  if (insertError) {
-    // Rollback: töröljük az auth usert ha az operator insert sikertelen
-    await admin.auth.admin.deleteUser(authData.user.id)
-    return { error: 'Operátor rekord létrehozása sikertelen: ' + insertError.message }
-  }
-
-  // Bejelentkezés a frissen létrehozott userrel
-  const regularClient = await createClient()
-  await regularClient.auth.signInWithPassword({ email, password })
-
-  return { success: true }
 }
 
 export async function logout() {
