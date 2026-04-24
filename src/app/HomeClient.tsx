@@ -11,6 +11,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { LiveTicks } from '@/components/ui/LiveTicks'
 import { NodeMap } from '@/components/ui/NodeMap'
 import { YouTubePlayer, YouTubeThumbnail, extractYouTubeId } from '@/components/ui/YouTubePlayer'
+import { DraggableCube } from '@/components/ui/DraggableCube'
 import { createEntry, toggleReaction, fetchEntryById, deleteEntry } from '@/app/actions'
 import type { Entry, Operator, Thread } from '@/lib/types'
 
@@ -557,6 +558,8 @@ export function HomeClient({ entries: initialEntries, operators, threads, curren
       : entries.filter(e => !isVideoEntry(e))
 
   return (
+    <>
+    <DraggableCube />
     <div className="shell">
       <Hero/>
       <div style={{ padding:'28px 0 0' }}>
@@ -597,5 +600,6 @@ export function HomeClient({ entries: initialEntries, operators, threads, curren
       {operators.length > 0 && <OperatorRoster operators={operators}/>}
       {threads.length > 0 && <ThreadIndex threads={threads}/>}
     </div>
+    </>
   )
 }
