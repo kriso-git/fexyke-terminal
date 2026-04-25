@@ -577,8 +577,6 @@ export function HomeClient({ entries: initialEntries, currentOperator }: HomeCli
   })
 
   return (
-    <>
-    <DraggableCube />
     <div className="shell">
       <Hero currentOperator={currentOperator}/>
 
@@ -612,6 +610,5 @@ export function HomeClient({ entries: initialEntries, currentOperator }: HomeCli
 
       <Archive entries={entries}/>
     </div>
-    </>
   )
 }
