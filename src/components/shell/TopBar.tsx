@@ -25,15 +25,23 @@ export function TopBar({ user, status = 'ONLINE', sessionId = 'SES-7F2A-0481' }:
     return `${hh}:${mm}:${ss}`
   }
 
+  const getWeek = (d: Date) => {
+    const date = new Date(d)
+    date.setHours(0, 0, 0, 0)
+    date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7)
+    const w1 = new Date(date.getFullYear(), 0, 4)
+    return 1 + Math.round(((date.getTime() - w1.getTime()) / 86400000 - 3 + (w1.getDay() + 6) % 7) / 7)
+  }
+
   return (
     <div className="topbar">
-      <div className="cell brand">F3XYKEE</div>
+      <div className="cell brand">F3XYKEE · BLOG</div>
       <div className="cell">
         <span className="dot" /> {status}
       </div>
-      <div className="cell topbar-hide">NODE · F3X-PRI-01</div>
-      <div className="cell topbar-hide">CIKLUS · 047</div>
-      <div className="cell grow topbar-hide">◢ ÉLŐ ADATHÁLÓZATI INTERFÉSZ · V0.1</div>
+      <div className="cell topbar-hide">SZERVER · BUD-01</div>
+      <div className="cell topbar-hide">{clock ? `${clock.getFullYear()} · ${getWeek(clock)}. HÉT` : '---'}</div>
+      <div className="cell grow topbar-hide">◢ ÉLŐ BLOG FELÜLET · V0.1</div>
       {clock && <div className="cell topbar-hide">{fmt(clock)} UTC</div>}
       <div className="cell topbar-hide">{sessionId}</div>
       {user ? (

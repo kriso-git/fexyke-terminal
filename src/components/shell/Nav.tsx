@@ -4,12 +4,9 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const ITEMS = [
-  { k: 'IDX', label: 'FŐOLDAL',      href: '/' },
-  { k: 'ENT', label: 'BEJEGYZÉSEK',  href: '/entries' },
-  { k: 'THR', label: 'JELZÉSLÁNCOK', href: '/threads' },
-  { k: 'OPS', label: 'OPERÁTOROK',   href: '/operators' },
-  { k: 'PRF', label: 'PROFIL',       href: '/profile' },
-  { k: 'CTL', label: 'IRÁNYÍTÁS',    href: '/control' },
+  { k: 'IDX', label: 'FŐOLDAL', href: '/' },
+  { k: 'PRF', label: 'PROFIL',  href: '/profile' },
+  { k: 'CTL', label: 'ADMIN',   href: '/control' },
 ]
 
 export function Nav() {
@@ -31,7 +28,7 @@ export function Nav() {
         </Link>
       ))}
       <div className="spacer" />
-      <div className="item">⌕ LEKÉRDEZÉS</div>
+      <div className="item">⌕ KERESÉS</div>
     </div>
   )
 }
