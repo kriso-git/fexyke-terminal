@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase-admin'
+import { createClient } from '@/lib/supabase-server'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -11,6 +12,20 @@ const ALLOWED = new Set([
 
 export async function POST(req: NextRequest) {
   try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Nem vagy bejelentkezve' }, { status: 401 })
+
+    const { data: op } = await supabase
+      .from('operators')
+      .select('role')
+      .eq('auth_id', user.id)
+      .single()
+
+    if (!op || (op.role !== 'admin' && op.role !== 'superadmin')) {
+      return NextResponse.json({ error: 'Nincs jogosultságod' }, { status: 403 })
+    }
+
     const form = await req.formData()
     const file = form.get('file') as File | null
     if (!file || file.size === 0) return NextResponse.json({ error: 'Nincs fájl' }, { status: 400 })

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Chip } from '@/components/ui/Chip'
 import { Panel } from '@/components/ui/Panel'
@@ -85,7 +86,6 @@ export function AuthClient() {
             ))}
           </div>
         </div>
-      </div>
 
       {/* RIGHT form */}
       <div className="gate-form" style={{ display:'flex', flexDirection:'column', gap:16, background:'var(--bg-1)' }}>
@@ -135,8 +135,7 @@ export function AuthClient() {
                 </button>
               </div>
             </form>
-          </Panel>
-        )}
+          )}
 
         {/* REGISTER */}
         {tab === 'register' && (
@@ -180,8 +179,7 @@ export function AuthClient() {
                 </button>
               </div>
             </form>
-          </Panel>
-        )}
+          )}
 
         {/* RECOVERY */}
         {tab === 'recovery' && (

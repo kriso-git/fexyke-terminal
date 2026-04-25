@@ -1,3 +1,5 @@
+import { redirect } from 'next/navigation'
+import { getCurrentOperator } from '@/lib/session'
 import { supabase } from '@/lib/supabase'
 import { TopBar } from '@/components/shell/TopBar'
 import { Nav } from '@/components/shell/Nav'
@@ -18,6 +20,11 @@ async function getData() {
 }
 
 export default async function ControlPage() {
+  const operator = await getCurrentOperator()
+  if (!operator || (operator.role !== 'admin' && operator.role !== 'superadmin')) {
+    redirect('/')
+  }
+
   const data = await getData()
 
   return (
