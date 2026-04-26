@@ -2,15 +2,17 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-
-const ITEMS = [
-  { k: 'IDX', label: 'FŐOLDAL', href: '/' },
-  { k: 'PRF', label: 'PROFIL',  href: '/profile' },
-  { k: 'CTL', label: 'ADMIN',   href: '/control' },
-]
+import { useI18n } from '@/hooks/useI18n'
 
 export function Nav() {
   const pathname = usePathname()
+  const { t } = useI18n()
+
+  const ITEMS = [
+    { k: 'IDX', label: t('nav.idx'), href: '/' },
+    { k: 'PRF', label: t('nav.prf'), href: '/profile' },
+    { k: 'CTL', label: t('nav.ctl'), href: '/control' },
+  ]
 
   const isActive = (href: string) =>
     href === '/' ? pathname === '/' : pathname.startsWith(href)

@@ -297,6 +297,35 @@ export async function createProfileSignal(formData: FormData) {
   return { success: true }
 }
 
+/* ─── Profile update ─── */
+
+export async function updateProfile(formData: FormData) {
+  try {
+    const op = await getCurrentOperator()
+    if (!op) return { error: 'Be kell lépni.' }
+
+    const bio       = (formData.get('bio') as string | null)?.trim() ?? undefined
+    const avatarUrl = (formData.get('avatar_url') as string | null)?.trim() || undefined
+
+    const updates: Record<string, unknown> = {}
+    if (bio !== undefined) updates.bio = bio || null
+    if (avatarUrl !== undefined) updates.avatar_url = avatarUrl
+
+    if (Object.keys(updates).length === 0) return { success: true }
+
+    const admin = createAdminClient()
+    const { error } = await admin.from('operators').update(updates).eq('id', op.id)
+    if (error) return { error: error.message }
+
+    revalidatePath(`/operators/${op.callsign}`)
+    revalidatePath('/')
+    return { success: true }
+  } catch (err) {
+    console.error('updateProfile error:', err)
+    return { error: 'Szerver hiba.' }
+  }
+}
+
 /* ─── Reads counter ─── */
 
 export async function incrementReads(entryId: string) {

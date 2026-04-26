@@ -6,6 +6,7 @@ import { Footer } from '@/components/shell/Footer'
 import { DataStream } from '@/components/shell/DataStream'
 import { HomeClient } from './HomeClient'
 import type { Entry, Operator, Thread } from '@/lib/types'
+import { createAdminClient } from '@/lib/supabase-admin'
 
 async function getData() {
   const [entriesRes, operatorsRes, threadsRes] = await Promise.all([
@@ -39,6 +40,26 @@ async function getData() {
 
 export default async function HomePage() {
   const [data, currentOperator] = await Promise.all([getData(), getCurrentOperator()])
+
+  let postCount = 0
+  let totalLikes = 0
+  if (currentOperator) {
+    const admin = createAdminClient()
+    const { data: opEntries } = await admin
+      .from('entries')
+      .select('id')
+      .eq('operator_id', currentOperator.id)
+    const entryIds = (opEntries ?? []).map((e: { id: string }) => e.id)
+    postCount = entryIds.length
+    if (entryIds.length > 0) {
+      const { count } = await admin
+        .from('entry_reactions')
+        .select('*', { count: 'exact', head: true })
+        .in('entry_id', entryIds)
+      totalLikes = count ?? 0
+    }
+  }
+
   const userLabel = currentOperator ? `${currentOperator.id} · ${currentOperator.callsign}` : null
 
   return (
@@ -48,7 +69,7 @@ export default async function HomePage() {
       <div className="scanline-sweep" />
       <TopBar user={userLabel} />
       <Nav />
-      <HomeClient {...data} currentOperator={currentOperator} />
+      <HomeClient {...data} currentOperator={currentOperator} postCount={postCount} totalLikes={totalLikes} />
       <Footer index="001 / 005" />
     </div>
   )

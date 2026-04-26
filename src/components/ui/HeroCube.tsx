@@ -2,13 +2,13 @@
 
 import { useRef, useEffect } from 'react'
 
-const FACES = [
-  { cls: 'front',  label: 'F3X' },
-  { cls: 'back',   label: 'YKE' },
-  { cls: 'right',  label: '◢' },
-  { cls: 'left',   label: '◣' },
-  { cls: 'top',    label: '▲' },
-  { cls: 'bottom', label: '▼' },
+const FACES: Array<{ cls: string; img: string }> = [
+  { cls: 'front',  img: '/assets/face1.png' },
+  { cls: 'back',   img: '/assets/face2.png' },
+  { cls: 'right',  img: '/assets/face3.png' },
+  { cls: 'left',   img: '/assets/face4.png' },
+  { cls: 'top',    img: '/assets/face5.png' },
+  { cls: 'bottom', img: '/assets/face6.png' },
 ]
 
 export function HeroCube() {
@@ -16,7 +16,6 @@ export function HeroCube() {
   const rotY = useRef(0)
   const dragging = useRef(false)
   const lastPos = useRef({ x: 0, y: 0 })
-  const rafRef = useRef<number | null>(null)
   const autoRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const cubeRef = useRef<HTMLDivElement>(null)
 
@@ -29,10 +28,7 @@ export function HeroCube() {
         }
       }
     }, 20)
-    return () => {
-      if (autoRef.current) clearInterval(autoRef.current)
-      if (rafRef.current) cancelAnimationFrame(rafRef.current)
-    }
+    return () => { if (autoRef.current) clearInterval(autoRef.current) }
   }, [])
 
   const onPointerDown = (e: React.PointerEvent) => {
@@ -68,11 +64,11 @@ export function HeroCube() {
         style={{ transform: `rotateX(${rotX.current}deg) rotateY(${rotY.current}deg)` }}
       >
         {FACES.map(f => (
-          <div key={f.cls} className={`hero-cube-face ${f.cls}`}>
-            <span className="hud-br" />
-            <span className="hud-bl" />
-            {f.label}
-          </div>
+          <div
+            key={f.cls}
+            className={`hero-cube-face ${f.cls}`}
+            style={{ backgroundImage: `url(${f.img})` }}
+          />
         ))}
       </div>
     </div>

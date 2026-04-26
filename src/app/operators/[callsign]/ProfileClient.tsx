@@ -7,7 +7,7 @@ import { Panel } from '@/components/ui/Panel'
 import { Meta } from '@/components/ui/Meta'
 import { Avatar } from '@/components/ui/Avatar'
 import { LiveTicks } from '@/components/ui/LiveTicks'
-import { createProfileSignal } from '@/app/actions'
+import { createProfileSignal, updateProfile } from '@/app/actions'
 import type { Operator, Entry, ProfileSignal } from '@/lib/types'
 
 const SEED_OP: Operator = {
@@ -96,11 +96,19 @@ interface ProfileClientProps {
 }
 
 export function ProfileClient({ operator, entries, profileSignals, currentOperator }: ProfileClientProps) {
-  const [psError, setPsError]   = useState<string | null>(null)
+  const [psError, setPsError]     = useState<string | null>(null)
   const [psPending, setPsPending] = useState(false)
-  const [psDone, setPsDone]     = useState(false)
-  const [msgText, setMsgText]   = useState('')
-  const fileInputRef            = useRef<HTMLInputElement>(null)
+  const [psDone, setPsDone]       = useState(false)
+  const [msgText, setMsgText]     = useState('')
+  const fileInputRef              = useRef<HTMLInputElement>(null)
+
+  const [isEditing, setIsEditing]   = useState(false)
+  const [bioEdit, setBioEdit]       = useState('')
+  const [editPending, setEditPending] = useState(false)
+  const [editError, setEditError]   = useState<string | null>(null)
+  const [editDone, setEditDone]     = useState(false)
+  const [avatarUploading, setAvatarUploading] = useState(false)
+  const avatarInputRef              = useRef<HTMLInputElement>(null)
 
   const op    = operator ?? SEED_OP
   const sigs  = profileSignals.length > 0 ? profileSignals : SEED_SIGNALS
@@ -113,6 +121,7 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
   if (currentOperator && !knownOps.find(o => o.id === currentOperator.id)) knownOps.push(currentOperator)
 
   const fmtDate = (iso: string) => {
+    if (!iso) return '—'
     try { return new Date(iso).toLocaleDateString('hu-HU', { month:'short', day:'numeric', year:'numeric' }) } catch { return iso }
   }
 
@@ -127,6 +136,37 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
     else { setMsgText(''); setPsDone(true); setPsPending(false); setTimeout(() => setPsDone(false), 1800) }
   }
 
+  async function handleEditProfile(ev: React.FormEvent<HTMLFormElement>) {
+    ev.preventDefault()
+    setEditPending(true); setEditError(null)
+    const fd = new FormData()
+    fd.set('bio', bioEdit)
+    const res = await updateProfile(fd)
+    if (res?.error) { setEditError(res.error); setEditPending(false) }
+    else { setEditDone(true); setEditPending(false); setIsEditing(false); setTimeout(() => setEditDone(false), 2000) }
+  }
+
+  async function handleAvatarUpload(ev: React.ChangeEvent<HTMLInputElement>) {
+    const file = ev.target.files?.[0]
+    if (!file) return
+    setAvatarUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch('/api/upload', { method: 'POST', body: formData })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Upload failed')
+      const fd = new FormData()
+      fd.set('avatar_url', data.url)
+      await updateProfile(fd)
+      window.location.reload()
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setAvatarUploading(false)
+    }
+  }
+
   return (
     <div className="shell">
       {/* Profile header */}
@@ -134,8 +174,8 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
 
         {/* Avatar */}
         <div>
-          <div style={{ width:200, height:200, background:'var(--bg-2)', border:'1px solid var(--accent)', position:'relative', boxShadow:'var(--accent-glow)' }}>
-            <Avatar id={op.id} size={200}/>
+          <div style={{ width:200, height:200, background:'var(--bg-2)', border:'1px solid var(--accent)', position:'relative', boxShadow:'var(--accent-glow)', overflow:'hidden' }}>
+            <Avatar id={op.id} src={op.avatar_url} size={200}/>
             {([
               { top:-1, left:-1, borderTop:'1px solid var(--accent)', borderLeft:'1px solid var(--accent)' },
               { top:-1, right:-1, borderTop:'1px solid var(--accent)', borderRight:'1px solid var(--accent)' },
@@ -145,7 +185,25 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
               <div key={i} style={{ position:'absolute', width:12, height:12, ...s }}/>
             ))}
           </div>
-          {isSelf && <button className="btn btn-ghost btn-sm" style={{ marginTop:10, width:200, justifyContent:'center' }}>◢ AVATAR CSERE</button>}
+          {isSelf && (
+            <>
+              <button
+                className="btn btn-ghost btn-sm"
+                style={{ marginTop:10, width:200, justifyContent:'center' }}
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={avatarUploading}
+              >
+                {avatarUploading ? '◢ FELTÖLTÉS…' : '◢ AVATAR CSERE'}
+              </button>
+              <input
+                ref={avatarInputRef}
+                type="file"
+                style={{ display:'none' }}
+                accept="image/gif,image/jpeg,image/png,image/webp"
+                onChange={handleAvatarUpload}
+              />
+            </>
+          )}
         </div>
 
         {/* Callsign + bio + actions */}
@@ -161,8 +219,31 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
           </p>
           <div style={{ display:'flex', gap:8, marginTop:18, flexWrap:'wrap', alignItems:'center' }}>
             <FriendBtn isSelf={isSelf}/>
-            {isSelf && <button className="btn">PROFIL SZERKESZTÉSE</button>}
+            {isSelf && !isEditing && (
+              <button className="btn" onClick={() => { setBioEdit(op.bio ?? ''); setIsEditing(true) }}>
+                PROFIL SZERKESZTÉSE
+              </button>
+            )}
           </div>
+          {isSelf && isEditing && (
+            <form onSubmit={handleEditProfile} style={{ display:'flex', flexDirection:'column', gap:10, marginTop:16, maxWidth:560 }}>
+              <textarea
+                className="input"
+                value={bioEdit}
+                onChange={e => setBioEdit(e.target.value)}
+                rows={4}
+                placeholder="Bemutatkozó szöveg…"
+              />
+              {editError && <div style={{ padding:'6px 10px', background:'rgba(255,58,58,.1)', border:'1px solid var(--red)', color:'var(--red)', fontFamily:'var(--f-sys)', fontSize:11 }}>◢ {editError}</div>}
+              {editDone  && <div style={{ padding:'6px 10px', background:'rgba(24,233,104,.1)', border:'1px solid var(--accent)', color:'var(--accent)', fontFamily:'var(--f-sys)', fontSize:11 }}>◢ Profil mentve!</div>}
+              <div style={{ display:'flex', gap:8 }}>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setIsEditing(false)}>MÉGSE</button>
+                <button type="submit" className="btn btn-primary btn-sm" disabled={editPending}>
+                  {editPending ? '◢ MENTÉS…' : '◢ MENTÉS'}
+                </button>
+              </div>
+            </form>
+          )}
         </div>
 
         {/* Stats */}
@@ -192,7 +273,7 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
           <Panel tag="◢ AZONOSÍTÓ" title="ADATOK">
             <Meta k="NÉV"          v={op.callsign}/>
             <Meta k="SZINT"        v={`LVL-0${op.level} · ${roleLabel}`}/>
-            <Meta k="CSATLAKOZOTT" v={op.joined_cycle ? `${op.joined_cycle}. hét` : '—'}/>
+            <Meta k="CSATLAKOZOTT" v={op.created_at ? fmtDate(op.created_at) : '—'}/>
           </Panel>
 
           <Panel tag="◢ TÉMÁK" title="ÉRDEKLŐDÉSI KÖR">

@@ -10,6 +10,7 @@ export interface Operator {
   node: string
   joined_cycle: number
   bio: string | null
+  avatar_url?: string | null
   created_at: string
 }
 

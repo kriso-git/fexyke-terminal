@@ -54,9 +54,9 @@ function getWeekNum(dateStr: string) {
 }
 
 /* ─── Hero ─── */
-function Hero({ currentOperator }: { currentOperator: Operator | null }) {
+function Hero({ currentOperator, postCount, totalLikes }: { currentOperator: Operator | null; postCount: number; totalLikes: number }) {
   return (
-    <div style={{ display:'grid', gridTemplateColumns:'1fr auto 420px', gap:32, padding:'40px 0 32px', borderBottom:'1px solid var(--border-1)', alignItems:'start' }}>
+    <div style={{ display:'grid', gridTemplateColumns:'1fr 400px', gap:32, padding:'40px 0 32px', borderBottom:'1px solid var(--border-1)', alignItems:'start' }}>
 
       {/* Left — title + sub + lang + CTA */}
       <div>
@@ -82,51 +82,48 @@ function Hero({ currentOperator }: { currentOperator: Operator | null }) {
         </div>
       </div>
 
-      {/* Center — HeroCube */}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'center', paddingTop:20 }}>
-        <HeroCube/>
-      </div>
+      {/* Right — Cube + UserCard stacked */}
+      <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
 
-      {/* Right — UserCard */}
-      <div className="panel panel-hud panel-raised" style={{ position:'relative' }}>
-        <span className="hud-br"/><span className="hud-bl"/>
-        <div className="panel-header"><span className="label">◢ PROFIL</span> AKTÍV FELHASZNÁLÓ</div>
-        <div className="panel-body">
-          {currentOperator ? (
-            <>
-              <div style={{ display:'flex', gap:14, alignItems:'center', marginBottom:14 }}>
-                <div style={{ position:'relative' }}>
-                  <Avatar id={currentOperator.id} size={64}/>
-                  <span className="dot" style={{ position:'absolute', bottom:2, right:2 }}/>
-                </div>
-                <div>
-                  <div className="head" style={{ fontSize:22, lineHeight:1 }}>{currentOperator.callsign}</div>
-                  <div className="sys muted" style={{ marginTop:4 }}>LVL-0{currentOperator.level} · {currentOperator.role.toUpperCase()}</div>
-                </div>
-              </div>
-              <div style={{ display:'flex', flexDirection:'column', gap:2, marginBottom:12 }}>
-                <Meta k="ÁLLAPOT"   v="ONLINE"/>
-                <Meta k="CSOMÓPONT" v="BUD-01"/>
-              </div>
-              <div style={{ marginBottom:10 }}>
-                <div className="sys muted" style={{ fontSize:9, marginBottom:5 }}>◢ KAPCSOLAT · ÉLŐJEL</div>
-                <LiveTicks count={20} height={24}/>
-              </div>
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:6 }}>
-                {[['PING','18ms'],['ÁTVITEL','128kB'],['VESZTESÉG','0.01%']].map(([k,v])=>(
-                  <div key={k} className="panel" style={{ padding:'5px 7px' }}>
-                    <div className="sys muted" style={{ fontSize:9 }}>{k}</div>
-                    <div className="mono" style={{ fontSize:12, color:'var(--accent)' }}>{v}</div>
+        {/* HeroCube centered */}
+        <div style={{ display:'flex', justifyContent:'center', padding:'12px 0 0' }}>
+          <HeroCube/>
+        </div>
+
+        {/* UserCard */}
+        <div className="panel panel-hud panel-raised" style={{ position:'relative' }}>
+          <span className="hud-br"/><span className="hud-bl"/>
+          <div className="panel-header"><span className="label">◢ PROFIL</span> AKTÍV FELHASZNÁLÓ</div>
+          <div className="panel-body">
+            {currentOperator ? (
+              <>
+                <div style={{ display:'flex', gap:14, alignItems:'center', marginBottom:14 }}>
+                  <div style={{ position:'relative' }}>
+                    <Avatar id={currentOperator.id} src={currentOperator.avatar_url} size={56}/>
+                    <span className="dot" style={{ position:'absolute', bottom:2, right:2 }}/>
                   </div>
-                ))}
+                  <div>
+                    <div className="head" style={{ fontSize:20, lineHeight:1 }}>{currentOperator.callsign}</div>
+                    <div className="sys muted" style={{ marginTop:4 }}>LVL-0{currentOperator.level} · {currentOperator.role.toUpperCase()}</div>
+                  </div>
+                </div>
+                <div style={{ display:'flex', flexDirection:'column', gap:2, marginBottom:12 }}>
+                  <Meta k="ÁLLAPOT"  v="ONLINE"/>
+                  <Meta k="POSZTOK"  v={String(postCount)}/>
+                  <Meta k="LIKEOK"   v={String(totalLikes)}/>
+                </div>
+                <div style={{ marginBottom:10 }}>
+                  <div className="sys muted" style={{ fontSize:9, marginBottom:5 }}>◢ KAPCSOLAT · ÉLŐJEL</div>
+                  <LiveTicks count={20} height={22}/>
+                </div>
+              </>
+            ) : (
+              <div style={{ textAlign:'center', padding:'16px 0' }}>
+                <div className="head" style={{ fontSize:16, marginBottom:10, color:'var(--ink-2)' }}>NEM BEJELENTKEZETT</div>
+                <Link href="/gate" className="btn btn-primary" style={{ display:'inline-flex' }}>◢ BELÉPÉS</Link>
               </div>
-            </>
-          ) : (
-            <div style={{ textAlign:'center', padding:'16px 0' }}>
-              <div className="head" style={{ fontSize:16, marginBottom:10, color:'var(--ink-2)' }}>NEM BEJELENTKEZETT</div>
-              <Link href="/gate" className="btn btn-primary" style={{ display:'inline-flex' }}>◢ BELÉPÉS</Link>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -392,8 +389,8 @@ function PostCard({ e, i, currentOperator, onDelete }: { e: Entry; i: number; cu
     <div style={{ marginBottom:14, opacity: deleting ? 0.4 : 1 }}>
       <div className="entry-card panel" style={{ padding:0 }}>
 
-        {/* 3-column layout: 140px gutter | 1fr content | 280px aside */}
-        <div style={{ display:'grid', gridTemplateColumns:'140px 1fr 280px', borderBottom:'1px solid var(--border-1)' }}>
+        {/* 2-column layout: 140px gutter | 1fr content */}
+        <div style={{ display:'grid', gridTemplateColumns:'140px 1fr', borderBottom:'1px solid var(--border-1)' }}>
 
           {/* Left gutter */}
           <div style={{ padding:'16px 12px', borderRight:'1px solid var(--border-1)', display:'flex', flexDirection:'column', gap:8, background:'rgba(0,0,0,.2)' }}>
@@ -406,86 +403,67 @@ function PostCard({ e, i, currentOperator, onDelete }: { e: Entry; i: number; cu
             <div style={{ display:'flex', flexDirection:'column', gap:4, alignItems:'flex-start' }}>
               <div className="sys muted" style={{ fontSize:9 }}>SZERZŐ</div>
               <div style={{ display:'flex', gap:6, alignItems:'center' }}>
-                <Avatar id={e.operator_id} size={24}/>
+                <Avatar id={e.operator_id} src={e.operator?.avatar_url} size={24}/>
                 <span className="sys" style={{ fontSize:10 }}>{e.operator?.callsign ?? '—'}</span>
               </div>
             </div>
           </div>
 
-          {/* Center content */}
+          {/* Content column */}
           <div style={{ padding:'16px 18px', display:'flex', flexDirection:'column', gap:10 }}>
             <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
               {e.sigs.map(s=><Chip key={s} kind="dash">{s}</Chip>)}
               {e.priority && <Chip kind="solid" dot>KIEMELT</Chip>}
             </div>
-            <Link href={`/entries/${e.id}`} style={{ textDecoration:'none' }}>
-              <h3 className="entry-title head" style={{ margin:0, fontSize:e.priority?26:20, lineHeight:1.08, color:'var(--ink-0)' }}>
-                {e.title}
-              </h3>
-            </Link>
+            <h3 className="entry-title head" style={{ margin:0, fontSize:e.priority?26:20, lineHeight:1.08, color:'var(--ink-0)' }}>
+              {e.title}
+            </h3>
             {e.excerpt && (
-              <p style={{ margin:0, color:'var(--ink-1)', fontSize:13, lineHeight:1.6, maxWidth:640 }}>
+              <p style={{ margin:0, color:'var(--ink-1)', fontSize:13, lineHeight:1.6, maxWidth:700 }}>
                 {e.excerpt}
               </p>
             )}
 
-            {/* Stats row */}
-            <div style={{ display:'flex', gap:14, alignItems:'center', paddingTop:6, borderTop:'1px dashed var(--border-1)', flexWrap:'wrap' }}>
-              <span className="sys muted" style={{ fontSize:10 }}>◢ {e.reads} OLVASÁS</span>
-              {totalRx > 0 && <span className="sys muted" style={{ fontSize:10 }}>◢ {totalRx} KEDVELÉS</span>}
+            {/* Inline media */}
+            {isVideo && e.media_url && (
+              <div style={{ marginTop:4 }} onClick={ev=>ev.stopPropagation()}>
+                <YouTubePlayer url={e.media_url}/>
+              </div>
+            )}
+            {isImage && e.media_url && (
+              <div style={{ marginTop:4, maxHeight:360, overflow:'hidden', borderRadius:2 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={e.media_url} alt={e.media_label ?? ''} style={{ width:'100%', height:'auto', objectFit:'cover', opacity:.9, display:'block' }}/>
+                {e.media_label && <div className="sys muted" style={{ fontSize:10, marginTop:4 }}>{e.media_label}</div>}
+              </div>
+            )}
+
+            {/* Reactions + stats */}
+            <div style={{ display:'flex', gap:8, alignItems:'center', paddingTop:8, borderTop:'1px dashed var(--border-1)', flexWrap:'wrap' }}>
               {EMOJIS.map(em => {
                 const count = reactions[em] ?? 0
                 const active = userRx.includes(em)
                 return (
                   <button key={em} onClick={()=>handleReact(em)} disabled={rxPending !== null}
-                    style={{ display:'flex', alignItems:'center', gap:3, padding:'1px 6px',
+                    style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 14px',
                       border:`1px solid ${active?'var(--accent)':'var(--border-1)'}`,
                       background: active?'var(--accent-soft)':'transparent',
-                      cursor: currentOperator?'pointer':'default', fontSize:11,
-                      color: active?'var(--accent)':'var(--ink-2)' }}
+                      cursor: currentOperator?'pointer':'default', fontSize:18,
+                      color: active?'var(--accent)':'var(--ink-2)', borderRadius:2 }}
                   >
-                    {em}{count > 0 && <span style={{ fontSize:9, fontFamily:'var(--f-sys)' }}>{count}</span>}
+                    {em}{count > 0 && <span style={{ fontSize:12, fontFamily:'var(--f-sys)' }}>{count}</span>}
                   </button>
                 )
               })}
               <span style={{ flex:1 }}/>
+              <span className="sys muted" style={{ fontSize:10 }}>◢ {e.reads} OLVASÁS</span>
+              {totalRx > 0 && <span className="sys muted" style={{ fontSize:10 }}>◢ {totalRx} KEDVELÉS</span>}
               <Link href={`/entries/${e.id}`} className="sys" style={{ fontSize:10, color:'var(--accent)' }}>↗ MEGNYITÁS</Link>
               {currentOperator?.role === 'superadmin' && (
                 <button onClick={handleDelete} style={{ background:'none', border:'none', color:'var(--red)', cursor:'pointer', fontFamily:'var(--f-sys)', fontSize:10 }}>
                   ◢ TÖRLÉS
                 </button>
               )}
-            </div>
-          </div>
-
-          {/* Right aside */}
-          <div className="entry-col-right" style={{ borderLeft:'1px solid var(--border-1)', display:'flex', flexDirection:'column' }}>
-            {isVideo && e.media_url ? (
-              <div style={{ height:160 }} onClick={ev=>ev.stopPropagation()}>
-                <YouTubePlayer url={e.media_url}/>
-              </div>
-            ) : isImage ? (
-              <div style={{ height:160, overflow:'hidden' }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={e.media_url!} alt={e.media_label ?? ''} style={{ width:'100%', height:'100%', objectFit:'cover', opacity:.8 }}/>
-              </div>
-            ) : (
-              <div className="fig-ph" style={{ height:160, margin:12 }}>
-                <svg viewBox="0 0 200 120" style={{ position:'absolute', inset:0, width:'100%', height:'100%' }}>
-                  {Array.from({length:24}).map((_,j) => {
-                    const x = 8+(j*11+i*7)%184; const y = 8+(j*17+i*13)%104
-                    return <circle key={j} cx={x} cy={y} r={j%5===0?2.2:1.2}
-                      fill={j%7===i?'var(--accent)':'var(--ink-3)'}
-                      style={j%7===i?{filter:'drop-shadow(0 0 3px var(--accent))'}:undefined}/>
-                  })}
-                </svg>
-                <span className="fig-label">FIG · {String(i+1).padStart(2,'0')}</span>
-              </div>
-            )}
-            <div style={{ flex:1 }}/>
-            <div style={{ padding:'8px 12px', borderTop:'1px solid var(--border-1)', display:'flex', justifyContent:'space-between' }}>
-              <span className="sys muted" style={{ fontSize:9 }}>◢ {e.id}</span>
-              <span className="sys muted" style={{ fontSize:9 }}>◣ V.1</span>
             </div>
           </div>
         </div>
@@ -552,9 +530,11 @@ interface HomeClientProps {
   operators: Operator[]
   threads: unknown[]
   currentOperator: Operator | null
+  postCount?: number
+  totalLikes?: number
 }
 
-export function HomeClient({ entries: initialEntries, currentOperator }: HomeClientProps) {
+export function HomeClient({ entries: initialEntries, currentOperator, postCount = 0, totalLikes = 0 }: HomeClientProps) {
   const [entries, setEntries] = useState<Entry[]>(initialEntries)
   const [filter, setFilter]   = useState<'MIND'|'SZÖVEG'|'KÉP'|'VIDEÓ'>('MIND')
 
@@ -578,14 +558,14 @@ export function HomeClient({ entries: initialEntries, currentOperator }: HomeCli
 
   return (
     <div className="shell">
-      <Hero currentOperator={currentOperator}/>
+      <Hero currentOperator={currentOperator} postCount={postCount} totalLikes={totalLikes}/>
 
       <div style={{ padding:'28px 0 0' }} id="feed">
         <PostPanel op={currentOperator} onPost={handlePost}/>
 
         {/* Feed header + filter */}
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18 }}>
-          <Heading tag="◢ BEJEGYZÉSEK" title="POSZT FOLYAM" sub="Posztok, képek és videók időrendben."/>
+          <Heading tag="◢ BEJEGYZÉSEK" title="POSZTOK" sub="Posztok, képek és videók időrendben."/>
           <div style={{ display:'flex', gap:6 }}>
             {(['MIND','SZÖVEG','KÉP','VIDEÓ'] as const).map(f => (
               <button key={f} type="button" onClick={()=>setFilter(f)}

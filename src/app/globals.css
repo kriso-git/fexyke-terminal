@@ -349,21 +349,21 @@ textarea.input { resize:vertical; }
 [data-density="compact"] .nav .item { padding:8px 14px; }
 
 /* ─── HeroCube ─── */
-.hero-cube-scene { width:88px; height:88px; perspective:220px; flex-shrink:0; cursor:grab; }
+.hero-cube-scene { width:200px; height:200px; perspective:500px; flex-shrink:0; cursor:grab; user-select:none; }
 .hero-cube-scene:active { cursor:grabbing; }
-.hero-cube { width:88px; height:88px; position:relative; transform-style:preserve-3d; }
-.hero-cube-face { position:absolute; width:88px; height:88px; border:1px solid var(--accent); background:rgba(24,233,104,.04); display:flex; align-items:center; justify-content:center; font-family:var(--f-sys); font-size:11px; letter-spacing:.18em; color:var(--accent); text-shadow:var(--accent-glow); }
-.hero-cube-face::before,.hero-cube-face::after,.hero-cube-face .hud-br,.hero-cube-face .hud-bl { content:""; position:absolute; width:6px; height:6px; border-color:var(--accent); opacity:.6; }
-.hero-cube-face::before { top:-1px; left:-1px; border-top:1px solid; border-left:1px solid; }
-.hero-cube-face::after  { top:-1px; right:-1px; border-top:1px solid; border-right:1px solid; }
-.hero-cube-face .hud-br { bottom:-1px; right:-1px; border-bottom:1px solid var(--accent); border-right:1px solid var(--accent); }
-.hero-cube-face .hud-bl { bottom:-1px; left:-1px;  border-bottom:1px solid var(--accent); border-left:1px solid var(--accent); }
-.hero-cube-face.front  { transform:translateZ(44px); }
-.hero-cube-face.back   { transform:translateZ(-44px) rotateY(180deg); }
-.hero-cube-face.right  { transform:rotateY(90deg) translateZ(44px); }
-.hero-cube-face.left   { transform:rotateY(-90deg) translateZ(44px); }
-.hero-cube-face.top    { transform:rotateX(90deg) translateZ(44px); }
-.hero-cube-face.bottom { transform:rotateX(-90deg) translateZ(44px); }
+.hero-cube { width:200px; height:200px; position:relative; transform-style:preserve-3d; }
+.hero-cube-face { position:absolute; width:200px; height:200px; border:1px solid rgba(24,233,104,.6); background:var(--bg-2); background-size:cover; background-position:center; overflow:hidden; }
+.hero-cube-face::before,.hero-cube-face::after,.hero-cube-face .hud-br,.hero-cube-face .hud-bl { content:""; position:absolute; width:10px; height:10px; border-color:var(--accent); opacity:.8; z-index:2; }
+.hero-cube-face::before { top:-1px; left:-1px; border-top:2px solid; border-left:2px solid; }
+.hero-cube-face::after  { top:-1px; right:-1px; border-top:2px solid; border-right:2px solid; }
+.hero-cube-face .hud-br { bottom:-1px; right:-1px; border-bottom:2px solid var(--accent); border-right:2px solid var(--accent); }
+.hero-cube-face .hud-bl { bottom:-1px; left:-1px;  border-bottom:2px solid var(--accent); border-left:2px solid var(--accent); }
+.hero-cube-face.front  { transform:translateZ(100px); }
+.hero-cube-face.back   { transform:translateZ(-100px) rotateY(180deg); }
+.hero-cube-face.right  { transform:rotateY(90deg) translateZ(100px); }
+.hero-cube-face.left   { transform:rotateY(-90deg) translateZ(100px); }
+.hero-cube-face.top    { transform:rotateX(90deg) translateZ(100px); }
+.hero-cube-face.bottom { transform:rotateX(-90deg) translateZ(100px); }
 
 /* ─── Easter egg ─── */
 .tisza-egg { position:fixed; bottom:0; right:24px; z-index:9999; background:none; border:none; padding:0; cursor:pointer; mix-blend-mode:screen; }

@@ -5,9 +5,10 @@ import { useMemo } from 'react'
 interface AvatarProps {
   id?: string
   size?: number
+  src?: string | null
 }
 
-export function Avatar({ id = 'F3X-000', size = 40 }: AvatarProps) {
+export function Avatar({ id = 'F3X-000', size = 40, src }: AvatarProps) {
   const shapes = useMemo(() => {
     const n = id.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
     const arr: number[] = []
@@ -18,6 +19,15 @@ export function Avatar({ id = 'F3X-000', size = 40 }: AvatarProps) {
     }
     return arr
   }, [id])
+
+  if (src) {
+    return (
+      <div className="avatar" style={{ width: size, height: size, overflow: 'hidden' }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
+      </div>
+    )
+  }
 
   return (
     <div className="avatar" style={{ width: size, height: size }}>
