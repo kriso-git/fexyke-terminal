@@ -10,6 +10,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { LiveTicks } from '@/components/ui/LiveTicks'
 import { HeroCube } from '@/components/ui/HeroCube'
 import { LangPicker } from '@/components/ui/LangPicker'
+import { useI18n } from '@/hooks/useI18n'
 import { YouTubePlayer, YouTubeThumbnail, extractYouTubeId } from '@/components/ui/YouTubePlayer'
 import { createEntry, toggleReaction, fetchEntryById, deleteEntry, createSignal } from '@/app/actions'
 import type { Entry, Operator } from '@/lib/types'
@@ -55,30 +56,30 @@ function getWeekNum(dateStr: string) {
 
 /* ─── Hero ─── */
 function Hero({ currentOperator, postCount, totalLikes }: { currentOperator: Operator | null; postCount: number; totalLikes: number }) {
+  const { t } = useI18n()
   return (
     <div style={{ display:'grid', gridTemplateColumns:'1fr 400px', gap:32, padding:'40px 0 32px', borderBottom:'1px solid var(--border-1)', alignItems:'start' }}>
 
       {/* Left — title + sub + lang + CTA */}
       <div>
         <div style={{ display:'flex', gap:8, marginBottom:18 }}>
-          <Chip kind="accent" dot>◢ ADÁSBAN</Chip>
-          <Chip kind="cyan">KAPCSOLAT · STABIL</Chip>
+          <Chip kind="accent" dot>{t('hero.live')}</Chip>
+          <Chip kind="cyan">{t('hero.link')}</Chip>
           <Chip kind="dash">V0.1.0</Chip>
         </div>
         <h1 className="display r-display" style={{ margin:0, color:'var(--ink-0)', lineHeight:.92 }}>
           F3XYKEE /<br/>
-          <span style={{ color:'var(--accent)', textShadow:'0 0 12px rgba(24,233,104,.35)' }}>BLOG</span><br/>
-          FELÜLET
+          <span style={{ color:'var(--accent)', textShadow:'0 0 12px rgba(24,233,104,.35)' }}>BLOG</span>
         </h1>
         <p className="muted" style={{ marginTop:18, fontSize:13, lineHeight:1.6, maxWidth:420 }}>
-          Élo blog felület — posztok, videók, kommentek.
+          {t('hero.sub')}
         </p>
         <div style={{ marginTop:14, marginBottom:20 }}>
           <LangPicker/>
         </div>
         <div style={{ display:'flex', gap:8 }}>
-          <Link href="/gate" className="btn btn-primary">◢ BELÉPÉS</Link>
-          <Link href="#feed" className="btn">⌕ POSZTOK</Link>
+          <Link href="/gate" className="btn btn-primary">{t('hero.enter')}</Link>
+          <Link href="#feed" className="btn">{t('hero.posts')}</Link>
         </div>
       </div>
 
@@ -93,7 +94,7 @@ function Hero({ currentOperator, postCount, totalLikes }: { currentOperator: Ope
         {/* UserCard */}
         <div className="panel panel-hud panel-raised" style={{ position:'relative' }}>
           <span className="hud-br"/><span className="hud-bl"/>
-          <div className="panel-header"><span className="label">◢ PROFIL</span> AKTÍV FELHASZNÁLÓ</div>
+          <div className="panel-header"><span className="label">◢ PROFIL</span> {t('hero.profile')}</div>
           <div className="panel-body">
             {currentOperator ? (
               <>
@@ -108,19 +109,19 @@ function Hero({ currentOperator, postCount, totalLikes }: { currentOperator: Ope
                   </div>
                 </div>
                 <div style={{ display:'flex', flexDirection:'column', gap:2, marginBottom:12 }}>
-                  <Meta k="ÁLLAPOT"  v="ONLINE"/>
-                  <Meta k="POSZTOK"  v={String(postCount)}/>
-                  <Meta k="LIKEOK"   v={String(totalLikes)}/>
+                  <Meta k={t('top.online')} v={t('top.online')}/>
+                  <Meta k={t('archive.posts')} v={String(postCount)}/>
+                  <Meta k={t('card.likes')} v={String(totalLikes)}/>
                 </div>
                 <div style={{ marginBottom:10 }}>
-                  <div className="sys muted" style={{ fontSize:9, marginBottom:5 }}>◢ KAPCSOLAT · ÉLŐJEL</div>
+                  <div className="sys muted" style={{ fontSize:9, marginBottom:5 }}>{t('hero.link')}</div>
                   <LiveTicks count={20} height={22}/>
                 </div>
               </>
             ) : (
               <div style={{ textAlign:'center', padding:'16px 0' }}>
-                <div className="head" style={{ fontSize:16, marginBottom:10, color:'var(--ink-2)' }}>NEM BEJELENTKEZETT</div>
-                <Link href="/gate" className="btn btn-primary" style={{ display:'inline-flex' }}>◢ BELÉPÉS</Link>
+                <div className="head" style={{ fontSize:16, marginBottom:10, color:'var(--ink-2)' }}>{t('hero.notlogged')}</div>
+                <Link href="/gate" className="btn btn-primary" style={{ display:'inline-flex' }}>{t('hero.enter')}</Link>
               </div>
             )}
           </div>
@@ -132,6 +133,7 @@ function Hero({ currentOperator, postCount, totalLikes }: { currentOperator: Ope
 
 /* ─── Post panel ─── */
 function PostPanel({ op, onPost }: { op: Operator | null; onPost: (id: string) => void }) {
+  const { t } = useI18n()
   const [open, setOpen]               = useState(true)
   const [kind, setKind]               = useState<'SZÖVEG'|'KÉP'|'VIDEÓ'>('SZÖVEG')
   const [content, setContent]         = useState('')
@@ -196,8 +198,8 @@ function PostPanel({ op, onPost }: { op: Operator | null; onPost: (id: string) =
   const ytId = extractYouTubeId(youtubeUrl)
 
   return (
-    <Panel tag="◢ ÚJ POSZT" title="LÉTREHOZÁS" className="panel-raised"
-      chips={<button type="button" onClick={()=>setOpen(o=>!o)} className="btn btn-ghost btn-sm">{open?'◢ BEZÁR':'◢ NYIT'}</button>}
+    <Panel tag={`◢ ${t('post.new')}`} title={t('post.create')} className="panel-raised"
+      chips={<button type="button" onClick={()=>setOpen(o=>!o)} className="btn btn-ghost btn-sm">{open?t('post.close'):t('post.open')}</button>}
       style={{ marginBottom:28 }}
     >
       {open && (
@@ -216,12 +218,12 @@ function PostPanel({ op, onPost }: { op: Operator | null; onPost: (id: string) =
               </div>
 
               <input name="title" className="input" required
-                placeholder={kind==='VIDEÓ' ? 'Videó címe…' : kind==='KÉP' ? 'Kép felirata…' : 'Poszt címe…'}
+                placeholder={kind==='VIDEÓ' ? t('post.title_video') : kind==='KÉP' ? t('post.title_image') : t('post.title_text')}
                 style={{ fontSize:17 }}/>
 
               {kind === 'VIDEÓ' && (
                 <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                  <span className="sys muted" style={{ fontSize:10 }}>▶ YOUTUBE URL</span>
+                  <span className="sys muted" style={{ fontSize:10 }}>{t('post.yt_url')}</span>
                   <input className="input" value={youtubeUrl} onChange={e=>setYoutubeUrl(e.target.value)}
                     placeholder="https://youtube.com/watch?v=…"/>
                   {ytId && <YouTubeThumbnail url={youtubeUrl} height={110}/>}
@@ -231,7 +233,7 @@ function PostPanel({ op, onPost }: { op: Operator | null; onPost: (id: string) =
               {(kind === 'KÉP' || kind === 'SZÖVEG') && (
                 <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
                   <span className="sys muted" style={{ fontSize:10 }}>
-                    {kind==='KÉP' ? '⊡ KÉP (kötelező)' : '⊡ KÉP VAGY ♪ HANG (opcionális)'}
+                    {kind==='KÉP' ? t('post.image_required') : t('post.image_optional')}
                   </span>
                   <div
                     onDrop={ev=>{ev.preventDefault();setDragOver(false);handleFile(ev.dataTransfer.files[0])}}
@@ -242,25 +244,25 @@ function PostPanel({ op, onPost }: { op: Operator | null; onPost: (id: string) =
                   >
                     {uploading ? (
                       <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                        <div className="sys muted" style={{ fontSize:11 }}>Feltöltés · {uploadPct}%</div>
+                        <div className="sys muted" style={{ fontSize:11 }}>{t('post.uploading')} · {uploadPct}%</div>
                         <div className="bar-track"><div className="bar-fill" style={{ width:`${uploadPct}%` }}/></div>
                       </div>
                     ) : uploadedFile ? (
                       <span className="sys" style={{ color:'var(--accent)', fontSize:11 }}>✓ {uploadedFile.name}</span>
                     ) : (
-                      <span className="sys muted" style={{ fontSize:11 }}>⬆ Húzd ide vagy kattints · gif · jpg · png · mp3 · wav — max 100 MB</span>
+                      <span className="sys muted" style={{ fontSize:11 }}>{t('post.upload_hint')}</span>
                     )}
                   </div>
                   <input ref={fileInputRef} type="file" style={{ display:'none' }}
                     accept="image/gif,image/jpeg,image/png,image/webp,audio/mpeg,audio/ogg,audio/wav,audio/flac"
                     onChange={ev=>handleFile(ev.target.files?.[0])}/>
-                  {uploadedFile && <input className="input" value={mediaLabel} onChange={ev=>setMediaLabel(ev.target.value)} placeholder="Felirat (opcionális)" style={{ fontSize:12 }}/>}
+                  {uploadedFile && <input className="input" value={mediaLabel} onChange={ev=>setMediaLabel(ev.target.value)} placeholder={t('post.caption')} style={{ fontSize:12 }}/>}
                 </div>
               )}
 
               <div>
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
-                  <span className="sys muted" style={{ fontSize:10 }}>{kind==='VIDEÓ' ? 'LEÍRÁS (opcionális)' : 'TARTALOM'}</span>
+                  <span className="sys muted" style={{ fontSize:10 }}>{kind==='VIDEÓ' ? t('post.body_optional') : t('post.body')}</span>
                   <div style={{ display:'flex', gap:4 }}>
                     {([['b','B'],['i','I'],['u','U'],['s','S']] as const).map(([tag,label])=>(
                       <button key={tag} type="button"
@@ -274,36 +276,36 @@ function PostPanel({ op, onPost }: { op: Operator | null; onPost: (id: string) =
                 </div>
                 <textarea ref={contentRef} className="input" rows={kind==='VIDEÓ'?3:5}
                   value={content} onChange={ev=>setContent(ev.target.value)}
-                  placeholder={kind==='VIDEÓ'?'Rövid leírás…':'Írd be a poszt szövegét…'}/>
+                  placeholder={kind==='VIDEÓ'?t('post.body_ph_video'):t('post.body_ph')}/>
               </div>
 
               <div style={{ display:'flex', gap:8, alignItems:'center', paddingTop:8, borderTop:'1px dashed var(--border-1)' }}>
-                <span className="sys muted" style={{ fontSize:10, flexShrink:0 }}># TÉMÁK</span>
+                <span className="sys muted" style={{ fontSize:10, flexShrink:0 }}>{t('post.tags')}</span>
                 <input className="input" value={tags} onChange={ev=>setTags(ev.target.value)}
-                  placeholder="#hírek, #vélemény" style={{ flex:1, fontSize:12 }}/>
+                  placeholder={t('post.tags_ph')} style={{ flex:1, fontSize:12 }}/>
               </div>
 
               {error && <div style={{ padding:'8px 12px', background:'rgba(255,58,58,.1)', border:'1px solid var(--red)', color:'var(--red)', fontFamily:'var(--f-sys)', fontSize:11 }}>◢ {error}</div>}
-              {done  && <div style={{ padding:'8px 12px', background:'rgba(24,233,104,.1)', border:'1px solid var(--accent)', color:'var(--accent)', fontFamily:'var(--f-sys)', fontSize:11 }}>◢ Poszt sikeresen létrehozva!</div>}
+              {done  && <div style={{ padding:'8px 12px', background:'rgba(24,233,104,.1)', border:'1px solid var(--accent)', color:'var(--accent)', fontFamily:'var(--f-sys)', fontSize:11 }}>{t('post.created')}</div>}
             </div>
 
             {/* Right sidebar */}
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-              <div className="sys muted" style={{ fontSize:10 }}>◢ META</div>
-              <Meta k="TÍPUS" v={kind}/>
-              <Meta k="SZERZŐ" v={op.callsign}/>
-              {kind==='VIDEÓ' && ytId && <Meta k="VIDEÓ ID" v={ytId}/>}
+              <div className="sys muted" style={{ fontSize:10 }}>{t('post.meta')}</div>
+              <Meta k={t('post.kind_label')} v={kind}/>
+              <Meta k={t('post.author')} v={op.callsign}/>
+              {kind==='VIDEÓ' && ytId && <Meta k={t('post.video_id')} v={ytId}/>}
               <div style={{ borderTop:'1px solid var(--border-1)', paddingTop:10, marginTop:4, display:'flex', flexDirection:'column', gap:6 }}>
                 <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer' }}>
                   <input type="checkbox" name="priority" style={{ accentColor:'var(--accent)' }}/>
-                  <span className="sys muted" style={{ fontSize:11 }}>Kiemelés</span>
+                  <span className="sys muted" style={{ fontSize:11 }}>{t('post.priority')}</span>
                 </label>
                 <div style={{ display:'flex', gap:6 }}>
-                  <button type="button" className="btn btn-ghost btn-sm" style={{ flex:1, justifyContent:'center', opacity:.7 }} disabled={pending || uploading}>VÁZLAT</button>
-                  <button type="button" className="btn btn-ghost btn-sm" style={{ flex:1, justifyContent:'center', opacity:.7 }} disabled={pending || uploading}>ELŐNÉZET</button>
+                  <button type="button" className="btn btn-ghost btn-sm" style={{ flex:1, justifyContent:'center', opacity:.7 }} disabled={pending || uploading}>{t('post.draft')}</button>
+                  <button type="button" className="btn btn-ghost btn-sm" style={{ flex:1, justifyContent:'center', opacity:.7 }} disabled={pending || uploading}>{t('post.preview')}</button>
                 </div>
                 <button type="submit" className="btn btn-primary" style={{ width:'100%', justifyContent:'center' }} disabled={pending || uploading}>
-                  {done ? '✓ Sikeres!' : pending ? 'Küldés…' : '◢ KÖZZÉTESZ'}
+                  {done ? t('post.success') : pending ? t('post.publishing') : t('post.publish')}
                 </button>
               </div>
             </div>
@@ -316,6 +318,7 @@ function PostPanel({ op, onPost }: { op: Operator | null; onPost: (id: string) =
 
 /* ─── Inline comment composer ─── */
 function CommentComposer({ entryId, currentOperator }: { entryId: string; currentOperator: Operator | null }) {
+  const { t } = useI18n()
   const [text, setText] = useState('')
   const [pending, setPending] = useState(false)
   const [done, setDone] = useState(false)
@@ -341,13 +344,13 @@ function CommentComposer({ entryId, currentOperator }: { entryId: string; curren
       <textarea
         className="input"
         style={{ flex:1, minHeight:36, maxHeight:100, resize:'vertical', fontSize:12, padding:'6px 10px' }}
-        placeholder="Írj kommentet…"
+        placeholder={t('comment.placeholder')}
         value={text}
         onChange={e=>setText(e.target.value)}
         rows={1}
       />
       <button type="button" className="btn btn-ghost btn-sm" style={{ padding:'4px 8px', opacity:.6 }}
-        onClick={()=>fileInputRef.current?.click()} title="Kép csatolása">⊡</button>
+        onClick={()=>fileInputRef.current?.click()} title={t('comment.attach')}>⊡</button>
       <input ref={fileInputRef} type="file" style={{ display:'none' }} accept="image/gif,image/jpeg,image/png,image/webp"/>
       <button type="submit" className="btn btn-primary btn-sm" disabled={pending || !text.trim()}>
         {done ? '✓' : pending ? '…' : '↗'}
@@ -358,6 +361,7 @@ function CommentComposer({ entryId, currentOperator }: { entryId: string; curren
 
 /* ─── Post card (blog style) ─── */
 function PostCard({ e, i, currentOperator, onDelete }: { e: Entry; i: number; currentOperator: Operator | null; onDelete: (id: string) => void }) {
+  const { t, lang } = useI18n()
   const [reactions, setReactions] = useState<Record<string,number>>(e.reactions ?? {})
   const [userRx, setUserRx]       = useState<string[]>([])
   const [rxPending, setRxPending] = useState<string|null>(null)
@@ -365,11 +369,12 @@ function PostCard({ e, i, currentOperator, onDelete }: { e: Entry; i: number; cu
   const isVideo  = e.kind === 'VIDEÓ' || e.kind === 'ADÁS' || e.media_type === 'youtube'
   const isImage  = e.media_type === 'image' && e.media_url
   const week     = getWeekNum(e.created_at)
-  const date     = new Date(e.created_at).toLocaleDateString('hu-HU', { month:'short', day:'numeric' })
+  const localeMap: Record<string, string> = { hu:'hu-HU', en:'en-US', de:'de-DE', es:'es-ES', fr:'fr-FR', no:'no-NO', sv:'sv-SE' }
+  const date     = new Date(e.created_at).toLocaleDateString(localeMap[lang] ?? 'hu-HU', { month:'short', day:'numeric' })
   const totalRx  = EMOJIS.reduce((s,em) => s + (reactions[em] ?? 0), 0)
 
   async function handleDelete() {
-    if (!confirm('Biztosan törlöd?')) return
+    if (!confirm(t('card.confirm_delete'))) return
     setDeleting(true)
     const res = await deleteEntry(e.id)
     if (res?.error) { alert(res.error); setDeleting(false) }
@@ -395,13 +400,13 @@ function PostCard({ e, i, currentOperator, onDelete }: { e: Entry; i: number; cu
           {/* Left gutter */}
           <div style={{ padding:'16px 12px', borderRight:'1px solid var(--border-1)', display:'flex', flexDirection:'column', gap:8, background:'rgba(0,0,0,.2)' }}>
             <div className="sys dim" style={{ fontSize:9 }}>#{String(i+1).padStart(4,'0')}</div>
-            <div className="mono muted" style={{ fontSize:10, lineHeight:1.5 }}>{date}<br/>{week}. HÉT</div>
+            <div className="mono muted" style={{ fontSize:10, lineHeight:1.5 }}>{date}<br/>{week}. {t('archive.week')}</div>
             <Chip kind={e.priority ? 'solid' : 'accent'} style={{ fontSize:9, padding:'2px 5px' }}>
-              {isVideo ? 'VIDEÓ' : isImage ? 'KÉP' : 'SZÖVEG'}
+              {isVideo ? t('post.video') : isImage ? t('post.image') : t('post.text')}
             </Chip>
             <div style={{ flex:1 }}/>
             <div style={{ display:'flex', flexDirection:'column', gap:4, alignItems:'flex-start' }}>
-              <div className="sys muted" style={{ fontSize:9 }}>SZERZŐ</div>
+              <div className="sys muted" style={{ fontSize:9 }}>{t('card.author')}</div>
               <div style={{ display:'flex', gap:6, alignItems:'center' }}>
                 <Avatar id={e.operator_id} src={e.operator?.avatar_url} size={24}/>
                 <span className="sys" style={{ fontSize:10 }}>{e.operator?.callsign ?? '—'}</span>
@@ -413,7 +418,7 @@ function PostCard({ e, i, currentOperator, onDelete }: { e: Entry; i: number; cu
           <div style={{ padding:'16px 18px', display:'flex', flexDirection:'column', gap:10 }}>
             <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
               {e.sigs.map(s=><Chip key={s} kind="dash">{s}</Chip>)}
-              {e.priority && <Chip kind="solid" dot>KIEMELT</Chip>}
+              {e.priority && <Chip kind="solid" dot>{t('card.featured')}</Chip>}
             </div>
             <h3 className="entry-title head" style={{ margin:0, fontSize:e.priority?26:20, lineHeight:1.08, color:'var(--ink-0)' }}>
               {e.title}
@@ -456,12 +461,12 @@ function PostCard({ e, i, currentOperator, onDelete }: { e: Entry; i: number; cu
                 )
               })}
               <span style={{ flex:1 }}/>
-              <span className="sys muted" style={{ fontSize:10 }}>◢ {e.reads} OLVASÁS</span>
-              {totalRx > 0 && <span className="sys muted" style={{ fontSize:10 }}>◢ {totalRx} KEDVELÉS</span>}
-              <Link href={`/entries/${e.id}`} className="sys" style={{ fontSize:10, color:'var(--accent)' }}>↗ MEGNYITÁS</Link>
+              <span className="sys muted" style={{ fontSize:10 }}>◢ {e.reads} {t('card.reads')}</span>
+              {totalRx > 0 && <span className="sys muted" style={{ fontSize:10 }}>◢ {totalRx} {t('card.likes')}</span>}
+              <Link href={`/entries/${e.id}`} className="sys" style={{ fontSize:10, color:'var(--accent)' }}>{t('card.open')}</Link>
               {currentOperator?.role === 'superadmin' && (
                 <button onClick={handleDelete} style={{ background:'none', border:'none', color:'var(--red)', cursor:'pointer', fontFamily:'var(--f-sys)', fontSize:10 }}>
-                  ◢ TÖRLÉS
+                  {t('card.delete')}
                 </button>
               )}
             </div>
@@ -477,6 +482,7 @@ function PostCard({ e, i, currentOperator, onDelete }: { e: Entry; i: number; cu
 
 /* ─── Archive section ─── */
 function Archive({ entries }: { entries: Entry[] }) {
+  const { t } = useI18n()
   const byWeek: Record<number, Entry[]> = {}
   for (const e of entries) {
     const w = getWeekNum(e.created_at)
@@ -488,15 +494,15 @@ function Archive({ entries }: { entries: Entry[] }) {
 
   return (
     <div style={{ padding:'40px 0', borderBottom:'1px solid var(--border-1)' }}>
-      <Heading tag="◢ ARCHÍVUM" title="HETI VISSZATEKINTŐ" sub="Posztok hetek szerint csoportosítva."/>
+      <Heading tag={t('archive.tag')} title={t('archive.title')} sub={t('archive.sub')}/>
       <div style={{ marginTop:24 }}>
         <table className="archive-table">
           <thead>
             <tr>
-              <th>HÉT</th>
-              <th>POSZTOK</th>
-              <th>VIDEÓK</th>
-              <th>TOP POSZT</th>
+              <th>{t('archive.week')}</th>
+              <th>{t('archive.posts')}</th>
+              <th>{t('archive.videos')}</th>
+              <th>{t('archive.top')}</th>
             </tr>
           </thead>
           <tbody>
@@ -506,7 +512,7 @@ function Archive({ entries }: { entries: Entry[] }) {
               const top = ws.reduce((a,b) => (b.reads > a.reads ? b : a), ws[0])
               return (
                 <tr key={w}>
-                  <td className="sys" style={{ color:'var(--accent)', fontSize:11 }}>{w}. HÉT</td>
+                  <td className="sys" style={{ color:'var(--accent)', fontSize:11 }}>{w}. {t('archive.week')}</td>
                   <td>{ws.length}</td>
                   <td>{videos.length}</td>
                   <td>
@@ -535,6 +541,7 @@ interface HomeClientProps {
 }
 
 export function HomeClient({ entries: initialEntries, currentOperator, postCount = 0, totalLikes = 0 }: HomeClientProps) {
+  const { t } = useI18n()
   const [entries, setEntries] = useState<Entry[]>(initialEntries)
   const [filter, setFilter]   = useState<'MIND'|'SZÖVEG'|'KÉP'|'VIDEÓ'>('MIND')
 
@@ -565,22 +572,25 @@ export function HomeClient({ entries: initialEntries, currentOperator, postCount
 
         {/* Feed header + filter */}
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18 }}>
-          <Heading tag="◢ BEJEGYZÉSEK" title="POSZTOK" sub="Posztok, képek és videók időrendben."/>
+          <Heading tag={t('feed.head_tag')} title={t('feed.head_title')} sub={t('feed.head_sub')}/>
           <div style={{ display:'flex', gap:6 }}>
-            {(['MIND','SZÖVEG','KÉP','VIDEÓ'] as const).map(f => (
-              <button key={f} type="button" onClick={()=>setFilter(f)}
-                className={`chip${filter===f?' chip-accent':''}`}
-                style={{ cursor:'pointer' }}>
-                {f === 'VIDEÓ' ? '▶ VIDEÓ' : f}
-              </button>
-            ))}
+            {(['MIND','SZÖVEG','KÉP','VIDEÓ'] as const).map(f => {
+              const labelMap = { MIND: t('feed.all'), SZÖVEG: t('post.text'), KÉP: t('post.image'), 'VIDEÓ': '▶ '+t('post.video') }
+              return (
+                <button key={f} type="button" onClick={()=>setFilter(f)}
+                  className={`chip${filter===f?' chip-accent':''}`}
+                  style={{ cursor:'pointer' }}>
+                  {labelMap[f]}
+                </button>
+              )
+            })}
           </div>
         </div>
 
         {filtered.length === 0 ? (
           <div className="panel" style={{ padding:'32px 24px', textAlign:'center', borderStyle:'dashed' }}>
             <div className="sys muted" style={{ fontSize:12 }}>
-              {entries.length === 0 ? 'Még nincsenek bejegyzések.' : `Nincs találat a „${filter}" szűrőre.`}
+              {entries.length === 0 ? t('feed.empty') : t('feed.no_match')}
             </div>
           </div>
         ) : (

@@ -11,7 +11,19 @@ export interface Operator {
   joined_cycle: number
   bio: string | null
   avatar_url?: string | null
+  xp?: number
   created_at: string
+}
+
+export type FriendshipStatus = 'pending' | 'accepted'
+
+export interface Friendship {
+  id: string
+  requester_id: string
+  addressee_id: string
+  status: FriendshipStatus
+  created_at: string
+  accepted_at: string | null
 }
 
 export interface Entry {

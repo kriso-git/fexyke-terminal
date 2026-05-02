@@ -7,8 +7,16 @@ import { Panel } from '@/components/ui/Panel'
 import { Meta } from '@/components/ui/Meta'
 import { Avatar } from '@/components/ui/Avatar'
 import { LiveTicks } from '@/components/ui/LiveTicks'
-import { createProfileSignal, updateProfile } from '@/app/actions'
+import { createProfileSignal, updateProfile, sendFriendRequest, acceptFriendRequest, removeFriend } from '@/app/actions'
+import { useI18n } from '@/hooks/useI18n'
 import type { Operator, Entry, ProfileSignal } from '@/lib/types'
+
+type FriendshipState =
+  | { state: 'self' }
+  | { state: 'none' }
+  | { state: 'pending_out'; id: string }
+  | { state: 'pending_in'; id: string }
+  | { state: 'friends'; id: string }
 
 const SEED_OP: Operator = {
   id:'F3X-014', auth_id:null, callsign:'NULLSET', level:3, role:'admin', node:'f3x-pri-01', joined_cycle:12,
@@ -24,33 +32,96 @@ const SEED_SIGNALS: ProfileSignal[] = [
 ]
 
 /* ─── FriendBtn ─── */
-type FriendState = 'none' | 'pending' | 'friends'
-function FriendBtn({ isSelf }: { isSelf: boolean }) {
-  const [state, setState] = useState<FriendState>('none')
-  if (isSelf) return null
+function FriendBtn({ targetId, friendship }: { targetId: string; friendship: FriendshipState }) {
+  const { t } = useI18n()
+  const [state, setState] = useState<FriendshipState>(friendship)
+  const [pending, setPending] = useState(false)
+
+  if (state.state === 'self') return null
+
+  async function send() {
+    setPending(true)
+    const res = await sendFriendRequest(targetId)
+    if (!res.error) setState({ state: 'pending_out', id: 'tmp' })
+    setPending(false)
+  }
+  async function accept() {
+    if (state.state !== 'pending_in') return
+    setPending(true)
+    const res = await acceptFriendRequest(state.id)
+    if (!res.error) setState({ state: 'friends', id: state.id })
+    setPending(false)
+  }
+  async function remove() {
+    setPending(true)
+    const res = await removeFriend(targetId)
+    if (!res.error) setState({ state: 'none' })
+    setPending(false)
+  }
+
   return (
     <div style={{ display:'flex', gap:6, alignItems:'center' }}>
-      {state === 'none' && (
-        <button className="btn btn-primary" onClick={() => setState('pending')}>◢ ISMERŐS KÉRÉS</button>
+      {state.state === 'none' && (
+        <button className="btn btn-primary" disabled={pending} onClick={send}>{t('friend.request')}</button>
       )}
-      {state === 'pending' && (
+      {state.state === 'pending_out' && (
         <>
-          <Chip kind="warn" dot>FÜGGŐBEN</Chip>
-          <button className="btn btn-ghost" onClick={() => setState('none')}>MÉGSE</button>
+          <Chip kind="warn" dot>{t('friend.pending')}</Chip>
+          <button className="btn btn-ghost" disabled={pending} onClick={remove}>{t('friend.cancel')}</button>
         </>
       )}
-      {state === 'friends' && (
+      {state.state === 'pending_in' && (
         <>
-          <Chip kind="accent" dot>ISMERŐS</Chip>
-          <button className="btn btn-ghost" onClick={() => setState('none')}>ELTÁVOLÍT</button>
+          <Chip kind="warn" dot>{t('friend.incoming')}</Chip>
+          <button className="btn btn-primary" disabled={pending} onClick={accept}>{t('friend.accept')}</button>
+          <button className="btn btn-ghost" disabled={pending} onClick={remove}>{t('friend.reject')}</button>
+        </>
+      )}
+      {state.state === 'friends' && (
+        <>
+          <Chip kind="accent" dot>{t('friend.is_friend')}</Chip>
+          <button className="btn btn-ghost" disabled={pending} onClick={remove}>{t('friend.remove')}</button>
         </>
       )}
     </div>
   )
 }
 
+/* ─── PendingRow ─── */
+function PendingRow({ friendshipId, requester }: { friendshipId: string; requester: Operator }) {
+  const [pending, setPending] = useState(false)
+  const [hidden, setHidden]   = useState(false)
+
+  if (hidden) return null
+
+  async function accept() {
+    setPending(true)
+    const res = await acceptFriendRequest(friendshipId)
+    if (!res.error) setHidden(true)
+    setPending(false)
+  }
+  async function reject() {
+    setPending(true)
+    const res = await removeFriend(requester.id)
+    if (!res.error) setHidden(true)
+    setPending(false)
+  }
+  return (
+    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+      <Avatar id={requester.id} src={requester.avatar_url} size={28}/>
+      <div style={{ flex:1, minWidth:0 }}>
+        <div className="head" style={{ fontSize:12 }}>{requester.callsign}</div>
+        <div className="sys muted" style={{ fontSize:9 }}>LVL-0{requester.level}</div>
+      </div>
+      <button className="btn btn-primary btn-sm" disabled={pending} onClick={accept} style={{ padding:'2px 6px', fontSize:10 }}>✓</button>
+      <button className="btn btn-ghost btn-sm" disabled={pending} onClick={reject} style={{ padding:'2px 6px', fontSize:10 }}>✕</button>
+    </div>
+  )
+}
+
 /* ─── UserSearch ─── */
 function UserSearch({ operators }: { operators: Operator[] }) {
+  const { t } = useI18n()
   const [query, setQuery]   = useState('')
   const [open, setOpen]     = useState(false)
   const inputRef            = useRef<HTMLInputElement>(null)
@@ -64,7 +135,7 @@ function UserSearch({ operators }: { operators: Operator[] }) {
       <input
         ref={inputRef}
         className="input"
-        placeholder="⌕ Felhasználó keresése…"
+        placeholder={t('profile.user_search')}
         value={query}
         onChange={e => { setQuery(e.target.value); setOpen(true) }}
         onFocus={() => setOpen(true)}
@@ -93,9 +164,13 @@ interface ProfileClientProps {
   entries: Entry[]
   profileSignals: ProfileSignal[]
   currentOperator: Operator | null
+  friends: Operator[]
+  pendingIn: { id: string; requester: Operator }[]
+  friendship: FriendshipState
 }
 
-export function ProfileClient({ operator, entries, profileSignals, currentOperator }: ProfileClientProps) {
+export function ProfileClient({ operator, entries, profileSignals, currentOperator, friends, pendingIn, friendship }: ProfileClientProps) {
+  const { t, lang } = useI18n()
   const [psError, setPsError]     = useState<string | null>(null)
   const [psPending, setPsPending] = useState(false)
   const [psDone, setPsDone]       = useState(false)
@@ -113,16 +188,17 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
   const op    = operator ?? SEED_OP
   const sigs  = profileSignals.length > 0 ? profileSignals : SEED_SIGNALS
   const isSelf = currentOperator?.id === op.id
-  const roleLabel = op.role === 'superadmin' ? 'SUPERADMIN' : op.role === 'admin' ? 'ADMIN' : 'FELHASZNÁLÓ'
+  const roleLabel = op.role === 'superadmin' ? t('profile.role_super') : op.role === 'admin' ? t('profile.role_admin') : t('profile.role_user')
 
   // Build a rough operator list from available signal authors
   const knownOps: Operator[] = []
   for (const s of sigs) { if (s.author && !knownOps.find(o => o.id === s.author!.id)) knownOps.push(s.author as Operator) }
   if (currentOperator && !knownOps.find(o => o.id === currentOperator.id)) knownOps.push(currentOperator)
 
+  const localeMap: Record<string, string> = { hu:'hu-HU', en:'en-US', de:'de-DE', es:'es-ES', fr:'fr-FR', no:'no-NO', sv:'sv-SE' }
   const fmtDate = (iso: string) => {
     if (!iso) return '—'
-    try { return new Date(iso).toLocaleDateString('hu-HU', { month:'short', day:'numeric', year:'numeric' }) } catch { return iso }
+    try { return new Date(iso).toLocaleDateString(localeMap[lang] ?? 'hu-HU', { month:'short', day:'numeric', year:'numeric' }) } catch { return iso }
   }
 
   async function handleProfileSignal(ev: React.FormEvent<HTMLFormElement>) {
@@ -193,7 +269,7 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
                 onClick={() => avatarInputRef.current?.click()}
                 disabled={avatarUploading}
               >
-                {avatarUploading ? '◢ FELTÖLTÉS…' : '◢ AVATAR CSERE'}
+                {avatarUploading ? t('profile.avatar_uploading') : t('profile.avatar_change')}
               </button>
               <input
                 ref={avatarInputRef}
@@ -215,13 +291,13 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
           </div>
           <h1 className="display" style={{ margin:0, fontSize:72, lineHeight:.95, letterSpacing:'-.02em' }}>{op.callsign}</h1>
           <p style={{ maxWidth:620, color:'var(--ink-1)', fontSize:14, lineHeight:1.6, marginTop:14 }}>
-            {op.bio ?? 'Nincs bemutatkozó szöveg.'}
+            {op.bio ?? t('profile.no_bio')}
           </p>
           <div style={{ display:'flex', gap:8, marginTop:18, flexWrap:'wrap', alignItems:'center' }}>
-            <FriendBtn isSelf={isSelf}/>
+            <FriendBtn targetId={op.id} friendship={friendship}/>
             {isSelf && !isEditing && (
               <button className="btn" onClick={() => { setBioEdit(op.bio ?? ''); setIsEditing(true) }}>
-                PROFIL SZERKESZTÉSE
+                {t('profile.edit')}
               </button>
             )}
           </div>
@@ -232,14 +308,14 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
                 value={bioEdit}
                 onChange={e => setBioEdit(e.target.value)}
                 rows={4}
-                placeholder="Bemutatkozó szöveg…"
+                placeholder={t('profile.bio_ph')}
               />
               {editError && <div style={{ padding:'6px 10px', background:'rgba(255,58,58,.1)', border:'1px solid var(--red)', color:'var(--red)', fontFamily:'var(--f-sys)', fontSize:11 }}>◢ {editError}</div>}
-              {editDone  && <div style={{ padding:'6px 10px', background:'rgba(24,233,104,.1)', border:'1px solid var(--accent)', color:'var(--accent)', fontFamily:'var(--f-sys)', fontSize:11 }}>◢ Profil mentve!</div>}
+              {editDone  && <div style={{ padding:'6px 10px', background:'rgba(24,233,104,.1)', border:'1px solid var(--accent)', color:'var(--accent)', fontFamily:'var(--f-sys)', fontSize:11 }}>{t('profile.saved')}</div>}
               <div style={{ display:'flex', gap:8 }}>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setIsEditing(false)}>MÉGSE</button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setIsEditing(false)}>{t('profile.cancel')}</button>
                 <button type="submit" className="btn btn-primary btn-sm" disabled={editPending}>
-                  {editPending ? '◢ MENTÉS…' : '◢ MENTÉS'}
+                  {editPending ? t('profile.saving') : t('profile.save')}
                 </button>
               </div>
             </form>
@@ -247,9 +323,33 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
         </div>
 
         {/* Stats */}
-        <Panel tag="◢ STATISZTIKA" title="METRIKÁK" className="panel-raised">
+        <Panel tag={t('profile.stats')} title={t('profile.metrics')} className="panel-raised">
+          {(() => {
+            const xp = op.xp ?? 0
+            const lvl = Math.min(10, Math.max(1, 1 + Math.floor(xp / 100)))
+            const intoLvl = xp % 100
+            const pct = Math.min(100, intoLvl)
+            return (
+              <div style={{ marginBottom:12, padding:'10px 12px', border:'1px solid var(--border-1)', background:'rgba(24,233,104,.04)' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
+                  <div>
+                    <div className="sys muted" style={{ fontSize:9 }}>{t('profile.level_label')}</div>
+                    <div className="head" style={{ fontSize:24, color:'var(--accent)', lineHeight:1 }}>LVL-0{lvl}</div>
+                  </div>
+                  <div style={{ textAlign:'right' }}>
+                    <div className="sys muted" style={{ fontSize:9 }}>XP</div>
+                    <div className="mono" style={{ fontSize:14, color:'var(--accent)' }}>{xp}</div>
+                  </div>
+                </div>
+                <div style={{ height:6, background:'var(--bg-2)', border:'1px solid var(--border-1)', position:'relative', overflow:'hidden' }}>
+                  <div style={{ position:'absolute', inset:0, width:`${pct}%`, background:'var(--accent)', boxShadow:'0 0 8px var(--accent)' }}/>
+                </div>
+                <div className="sys muted" style={{ fontSize:9, marginTop:4 }}>{intoLvl}/100 · {t('profile.next_lvl')}</div>
+              </div>
+            )
+          })()}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-            {[['POSZTOK', entries.length || 84], ['KEDVELÉSEK','412'], ['LÁNC','17'], ['OLVASÓK','3.2K'], ['KOMMENTEK','91'], ['HÓNAP', op.joined_cycle || 35]].map(([k,v]) => (
+            {[[t('profile.posts'), entries.length], [t('profile.friend_count'), friends.length], [t('profile.chain'),'17'], [t('profile.readers'),'3.2K'], [t('profile.comments'),'91'], [t('profile.month'), op.joined_cycle || 35]].map(([k,v]) => (
               <div key={String(k)} className="panel" style={{ padding:'8px 10px', background:'transparent' }}>
                 <div className="sys muted" style={{ fontSize:9 }}>{k}</div>
                 <div className="head" style={{ fontSize:22, color:'var(--accent)' }}>{v}</div>
@@ -257,7 +357,7 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
             ))}
           </div>
           <div style={{ borderTop:'1px solid var(--border-1)', marginTop:12, paddingTop:12 }}>
-            <div className="sys muted" style={{ fontSize:9, marginBottom:6 }}>◢ AKTIVITÁS · 30 NAP</div>
+            <div className="sys muted" style={{ fontSize:9, marginBottom:6 }}>{t('profile.activity')}</div>
             <LiveTicks count={30} height={32}/>
           </div>
         </Panel>
@@ -270,13 +370,13 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
         <aside style={{ display:'flex', flexDirection:'column', gap:18 }}>
           <UserSearch operators={knownOps}/>
 
-          <Panel tag="◢ AZONOSÍTÓ" title="ADATOK">
-            <Meta k="NÉV"          v={op.callsign}/>
-            <Meta k="SZINT"        v={`LVL-0${op.level} · ${roleLabel}`}/>
-            <Meta k="CSATLAKOZOTT" v={op.created_at ? fmtDate(op.created_at) : '—'}/>
+          <Panel tag={`◢ ${t('profile.id')}`} title={t('profile.data')}>
+            <Meta k={t('profile.name')}          v={op.callsign}/>
+            <Meta k={t('profile.level_label')}   v={`LVL-0${op.level} · ${roleLabel}`}/>
+            <Meta k={t('profile.joined')}        v={op.created_at ? fmtDate(op.created_at) : '—'}/>
           </Panel>
 
-          <Panel tag="◢ TÉMÁK" title="ÉRDEKLŐDÉSI KÖR">
+          <Panel tag="◢ TÉMÁK" title={t('profile.topics')}>
             <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
               {['#protokoll','#memória','#rács','#ops','#archívum'].map(s => (
                 <Chip key={s} kind="cyan">{s}</Chip>
@@ -284,30 +384,42 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
             </div>
           </Panel>
 
-          <Panel tag="◢ HÁLÓZAT" title="KAPCSOLATOK">
+          <Panel tag="◢ HÁLÓZAT" title={`${t('profile.network')} · ${friends.length}`}>
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-              {sigs.slice(0,3).map(s => s.author && (
-                <Link key={s.id} href={`/operators/${s.author.callsign}`} style={{ display:'flex', alignItems:'center', gap:8, textDecoration:'none' }}>
-                  <Avatar id={s.author.id} size={28}/>
+              {friends.length === 0 ? (
+                <div className="sys muted" style={{ fontSize:11 }}>{t('profile.no_friends')}</div>
+              ) : friends.slice(0, 8).map(f => (
+                <Link key={f.id} href={`/operators/${f.callsign}`} style={{ display:'flex', alignItems:'center', gap:8, textDecoration:'none' }}>
+                  <Avatar id={f.id} src={f.avatar_url} size={28}/>
                   <div>
-                    <div className="head" style={{ fontSize:13 }}>{s.author.callsign}</div>
-                    <div className="sys muted" style={{ fontSize:9 }}>LVL-0{s.author.level}</div>
+                    <div className="head" style={{ fontSize:13 }}>{f.callsign}</div>
+                    <div className="sys muted" style={{ fontSize:9 }}>LVL-0{f.level}</div>
                   </div>
                   <span className="dot" style={{ marginLeft:'auto', width:6, height:6 }}/>
                 </Link>
               ))}
             </div>
           </Panel>
+
+          {isSelf && pendingIn.length > 0 && (
+            <Panel tag={`◢ ${t('profile.incoming')}`} title={`${t('profile.requests')} · ${pendingIn.length}`}>
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                {pendingIn.map(p => (
+                  <PendingRow key={p.id} friendshipId={p.id} requester={p.requester}/>
+                ))}
+              </div>
+            </Panel>
+          )}
         </aside>
 
         {/* Profile wall */}
         <div>
           <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', marginBottom:16 }}>
             <div>
-              <div className="sys muted" style={{ fontSize:9, marginBottom:4 }}>◢ PROFIL FAL</div>
-              <h2 className="head" style={{ margin:0, fontSize:24 }}>HAGYJ ÜZENETET</h2>
+              <div className="sys muted" style={{ fontSize:9, marginBottom:4 }}>{t('profile.wall')}</div>
+              <h2 className="head" style={{ margin:0, fontSize:24 }}>{t('profile.leave_msg')}</h2>
             </div>
-            <Chip kind="accent">{sigs.length} ÜZENET</Chip>
+            <Chip kind="accent">{sigs.length} {t('profile.msg_count')}</Chip>
           </div>
 
           {/* Composer */}
@@ -318,18 +430,18 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
                 <Avatar id={currentOperator.id} size={40}/>
                 <div style={{ flex:1, display:'flex', flexDirection:'column', gap:10 }}>
                   <textarea name="text" className="input" rows={3}
-                    placeholder={`Írj üzenetet ${op.callsign} profiljára…`}
+                    placeholder={t('profile.msg_ph')}
                     value={msgText} onChange={e => setMsgText(e.target.value)}/>
                   {psError && <div style={{ padding:'6px 10px', background:'rgba(255,58,58,.1)', border:'1px solid var(--red)', color:'var(--red)', fontFamily:'var(--f-sys)', fontSize:11 }}>◢ {psError}</div>}
-                  {psDone  && <div style={{ padding:'6px 10px', background:'rgba(24,233,104,.1)', border:'1px solid var(--accent)', color:'var(--accent)', fontFamily:'var(--f-sys)', fontSize:11 }}>◢ Üzenet elküldve!</div>}
+                  {psDone  && <div style={{ padding:'6px 10px', background:'rgba(24,233,104,.1)', border:'1px solid var(--accent)', color:'var(--accent)', fontFamily:'var(--f-sys)', fontSize:11 }}>{t('profile.sent')}</div>}
                   <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                    <Chip kind="dash">MINT {currentOperator.callsign}</Chip>
+                    <Chip kind="dash">{t('profile.as')} {currentOperator.callsign}</Chip>
                     <button type="button" className="btn btn-ghost btn-sm" style={{ padding:'3px 8px', opacity:.7 }}
-                      onClick={() => fileInputRef.current?.click()}>⊡ KÉP</button>
+                      onClick={() => fileInputRef.current?.click()}>{t('profile.attach_img')}</button>
                     <input ref={fileInputRef} type="file" style={{ display:'none' }} accept="image/gif,image/jpeg,image/png,image/webp"/>
                     <span style={{ flex:1 }}/>
                     <button type="submit" className="btn btn-primary btn-sm" disabled={psPending || !msgText.trim()}>
-                      {psPending ? '◢ KÜLDÉS…' : '◢ ALÁÍR + KÜLD'}
+                      {psPending ? t('profile.sending') : t('profile.send')}
                     </button>
                   </div>
                 </div>
@@ -337,7 +449,7 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
             </form>
           ) : (
             <div className="panel" style={{ padding:14, marginBottom:18, textAlign:'center', color:'var(--ink-3)', fontFamily:'var(--f-sys)', fontSize:12, borderStyle:'dashed' }}>
-              <Link href="/gate" style={{ color:'var(--accent)' }}>◢ BELÉPÉS</Link> · üzenet küldéséhez
+              <Link href="/gate" style={{ color:'var(--accent)' }}>{t('hero.enter')}</Link> · {t('profile.login_for_msg')}
             </div>
           )}
 

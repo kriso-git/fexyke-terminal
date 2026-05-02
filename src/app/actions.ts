@@ -343,3 +343,105 @@ export async function incrementReads(entryId: string) {
   const supabase = await createClient()
   await supabase.rpc('increment_reads', { entry_id: entryId })
 }
+
+/* ─── Friendships ─── */
+
+export async function sendFriendRequest(targetId: string) {
+  try {
+    const op = await getCurrentOperator()
+    if (!op) return { error: 'Be kell lépni.' }
+    if (op.id === targetId) return { error: 'Magadnak nem küldhetsz kérést.' }
+
+    const admin = createAdminClient()
+
+    const { data: existing } = await admin
+      .from('friendships')
+      .select('*')
+      .or(`and(requester_id.eq.${op.id},addressee_id.eq.${targetId}),and(requester_id.eq.${targetId},addressee_id.eq.${op.id})`)
+      .maybeSingle()
+
+    if (existing) return { error: 'Már létezik kapcsolat.' }
+
+    const { error } = await admin.from('friendships').insert({
+      requester_id: op.id,
+      addressee_id: targetId,
+      status: 'pending',
+    })
+    if (error) return { error: error.message }
+
+    const { data: targetOp } = await admin.from('operators').select('callsign').eq('id', targetId).single()
+    revalidatePath(`/operators/${targetOp?.callsign ?? targetId}`)
+    return { success: true }
+  } catch (err) {
+    console.error('sendFriendRequest error:', err)
+    return { error: 'Szerver hiba.' }
+  }
+}
+
+export async function acceptFriendRequest(friendshipId: string) {
+  try {
+    const op = await getCurrentOperator()
+    if (!op) return { error: 'Be kell lépni.' }
+
+    const admin = createAdminClient()
+
+    const { data: fr } = await admin.from('friendships').select('*').eq('id', friendshipId).single()
+    if (!fr) return { error: 'Kérés nem található.' }
+    if (fr.addressee_id !== op.id) return { error: 'Nincs jogosultság.' }
+
+    const { error } = await admin
+      .from('friendships')
+      .update({ status: 'accepted', accepted_at: new Date().toISOString() })
+      .eq('id', friendshipId)
+    if (error) return { error: error.message }
+
+    revalidatePath(`/operators/${op.callsign}`)
+    return { success: true }
+  } catch (err) {
+    console.error('acceptFriendRequest error:', err)
+    return { error: 'Szerver hiba.' }
+  }
+}
+
+export async function removeFriend(targetId: string) {
+  try {
+    const op = await getCurrentOperator()
+    if (!op) return { error: 'Be kell lépni.' }
+
+    const admin = createAdminClient()
+    const { error } = await admin
+      .from('friendships')
+      .delete()
+      .or(`and(requester_id.eq.${op.id},addressee_id.eq.${targetId}),and(requester_id.eq.${targetId},addressee_id.eq.${op.id})`)
+    if (error) return { error: error.message }
+
+    const { data: targetOp } = await admin.from('operators').select('callsign').eq('id', targetId).single()
+    revalidatePath(`/operators/${targetOp?.callsign ?? targetId}`)
+    revalidatePath(`/operators/${op.callsign}`)
+    return { success: true }
+  } catch (err) {
+    console.error('removeFriend error:', err)
+    return { error: 'Szerver hiba.' }
+  }
+}
+
+export async function getFriendshipState(targetId: string) {
+  try {
+    const op = await getCurrentOperator()
+    if (!op || op.id === targetId) return { state: 'self' as const }
+
+    const admin = createAdminClient()
+    const { data } = await admin
+      .from('friendships')
+      .select('*')
+      .or(`and(requester_id.eq.${op.id},addressee_id.eq.${targetId}),and(requester_id.eq.${targetId},addressee_id.eq.${op.id})`)
+      .maybeSingle()
+
+    if (!data) return { state: 'none' as const }
+    if (data.status === 'accepted') return { state: 'friends' as const, id: data.id }
+    if (data.requester_id === op.id) return { state: 'pending_out' as const, id: data.id }
+    return { state: 'pending_in' as const, id: data.id }
+  } catch {
+    return { state: 'none' as const }
+  }
+}

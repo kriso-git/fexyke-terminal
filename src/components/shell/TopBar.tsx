@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { logout } from '@/app/actions'
+import { useI18n } from '@/hooks/useI18n'
 
 interface TopBarProps {
   user?: string | null
@@ -9,8 +10,10 @@ interface TopBarProps {
   sessionId?: string
 }
 
-export function TopBar({ user, status = 'ONLINE', sessionId = 'SES-7F2A-0481' }: TopBarProps) {
+export function TopBar({ user, status, sessionId = 'SES-7F2A-0481' }: TopBarProps) {
+  const { t } = useI18n()
   const [clock, setClock] = useState<Date | null>(null)
+  const statusLabel = status ?? t('top.online')
 
   useEffect(() => {
     setClock(new Date())
@@ -37,11 +40,11 @@ export function TopBar({ user, status = 'ONLINE', sessionId = 'SES-7F2A-0481' }:
     <div className="topbar">
       <div className="cell brand">F3XYKEE · BLOG</div>
       <div className="cell">
-        <span className="dot" /> {status}
+        <span className="dot" /> {statusLabel}
       </div>
-      <div className="cell topbar-hide">SZERVER · BUD-01</div>
-      <div className="cell topbar-hide">{clock ? `${clock.getFullYear()} · ${getWeek(clock)}. HÉT` : '---'}</div>
-      <div className="cell grow topbar-hide">◢ ÉLŐ BLOG FELÜLET · V0.1</div>
+      <div className="cell topbar-hide">{t('top.server')}</div>
+      <div className="cell topbar-hide">{clock ? `${clock.getFullYear()} · ${getWeek(clock)}. ${t('top.week')}` : '---'}</div>
+      <div className="cell grow topbar-hide">{t('top.live')}</div>
       {clock && <div className="cell topbar-hide">{fmt(clock)} UTC</div>}
       <div className="cell topbar-hide">{sessionId}</div>
       {user ? (
@@ -53,12 +56,12 @@ export function TopBar({ user, status = 'ONLINE', sessionId = 'SES-7F2A-0481' }:
               className="btn btn-ghost btn-sm"
               style={{ padding:'4px 10px', fontSize:10, letterSpacing:'.12em', minHeight:0 }}
             >
-              KI
+              {t('top.logout')}
             </button>
           </div>
         </>
       ) : (
-        <div className="cell" style={{ color: 'var(--ink-3)' }}>◯ VENDÉG</div>
+        <div className="cell" style={{ color: 'var(--ink-3)' }}>{t('top.guest')}</div>
       )}
     </div>
   )
