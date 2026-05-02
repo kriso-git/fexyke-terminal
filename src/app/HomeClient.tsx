@@ -86,7 +86,7 @@ function Hero({ currentOperator, postCount, totalLikes }: { currentOperator: Ope
             <Link href="/gate" className="btn btn-primary">{t('hero.enter')}</Link>
           )}
           <Link href="#feed" className="btn">{t('hero.posts')}</Link>
-          <div className="hero-cube-slot" aria-hidden style={{ display:'flex', alignItems:'center', marginLeft:8, marginTop:-32 }}>
+          <div className="hero-cube-slot" aria-hidden style={{ display:'flex', alignItems:'center', marginLeft:400, marginTop:-90 }}>
             <HeroCube/>
           </div>
         </div>

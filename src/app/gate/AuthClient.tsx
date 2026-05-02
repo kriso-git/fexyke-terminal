@@ -54,7 +54,7 @@ export function AuthClient() {
   return (
     <div className="r-gate">
       {/* LEFT hero */}
-      <div className="gate-hero" style={{ position:'relative', padding:'64px 56px', borderRight:'1px solid var(--border-1)', background:'radial-gradient(ellipse at 30% 40%, rgba(24,233,104,.08), transparent 60%)' }}>
+      <div className="gate-hero" style={{ position:'relative', padding:'64px 56px', background:'radial-gradient(ellipse at 30% 40%, rgba(24,233,104,.08), transparent 60%)' }}>
         <div style={{ position:'absolute', inset:0, overflow:'hidden', pointerEvents:'none' }}>
           <svg viewBox="0 0 600 800" style={{ position:'absolute', inset:0, width:'100%', height:'100%', opacity:.35 }}>
             {Array.from({length:60}).map((_,j)=>{
