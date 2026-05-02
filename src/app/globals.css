@@ -485,7 +485,64 @@ textarea.input { resize:vertical; }
   .post-modal { max-width: 100% !important; }
 
   /* Bigger tap targets on inputs */
-  .input { min-height: 36px; font-size: 16px; }
+  .input { min-height: 40px; font-size: 16px; }
+
+  /* Profile header on mobile: avatar + info stack, with avatar smaller */
+  .profile-header-grid > div:first-child > div:first-child { width: 140px !important; height: 140px !important; }
+  .profile-header-grid > div:first-child .btn { width: 140px !important; }
+
+  /* Display headline on profile shrinks */
+  .profile-header-grid h1.display { font-size: clamp(40px, 12vw, 72px) !important; }
+
+  /* Entry card content padding tighter on mobile */
+  .entry-card-grid > div { padding: 14px !important; }
+  .entry-card-grid h3.entry-title { font-size: 17px !important; }
+
+  /* Reactions row: spread evenly */
+  .entry-card-grid button[aria-label] { padding: 6px 10px !important; }
+
+  /* Comment composer textarea full row */
+  .comment-composer { flex-wrap: wrap !important; gap: 6px !important; padding: 8px 10px !important; }
+
+  /* Admin tabs scrollable horizontally */
+  .tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tabs .tab { flex-shrink: 0; }
+
+  /* Admin tables → cards: tighten padding, hide overflow */
+  .admin-table-row { font-size: 11px; }
+
+  /* Footer minimal on mobile */
+  .footer { flex-wrap: wrap; padding: 6px 12px; gap: 6px 12px; }
+  .footer .cell { font-size: 9px; }
+
+  /* DataStream + scanline already hidden; ensure */
+  .scanline-sweep { display: none; }
+
+  /* Chat pill smaller on phone */
+  .chat-pill { padding: 8px 12px !important; font-size: 11px !important; gap: 8px !important; }
+
+  /* Modals: full-bleed on small phones */
+  .post-modal { width: 100% !important; }
+
+  /* Lang switcher in nav: shrink + scroll if needed */
+  .nav-lang { padding: 4px 8px !important; gap: 2px !important; }
+  .nav-lang button { padding: 2px 5px !important; font-size: 9px !important; }
+}
+
+/* Phone (<= 480 px) refinements */
+@media (max-width: 480px) {
+  .entry-card-grid h3.entry-title { font-size: 16px !important; }
+  .post-modal-backdrop { padding: 8px 4px !important; }
+
+  /* Hero stat panel tightening */
+  .panel-hud .panel-body { padding: 10px 12px !important; }
+
+  /* Reduce reactions button gap */
+  .entry-card-grid > div { gap: 8px !important; }
+
+  /* Profile metrics grid 2 cols already; force 2 col */
+  .profile-header-grid + div { grid-template-columns: 1fr !important; }
 }
 
 /* Safari address-bar safe area */

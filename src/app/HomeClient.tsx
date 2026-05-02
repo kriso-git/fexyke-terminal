@@ -15,8 +15,8 @@ import { YouTubePlayer, YouTubeThumbnail, extractYouTubeId } from '@/components/
 import dynamic from 'next/dynamic'
 
 const PostModal = dynamic(() => import('@/components/ui/PostModal').then(m => m.PostModal), { ssr: false })
-import { createEntry, toggleReaction, fetchEntryById, deleteEntry, createSignal } from '@/app/actions'
-import type { Entry, Operator } from '@/lib/types'
+import { createEntry, toggleReaction, fetchEntryById, deleteEntry, createSignal, getEntryComments } from '@/app/actions'
+import type { Entry, Operator, Signal } from '@/lib/types'
 
 const ALLOWED_UPLOAD = new Set([
   'image/gif','image/jpeg','image/png','image/webp',
@@ -319,46 +319,165 @@ function PostPanel({ op, onPost }: { op: Operator | null; onPost: (id: string) =
   )
 }
 
-/* ─── Inline comment composer ─── */
-function CommentComposer({ entryId, currentOperator }: { entryId: string; currentOperator: Operator | null }) {
-  const { t } = useI18n()
+/* ─── Inline comment thread (composer + list + collapse) ─── */
+function CommentThread({
+  entryId, currentOperator, initialComments, initialCount,
+}: {
+  entryId: string
+  currentOperator: Operator | null
+  initialComments: Signal[]
+  initialCount: number
+}) {
+  const { t, lang } = useI18n()
+  const localeMap: Record<string, string> = { hu:'hu-HU', en:'en-US', de:'de-DE', es:'es-ES', fr:'fr-FR', no:'no-NO', sv:'sv-SE' }
+  const [comments, setComments] = useState<Signal[]>(initialComments)
+  const [totalCount, setTotalCount] = useState(initialCount)
+  const [expanded, setExpanded] = useState(false)
   const [text, setText] = useState('')
+  const [image, setImage] = useState<string | null>(null)
+  const [imgUploading, setImgUploading] = useState(false)
   const [pending, setPending] = useState(false)
   const [done, setDone] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  if (!currentOperator) return null
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (!text.trim()) return
-    setPending(true)
+    if (!currentOperator) return
+    if (!text.trim() && !image) return
+    setPending(true); setError(null)
     const fd = new FormData()
     fd.append('entry_id', entryId)
-    fd.append('text', text.trim())
+    if (text.trim()) fd.append('text', text.trim())
+    if (image) fd.append('image_url', image)
     const res = await createSignal(fd)
-    if (!res?.error) { setText(''); setDone(true); setTimeout(() => setDone(false), 1600) }
-    setPending(false)
+    if (res?.error) { setError(res.error); setPending(false); return }
+    // re-fetch full thread so the new comment shows up reliably
+    const fresh = await getEntryComments(entryId)
+    setComments(fresh.signals as unknown as Signal[])
+    setTotalCount(fresh.signals.length)
+    setExpanded(true)
+    setText(''); setImage(null); setDone(true); setPending(false)
+    setTimeout(() => setDone(false), 1500)
+  }
+
+  async function uploadImage(ev: React.ChangeEvent<HTMLInputElement>) {
+    const file = ev.target.files?.[0]
+    if (!file) return
+    setImgUploading(true); setError(null)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/upload', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Feltöltési hiba')
+      setImage(data.url)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Feltöltési hiba')
+    } finally {
+      setImgUploading(false)
+      if (ev.target) ev.target.value = ''
+    }
+  }
+
+  async function loadAll() {
+    if (expanded) { setExpanded(false); return }
+    const fresh = await getEntryComments(entryId)
+    setComments(fresh.signals as unknown as Signal[])
+    setTotalCount(fresh.signals.length)
+    setExpanded(true)
+  }
+
+  const visible = expanded ? comments : comments.slice(-3)
+  const hiddenCount = Math.max(0, totalCount - visible.length)
+
+  const fmt = (iso: string) => {
+    try { return new Date(iso).toLocaleString(localeMap[lang] ?? 'hu-HU', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) } catch { return '' }
   }
 
   return (
-    <form onSubmit={submit} className="comment-composer">
-      <Avatar id={currentOperator.id} size={28}/>
-      <textarea
-        className="input"
-        style={{ flex:1, minHeight:36, maxHeight:100, resize:'vertical', fontSize:12, padding:'6px 10px' }}
-        placeholder={t('comment.placeholder')}
-        value={text}
-        onChange={e=>setText(e.target.value)}
-        rows={1}
-      />
-      <button type="button" className="btn btn-ghost btn-sm" style={{ padding:'4px 8px', opacity:.6 }}
-        onClick={()=>fileInputRef.current?.click()} title={t('comment.attach')}>⊡</button>
-      <input ref={fileInputRef} type="file" style={{ display:'none' }} accept="image/gif,image/jpeg,image/png,image/webp"/>
-      <button type="submit" className="btn btn-primary btn-sm" disabled={pending || !text.trim()}>
-        {done ? '✓' : pending ? '…' : '↗'}
-      </button>
-    </form>
+    <div style={{ borderTop:'1px solid var(--border-0)', background:'rgba(0,0,0,.15)' }}>
+      {/* Thread header */}
+      {totalCount > 0 && (
+        <div style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 14px', borderBottom:'1px solid var(--border-0)' }}>
+          <span className="sys muted" style={{ fontSize:10 }}>◢ {totalCount} {t('post.comments')}</span>
+          <span style={{ flex:1 }}/>
+          {!expanded && hiddenCount > 0 && (
+            <button onClick={loadAll} className="sys" style={{ fontSize:10, color:'var(--accent)', background:'none', border:'none', cursor:'pointer', letterSpacing:'.12em' }}>
+              ▾ TÖBB ({hiddenCount})
+            </button>
+          )}
+          {expanded && totalCount > 3 && (
+            <button onClick={() => setExpanded(false)} className="sys" style={{ fontSize:10, color:'var(--accent)', background:'none', border:'none', cursor:'pointer', letterSpacing:'.12em' }}>
+              ▴ KEVESEBB
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Comment list */}
+      {visible.length > 0 && (
+        <div style={{ display:'flex', flexDirection:'column' }}>
+          {visible.map((s, idx) => (
+            <div key={s.id} style={{ display:'grid', gridTemplateColumns:'32px 1fr', gap:10, padding:'10px 14px', borderBottom: idx < visible.length - 1 ? '1px solid var(--border-0)' : 'none' }}>
+              <Link href={s.operator?.callsign ? `/operators/${s.operator.callsign}` : '#'} style={{ textDecoration:'none' }}>
+                <Avatar id={s.operator_id} src={s.operator?.avatar_url} size={32}/>
+              </Link>
+              <div style={{ minWidth:0 }}>
+                <div style={{ display:'flex', gap:8, alignItems:'baseline', marginBottom:3, flexWrap:'wrap' }}>
+                  <Link href={s.operator?.callsign ? `/operators/${s.operator.callsign}` : '#'} className="head" style={{ fontSize:12, color: s.operator?.chat_color || 'var(--ink-0)', textDecoration:'none' }}>
+                    {s.operator?.callsign ?? s.operator_id}
+                  </Link>
+                  {s.verified && <Chip kind="accent" dot style={{ fontSize:8 }}>VERIFIED</Chip>}
+                  <span className="sys muted" style={{ fontSize:9 }}>{fmt(s.created_at)}</span>
+                </div>
+                {s.text && <div style={{ fontSize:12.5, lineHeight:1.55, color:'var(--ink-0)', wordBreak:'break-word', whiteSpace:'pre-wrap' }}>{s.text}</div>}
+                {s.image_url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={s.image_url} alt="" loading="lazy" decoding="async" style={{ marginTop:6, maxWidth:'100%', maxHeight:280, objectFit:'contain', display:'block', background:'var(--bg-2)', border:'1px solid var(--border-1)' }}/>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Composer */}
+      {currentOperator ? (
+        <form onSubmit={submit} className="comment-composer" style={{ display:'flex', gap:6, padding:'8px 12px', alignItems:'flex-start', flexWrap:'wrap' }}>
+          <Avatar id={currentOperator.id} src={currentOperator.avatar_url} size={28}/>
+          <div style={{ flex:1, minWidth:160, display:'flex', flexDirection:'column', gap:4 }}>
+            <textarea
+              className="input"
+              style={{ width:'100%', minHeight:36, maxHeight:120, resize:'vertical', fontSize:13, padding:'6px 10px' }}
+              placeholder={t('comment.placeholder')}
+              value={text}
+              onChange={e=>setText(e.target.value)}
+              rows={1}
+            />
+            {image && (
+              <div style={{ position:'relative', maxWidth:200 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={image} alt="" style={{ width:'100%', maxHeight:140, objectFit:'contain', background:'var(--bg-2)', border:'1px solid var(--border-1)' }}/>
+                <button type="button" onClick={()=>setImage(null)} style={{ position:'absolute', top:2, right:2, width:20, height:20, background:'rgba(0,0,0,.7)', border:'1px solid var(--red)', color:'var(--red)', cursor:'pointer', fontSize:10 }}>✕</button>
+              </div>
+            )}
+            {error && <div style={{ fontSize:10, color:'var(--red)', fontFamily:'var(--f-sys)' }}>◢ {error}</div>}
+          </div>
+          <button type="button" className="btn btn-ghost btn-sm" style={{ padding:'4px 8px', opacity: imgUploading ? .4 : .8, minHeight:0 }}
+            disabled={imgUploading}
+            onClick={()=>fileInputRef.current?.click()} title={t('comment.attach')}>{imgUploading ? '…' : '⊡'}</button>
+          <input ref={fileInputRef} type="file" style={{ display:'none' }} accept="image/gif,image/jpeg,image/png,image/webp" onChange={uploadImage}/>
+          <button type="submit" className="btn btn-primary btn-sm" disabled={pending || (!text.trim() && !image)} style={{ minHeight:0 }}>
+            {done ? '✓' : pending ? '…' : '↗'}
+          </button>
+        </form>
+      ) : (
+        <div className="sys muted" style={{ padding:'10px 14px', fontSize:11, textAlign:'center', borderTop:'1px dashed var(--border-1)' }}>
+          <Link href="/gate" style={{ color:'var(--accent)' }}>◢ BELÉPÉS</Link> · kommenteléshez
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -476,8 +595,13 @@ function PostCard({ e, i, currentOperator, onDelete, onOpen }: { e: Entry; i: nu
           </div>
         </div>
 
-        {/* Comment composer */}
-        <CommentComposer entryId={e.id} currentOperator={currentOperator}/>
+        {/* Comment thread */}
+        <CommentThread
+          entryId={e.id}
+          currentOperator={currentOperator}
+          initialComments={e.initialComments ?? []}
+          initialCount={e.commentCount ?? 0}
+        />
       </div>
     </div>
   )
@@ -485,6 +609,7 @@ function PostCard({ e, i, currentOperator, onDelete, onOpen }: { e: Entry; i: nu
 const PostCardMemo = memo(PostCard, (a, b) =>
   a.e.id === b.e.id &&
   a.e.reads === b.e.reads &&
+  a.e.commentCount === b.e.commentCount &&
   a.currentOperator?.id === b.currentOperator?.id &&
   a.i === b.i
 )

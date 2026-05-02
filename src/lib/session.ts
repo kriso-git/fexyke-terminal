@@ -19,11 +19,13 @@ export async function getCurrentOperator(): Promise<Operator | null> {
     .eq('auth_id', user.id)
     .single()
 
-  // Fire-and-forget last_seen update (use admin client so it's always allowed; ignore errors if column missing)
+  // Synchronously refresh last_seen so the value we return is fresh
   if (data) {
     try {
       const admin = createAdminClient()
-      void admin.from('operators').update({ last_seen: new Date().toISOString() }).eq('id', (data as Operator).id)
+      const now = new Date().toISOString()
+      await admin.from('operators').update({ last_seen: now }).eq('id', (data as Operator).id)
+      ;(data as Operator).last_seen = now
     } catch {}
   }
 

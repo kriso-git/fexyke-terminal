@@ -1,38 +1,51 @@
-import { supabase } from '@/lib/supabase'
 import { getCurrentOperator } from '@/lib/session'
 import { TopBar } from '@/components/shell/TopBar'
 import { Nav } from '@/components/shell/Nav'
 import { Footer } from '@/components/shell/Footer'
 import { DataStream } from '@/components/shell/DataStream'
 import { HomeClient } from './HomeClient'
-import type { Entry, Operator, Thread } from '@/lib/types'
+import type { Entry, Operator, Signal, Thread } from '@/lib/types'
 import { createAdminClient } from '@/lib/supabase-admin'
 
 async function getData() {
+  const admin = createAdminClient()
   const [entriesRes, operatorsRes, threadsRes] = await Promise.all([
-    supabase.from('entries').select('*, operator:operators!operator_id(*)').order('created_at', { ascending: false }).limit(10),
-    supabase.from('operators').select('*').order('created_at', { ascending: true }).limit(20),
-    supabase.from('threads').select('*').order('created_at', { ascending: false }).limit(4),
+    admin.from('entries').select('*, operator:operators!operator_id(*)').order('created_at', { ascending: false }).limit(10),
+    admin.from('operators').select('*').order('created_at', { ascending: true }).limit(20),
+    admin.from('threads').select('*').order('created_at', { ascending: false }).limit(4),
   ])
 
   const entries = (entriesRes.data ?? []) as Entry[]
 
-  // Fetch reaction counts for displayed entries
   let reactionsByEntry: Record<string, Record<string, number>> = {}
+  let commentsByEntry:  Record<string, Signal[]> = {}
+  let commentCountByEntry: Record<string, number> = {}
+
   if (entries.length > 0) {
     const ids = entries.map(e => e.id)
-    const { data: rxData } = await supabase
-      .from('entry_reactions')
-      .select('entry_id, emoji')
-      .in('entry_id', ids)
-    for (const r of (rxData ?? []) as { entry_id: string; emoji: string }[]) {
+    const [rxRes, sigRes] = await Promise.all([
+      admin.from('entry_reactions').select('entry_id, emoji').in('entry_id', ids),
+      admin.from('signals').select('id, entry_id, operator_id, parent_id, text, image_url, sigs, verified, created_at, operator:operators!operator_id(*)').in('entry_id', ids).order('created_at', { ascending: true }),
+    ])
+    for (const r of (rxRes.data ?? []) as { entry_id: string; emoji: string }[]) {
       if (!reactionsByEntry[r.entry_id]) reactionsByEntry[r.entry_id] = {}
       reactionsByEntry[r.entry_id][r.emoji] = (reactionsByEntry[r.entry_id][r.emoji] ?? 0) + 1
+    }
+    for (const s of (sigRes.data ?? []) as unknown as Signal[]) {
+      const eid = s.entry_id as string
+      if (!commentsByEntry[eid]) commentsByEntry[eid] = []
+      commentsByEntry[eid].push(s)
+      commentCountByEntry[eid] = (commentCountByEntry[eid] ?? 0) + 1
     }
   }
 
   return {
-    entries: entries.map(e => ({ ...e, reactions: reactionsByEntry[e.id] ?? {} })),
+    entries: entries.map(e => ({
+      ...e,
+      reactions: reactionsByEntry[e.id] ?? {},
+      initialComments: (commentsByEntry[e.id] ?? []).slice(-3),
+      commentCount: commentCountByEntry[e.id] ?? 0,
+    })),
     operators: (operatorsRes.data ?? []) as Operator[],
     threads: (threadsRes.data ?? []) as Thread[],
   }

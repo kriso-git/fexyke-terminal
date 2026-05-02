@@ -289,26 +289,44 @@ export async function createSignal(formData: FormData) {
   const op = await getCurrentOperator()
   if (!op) return { error: 'Be kell lépni jelzés küldéséhez.' }
 
-  const supabase = await createClient()
   const entryId  = formData.get('entry_id') as string
-  const text     = (formData.get('text') as string).trim()
+  const text     = ((formData.get('text') as string) ?? '').trim()
+  const imageUrl = ((formData.get('image_url') as string) ?? '').trim() || null
   const parentId = formData.get('parent_id') as string | null
 
-  if (!text) return { error: 'A jelzés nem lehet üres.' }
+  if (!text && !imageUrl) return { error: 'A jelzés nem lehet üres.' }
 
-  const { error } = await supabase.from('signals').insert({
+  const admin = createAdminClient()
+  const { error } = await admin.from('signals').insert({
     entry_id:    entryId,
     operator_id: op.id,
     parent_id:   parentId || null,
-    text,
+    text:        text || null,
+    image_url:   imageUrl,
     sigs:        [],
     verified:    op.level >= 3,
   })
 
   if (error) return { error: error.message }
 
+  revalidatePath('/')
   revalidatePath(`/entries/${entryId}`)
   return { success: true }
+}
+
+export async function getEntryComments(entryId: string) {
+  try {
+    const admin = createAdminClient()
+    const { data } = await admin
+      .from('signals')
+      .select('id, entry_id, operator_id, parent_id, text, image_url, sigs, verified, created_at, operator:operators!operator_id(*)')
+      .eq('entry_id', entryId)
+      .order('created_at', { ascending: true })
+    return { signals: data ?? [] }
+  } catch (err) {
+    console.error('getEntryComments error:', err)
+    return { signals: [] }
+  }
 }
 
 /* ─── Profile signals (profil-írások) ─── */
@@ -317,22 +335,24 @@ export async function createProfileSignal(formData: FormData) {
   const op = await getCurrentOperator()
   if (!op) return { error: 'Be kell lépni jelzés küldéséhez.' }
 
-  const supabase  = await createClient()
   const targetId  = formData.get('target_id') as string
-  const text      = (formData.get('text') as string).trim()
+  const text      = ((formData.get('text') as string) ?? '').trim()
+  const imageUrl  = ((formData.get('image_url') as string) ?? '').trim() || null
 
-  if (!text) return { error: 'Az üzenet nem lehet üres.' }
+  if (!text && !imageUrl) return { error: 'Az üzenet nem lehet üres.' }
 
-  const { error } = await supabase.from('profile_signals').insert({
+  const admin = createAdminClient()
+  const { error } = await admin.from('profile_signals').insert({
     target_id:  targetId,
     author_id:  op.id,
-    text,
+    text:       text || null,
+    image_url:  imageUrl,
     verified:   op.level >= 3,
   })
 
   if (error) return { error: error.message }
 
-  const { data: targetOp } = await supabase.from('operators').select('callsign').eq('id', targetId).single()
+  const { data: targetOp } = await admin.from('operators').select('callsign').eq('id', targetId).single()
   revalidatePath(`/operators/${targetOp?.callsign ?? targetId}`)
   return { success: true }
 }

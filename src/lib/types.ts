@@ -56,6 +56,8 @@ export interface Entry {
   media_type?: 'youtube' | 'image' | 'audio' | null
   media_label?: string | null
   reactions?: Record<string, number>
+  initialComments?: Signal[]
+  commentCount?: number
 }
 
 export interface EntryReaction {
@@ -70,7 +72,8 @@ export interface Signal {
   entry_id: string | null
   operator_id: string
   parent_id: string | null
-  text: string
+  text: string | null
+  image_url?: string | null
   sigs: string[]
   verified: boolean
   created_at: string
@@ -89,7 +92,8 @@ export interface ProfileSignal {
   id: string
   target_id: string
   author_id: string
-  text: string
+  text: string | null
+  image_url?: string | null
   verified: boolean
   created_at: string
   author?: Operator

@@ -165,6 +165,8 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
   const [psPending, setPsPending] = useState(false)
   const [psDone, setPsDone]       = useState(false)
   const [msgText, setMsgText]     = useState('')
+  const [psImage, setPsImage]     = useState<string | null>(null)
+  const [psImageUploading, setPsImageUploading] = useState(false)
   const fileInputRef              = useRef<HTMLInputElement>(null)
 
   const [isEditing, setIsEditing]   = useState(false)
@@ -190,13 +192,39 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
 
   async function handleProfileSignal(ev: React.FormEvent<HTMLFormElement>) {
     ev.preventDefault()
-    if (!msgText.trim()) return
+    if (!msgText.trim() && !psImage) return
     setPsPending(true); setPsError(null)
-    const fd = new FormData(ev.currentTarget)
+    const fd = new FormData()
+    fd.set('target_id', op.id)
     fd.set('text', msgText.trim())
+    if (psImage) fd.set('image_url', psImage)
     const res = await createProfileSignal(fd)
     if (res?.error) { setPsError(res.error); setPsPending(false) }
-    else { setMsgText(''); setPsDone(true); setPsPending(false); setTimeout(() => setPsDone(false), 1800) }
+    else {
+      setMsgText(''); setPsImage(null); setPsDone(true); setPsPending(false)
+      setTimeout(() => setPsDone(false), 1800)
+      // Re-fetch the page so the new signal shows up
+      if (typeof window !== 'undefined') window.location.reload()
+    }
+  }
+
+  async function handleProfileImageUpload(ev: React.ChangeEvent<HTMLInputElement>) {
+    const file = ev.target.files?.[0]
+    if (!file) return
+    setPsImageUploading(true); setPsError(null)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/upload', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Feltöltési hiba')
+      setPsImage(data.url)
+    } catch (e) {
+      setPsError(e instanceof Error ? e.message : 'Feltöltési hiba')
+    } finally {
+      setPsImageUploading(false)
+      if (ev.target) ev.target.value = ''
+    }
   }
 
   async function handleEditProfile(ev: React.FormEvent<HTMLFormElement>) {
@@ -275,6 +303,7 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
             <Chip kind="solid" dot>{op.id}</Chip>
             <Chip kind="accent">{roleLabel} · LVL-0{op.level}</Chip>
             {(() => {
+              if (isSelf) return <Chip kind="cyan" dot>ONLINE</Chip>
               const ls = op.last_seen ? new Date(op.last_seen).getTime() : 0
               const online = ls && (Date.now() - ls < 5 * 60 * 1000)
               if (online) return <Chip kind="cyan" dot>ONLINE</Chip>
@@ -431,15 +460,28 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
                   <textarea name="text" className="input" rows={3}
                     placeholder={t('profile.msg_ph')}
                     value={msgText} onChange={e => setMsgText(e.target.value)}/>
+                  {psImage && (
+                    <div style={{ position:'relative', maxWidth:300 }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={psImage} alt="Csatolt kép" loading="lazy" style={{ width:'100%', maxHeight:200, objectFit:'contain', background:'var(--bg-2)', border:'1px solid var(--border-1)' }}/>
+                      <button type="button" onClick={() => setPsImage(null)}
+                        style={{ position:'absolute', top:4, right:4, width:24, height:24, background:'rgba(0,0,0,.7)', border:'1px solid var(--red)', color:'var(--red)', cursor:'pointer', fontSize:12 }}>✕</button>
+                    </div>
+                  )}
                   {psError && <div style={{ padding:'6px 10px', background:'rgba(255,58,58,.1)', border:'1px solid var(--red)', color:'var(--red)', fontFamily:'var(--f-sys)', fontSize:11 }}>◢ {psError}</div>}
                   {psDone  && <div style={{ padding:'6px 10px', background:'rgba(24,233,104,.1)', border:'1px solid var(--accent)', color:'var(--accent)', fontFamily:'var(--f-sys)', fontSize:11 }}>{t('profile.sent')}</div>}
-                  <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                  <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
                     <Chip kind="dash">{t('profile.as')} {currentOperator.callsign}</Chip>
-                    <button type="button" className="btn btn-ghost btn-sm" style={{ padding:'3px 8px', opacity:.7 }}
-                      onClick={() => fileInputRef.current?.click()}>{t('profile.attach_img')}</button>
-                    <input ref={fileInputRef} type="file" style={{ display:'none' }} accept="image/gif,image/jpeg,image/png,image/webp"/>
+                    <button type="button" className="btn btn-ghost btn-sm" style={{ padding:'3px 8px', opacity: psImageUploading ? 0.5 : 0.85 }}
+                      disabled={psImageUploading}
+                      onClick={() => fileInputRef.current?.click()}>
+                      {psImageUploading ? '◢ FELTÖLTÉS…' : t('profile.attach_img')}
+                    </button>
+                    <input ref={fileInputRef} type="file" style={{ display:'none' }}
+                      accept="image/gif,image/jpeg,image/png,image/webp"
+                      onChange={handleProfileImageUpload}/>
                     <span style={{ flex:1 }}/>
-                    <button type="submit" className="btn btn-primary btn-sm" disabled={psPending || !msgText.trim()}>
+                    <button type="submit" className="btn btn-primary btn-sm" disabled={psPending || (!msgText.trim() && !psImage)}>
                       {psPending ? t('profile.sending') : t('profile.send')}
                     </button>
                   </div>
@@ -470,7 +512,13 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
                     {s.verified && <Chip kind="accent" dot>VERIFIED</Chip>}
                     <span className="sys muted" style={{ fontSize:10 }}>{fmtDate(s.created_at)}</span>
                   </div>
-                  <div style={{ color:'var(--ink-0)', fontSize:14, lineHeight:1.6, wordBreak:'break-word' }}>{s.text}</div>
+                  {s.text && <div style={{ color:'var(--ink-0)', fontSize:14, lineHeight:1.6, wordBreak:'break-word' }}>{s.text}</div>}
+                  {s.image_url && (
+                    <div style={{ marginTop:8 }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={s.image_url} alt="" loading="lazy" decoding="async" style={{ maxWidth:'100%', maxHeight:360, objectFit:'contain', display:'block', background:'var(--bg-2)', border:'1px solid var(--border-1)' }}/>
+                    </div>
+                  )}
                   <div style={{ display:'flex', gap:12, marginTop:8, paddingTop:8, borderTop:'1px dashed var(--border-1)' }}>
                     <span style={{ flex:1 }}/>
                     <span className="sys dim" style={{ fontSize:10 }}>MSG-{s.id.slice(-4).toUpperCase()}</span>
