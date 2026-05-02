@@ -80,19 +80,19 @@ function Hero({ currentOperator, postCount, totalLikes }: { currentOperator: Ope
         <div style={{ marginTop:14, marginBottom:20 }}>
           <LangPicker/>
         </div>
-        <div style={{ display:'flex', gap:8 }}>
-          <Link href="/gate" className="btn btn-primary">{t('hero.enter')}</Link>
+        <div className="hero-cta-row" style={{ display:'flex', gap:14, alignItems:'center', flexWrap:'wrap' }}>
+          {!currentOperator && (
+            <Link href="/gate" className="btn btn-primary">{t('hero.enter')}</Link>
+          )}
           <Link href="#feed" className="btn">{t('hero.posts')}</Link>
+          <div className="hero-cube-slot" aria-hidden style={{ marginLeft:'auto', display:'flex', alignItems:'center' }}>
+            <HeroCube/>
+          </div>
         </div>
       </div>
 
-      {/* Right — Cube + UserCard stacked */}
+      {/* Right — UserCard */}
       <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
-
-        {/* HeroCube — small, top-right, doesn't block anything */}
-        <div style={{ display:'flex', justifyContent:'flex-end', padding:'4px 12px 0 0' }}>
-          <HeroCube/>
-        </div>
 
         {/* UserCard */}
         <div className="panel panel-hud panel-raised" style={{ position:'relative' }}>
@@ -706,9 +706,9 @@ export function HomeClient({ entries: initialEntries, currentOperator, postCount
         <PostPanel op={currentOperator} onPost={handlePost}/>
 
         {/* Feed header + filter */}
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18 }}>
+        <div className="feed-head-row" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, marginBottom:18, flexWrap:'wrap' }}>
           <Heading tag={t('feed.head_tag')} title={t('feed.head_title')} sub={t('feed.head_sub')}/>
-          <div style={{ display:'flex', gap:6 }}>
+          <div className="feed-filter-chips" style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
             {(['MIND','SZÖVEG','KÉP','VIDEÓ'] as const).map(f => {
               const labelMap = { MIND: t('feed.all'), SZÖVEG: t('post.text'), KÉP: t('post.image'), 'VIDEÓ': '▶ '+t('post.video') }
               return (

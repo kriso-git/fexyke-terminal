@@ -311,6 +311,7 @@ export function ChatWidget({ currentOperator }: ChatWidgetProps) {
                     border: `1px solid ${mine ? 'var(--accent)' : 'var(--border-1)'}`,
                     color: mine ? 'var(--ink-0)' : 'var(--ink-0)',
                     fontSize: 13, lineHeight: 1.5, wordBreak: 'break-word',
+                    fontFamily: 'var(--f-body)', textTransform: 'none',
                   }}>
                     {!mine && (
                       <div className="sys" style={{ fontSize: 9, color: senderColor, marginBottom: 2, letterSpacing: '.1em' }}>
@@ -374,7 +375,10 @@ export function ChatWidget({ currentOperator }: ChatWidgetProps) {
               onChange={e => setDraft(e.target.value)}
               maxLength={2000}
               disabled={sending}
-              style={{ flex: 1, fontSize: 13, padding: '6px 10px' }}
+              autoCapitalize="sentences"
+              autoCorrect="on"
+              spellCheck={true}
+              style={{ flex: 1, fontSize: 13, padding: '6px 10px', fontFamily: 'var(--f-body)', textTransform: 'none' }}
             />
             <button type="submit" className="btn btn-primary btn-sm" disabled={sending || (!draft.trim() && !uploading)}>
               {sending ? '…' : '↗'}

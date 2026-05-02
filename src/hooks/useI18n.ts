@@ -13,7 +13,7 @@ const DICT: Record<string, Record<string, string>> = {
   'top.live': { hu:'◢ ÉLŐ BLOG FELÜLET · V0.1', en:'◢ LIVE BLOG · V0.1', de:'◢ LIVE BLOG · V0.1', es:'◢ BLOG EN VIVO · V0.1', fr:'◢ BLOG EN DIRECT · V0.1', no:'◢ LIVE BLOGG · V0.1', sv:'◢ LIVE BLOGG · V0.1' },
   'top.server': { hu:'SZERVER · BUD-01', en:'SERVER · BUD-01', de:'SERVER · BUD-01', es:'SERVIDOR · BUD-01', fr:'SERVEUR · BUD-01', no:'SERVER · BUD-01', sv:'SERVER · BUD-01' },
   'top.guest': { hu:'◯ VENDÉG', en:'◯ GUEST', de:'◯ GAST', es:'◯ INVITADO', fr:'◯ INVITÉ', no:'◯ GJEST', sv:'◯ GÄST' },
-  'top.logout': { hu:'KI', en:'OUT', de:'AUS', es:'SALIR', fr:'SORTIE', no:'UT', sv:'UT' },
+  'top.logout': { hu:'KILÉPÉS', en:'LOGOUT', de:'ABMELDEN', es:'CERRAR SESIÓN', fr:'DÉCONNEXION', no:'LOGG UT', sv:'LOGGA UT' },
   'top.week': { hu:'HÉT', en:'WK', de:'KW', es:'SEM', fr:'SEM', no:'UKE', sv:'V' },
   'top.online': { hu:'ONLINE', en:'ONLINE', de:'ONLINE', es:'EN LÍNEA', fr:'EN LIGNE', no:'PÅLOGGET', sv:'ANSLUTEN' },
 
