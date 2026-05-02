@@ -9,6 +9,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { LiveTicks } from '@/components/ui/LiveTicks'
 import { createProfileSignal, updateProfile, sendFriendRequest, acceptFriendRequest, removeFriend } from '@/app/actions'
 import { useI18n } from '@/hooks/useI18n'
+import { RolePresenceChip } from '@/components/ui/PresenceChip'
 import type { Operator, Entry, ProfileSignal } from '@/lib/types'
 
 type FriendshipState =
@@ -266,7 +267,7 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
         {/* Avatar */}
         <div>
           <div style={{ width:200, height:200, background:'var(--bg-2)', border:'1px solid var(--accent)', position:'relative', boxShadow:'var(--accent-glow)', overflow:'hidden' }}>
-            <Avatar id={op.id} src={op.avatar_url} size={200}/>
+            <Avatar id={op.id} src={op.avatar_url} lastSeen={isSelf ? new Date().toISOString() : op.last_seen} size={200}/>
             {([
               { top:-1, left:-1, borderTop:'1px solid var(--accent)', borderLeft:'1px solid var(--accent)' },
               { top:-1, right:-1, borderTop:'1px solid var(--accent)', borderRight:'1px solid var(--accent)' },
@@ -455,7 +456,7 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
             <form onSubmit={handleProfileSignal} style={{ marginBottom:18 }}>
               <input type="hidden" name="target_id" value={op.id}/>
               <div className="panel" style={{ padding:14, display:'flex', gap:12 }}>
-                <Avatar id={currentOperator.id} src={currentOperator.avatar_url} size={40}/>
+                <Avatar id={currentOperator.id} src={currentOperator.avatar_url} lastSeen={currentOperator.last_seen} size={40}/>
                 <div style={{ flex:1, display:'flex', flexDirection:'column', gap:10 }}>
                   <textarea name="text" className="input" rows={3}
                     placeholder={t('profile.msg_ph')}
@@ -503,13 +504,13 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
             ) : sigs.map(s => (
               <div key={s.id} className="panel" style={{ padding:14, display:'grid', gridTemplateColumns:'40px 1fr', gap:12 }}>
                 <Link href={s.author?.callsign ? `/operators/${s.author.callsign}` : '#'} style={{ textDecoration:'none' }}>
-                  <Avatar id={s.author?.id ?? s.author_id} src={s.author?.avatar_url} size={40}/>
+                  <Avatar id={s.author?.id ?? s.author_id} src={s.author?.avatar_url} lastSeen={s.author?.last_seen} size={40}/>
                 </Link>
                 <div>
-                  <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8, flexWrap:'wrap' }}>
                     <Link href={s.author?.callsign ? `/operators/${s.author.callsign}` : '#'} className="head" style={{ fontSize:15, color: s.author?.chat_color || 'var(--ink-0)', textDecoration:'none' }}>{s.author?.callsign ?? '—'}</Link>
                     <span style={{ flex:1 }}/>
-                    {s.verified && <Chip kind="accent" dot>VERIFIED</Chip>}
+                    <RolePresenceChip role={s.author?.role} lastSeen={s.author?.last_seen} fontSize={9}/>
                     <span className="sys muted" style={{ fontSize:10 }}>{fmtDate(s.created_at)}</span>
                   </div>
                   {s.text && <div style={{ color:'var(--ink-0)', fontSize:14, lineHeight:1.6, wordBreak:'break-word' }}>{s.text}</div>}

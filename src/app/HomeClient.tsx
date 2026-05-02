@@ -16,6 +16,7 @@ import dynamic from 'next/dynamic'
 
 const PostModal = dynamic(() => import('@/components/ui/PostModal').then(m => m.PostModal), { ssr: false })
 import { createEntry, toggleReaction, fetchEntryById, deleteEntry, createSignal, getEntryComments, listMyDrafts, publishDraft } from '@/app/actions'
+import { RolePresenceChip } from '@/components/ui/PresenceChip'
 import type { Entry, Operator, Signal } from '@/lib/types'
 
 const ALLOWED_UPLOAD = new Set([
@@ -108,7 +109,7 @@ function Hero({ currentOperator, postCount, totalLikes }: { currentOperator: Ope
                   </div>
                   <div>
                     <div className="head" style={{ fontSize:20, lineHeight:1 }}>{currentOperator.callsign}</div>
-                    <div className="sys muted" style={{ marginTop:4 }}>LVL-0{currentOperator.level} · {currentOperator.role.toUpperCase()}</div>
+                    <div className="sys muted" style={{ marginTop:4 }}>LVL-0{currentOperator.level} · {currentOperator.role === 'operator' ? 'TAG' : currentOperator.role.toUpperCase()}</div>
                   </div>
                 </div>
                 <div style={{ display:'flex', flexDirection:'column', gap:2, marginBottom:12 }}>
@@ -598,14 +599,14 @@ function CommentThread({
           {visible.map((s, idx) => (
             <div key={s.id} style={{ display:'grid', gridTemplateColumns:'32px 1fr', gap:10, padding:'10px 14px', borderBottom: idx < visible.length - 1 ? '1px solid var(--border-0)' : 'none' }}>
               <Link href={s.operator?.callsign ? `/operators/${s.operator.callsign}` : '#'} style={{ textDecoration:'none' }}>
-                <Avatar id={s.operator_id} src={s.operator?.avatar_url} size={32}/>
+                <Avatar id={s.operator_id} src={s.operator?.avatar_url} lastSeen={s.operator?.last_seen} size={32}/>
               </Link>
               <div style={{ minWidth:0 }}>
                 <div style={{ display:'flex', gap:8, alignItems:'baseline', marginBottom:3, flexWrap:'wrap' }}>
                   <Link href={s.operator?.callsign ? `/operators/${s.operator.callsign}` : '#'} className="head" style={{ fontSize:12, color: s.operator?.chat_color || 'var(--ink-0)', textDecoration:'none' }}>
                     {s.operator?.callsign ?? s.operator_id}
                   </Link>
-                  {s.verified && <Chip kind="accent" dot style={{ fontSize:8 }}>VERIFIED</Chip>}
+                  <RolePresenceChip role={s.operator?.role} lastSeen={s.operator?.last_seen} fontSize={8}/>
                   <span className="sys muted" style={{ fontSize:9 }}>{fmt(s.created_at)}</span>
                 </div>
                 {s.text && <div style={{ fontSize:12.5, lineHeight:1.55, color:'var(--ink-0)', wordBreak:'break-word', whiteSpace:'pre-wrap' }}>{s.text}</div>}
@@ -622,7 +623,7 @@ function CommentThread({
       {/* Composer */}
       {currentOperator ? (
         <form onSubmit={submit} className="comment-composer" style={{ display:'flex', gap:6, padding:'8px 12px', alignItems:'flex-start', flexWrap:'wrap' }}>
-          <Avatar id={currentOperator.id} src={currentOperator.avatar_url} size={28}/>
+          <Avatar id={currentOperator.id} src={currentOperator.avatar_url} lastSeen={currentOperator.last_seen} size={28}/>
           <div style={{ flex:1, minWidth:160, display:'flex', flexDirection:'column', gap:4 }}>
             <textarea
               className="input"
@@ -707,7 +708,7 @@ function PostCard({ e, i, currentOperator, onDelete, onOpen }: { e: Entry; i: nu
             <div style={{ display:'flex', flexDirection:'column', gap:4, alignItems:'flex-start' }}>
               <div className="sys muted" style={{ fontSize:9 }}>{t('card.author')}</div>
               <div style={{ display:'flex', gap:6, alignItems:'center' }}>
-                <Avatar id={e.operator_id} src={e.operator?.avatar_url} size={24}/>
+                <Avatar id={e.operator_id} src={e.operator?.avatar_url} lastSeen={e.operator?.last_seen} size={24}/>
                 <span className="sys" style={{ fontSize:10 }}>{e.operator?.callsign ?? '—'}</span>
               </div>
             </div>

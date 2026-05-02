@@ -79,7 +79,7 @@ export default async function OperatorPage({ params }: { params: Promise<{ calls
       <DataStream side="right" />
       <div className="scanline-sweep" />
       <TopBar user={userLabel} />
-      <Nav />
+      <Nav role={currentOperator?.role ?? null} />
       <ProfileClient {...data} currentOperator={currentOperator} friendship={friendship} />
       <Footer index="003 / 005" />
     </div>

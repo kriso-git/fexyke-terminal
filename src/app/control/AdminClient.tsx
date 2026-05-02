@@ -94,7 +94,7 @@ function UserRow({ op, currentOp, onChange }: { op: Operator; currentOp: Operato
           onChange={e => changeRole(e.target.value as Role)}
           style={{ fontSize: 10, padding: '4px 6px', minWidth: 104, color: roleColor }}
         >
-          <option value="operator">FELHASZNÁLÓ</option>
+          <option value="operator">TAG</option>
           <option value="admin">ADMIN</option>
           <option value="superadmin">SUPERADMIN</option>
         </select>

@@ -6,9 +6,13 @@ interface AvatarProps {
   id?: string
   size?: number
   src?: string | null
+  lastSeen?: string | null
+  showPresence?: boolean
 }
 
-export function Avatar({ id = 'F3X-000', size = 40, src }: AvatarProps) {
+const ONLINE_THRESHOLD_MS = 5 * 60 * 1000
+
+export function Avatar({ id = 'F3X-000', size = 40, src, lastSeen, showPresence = true }: AvatarProps) {
   const shapes = useMemo(() => {
     const n = id.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
     const arr: number[] = []
@@ -20,9 +24,20 @@ export function Avatar({ id = 'F3X-000', size = 40, src }: AvatarProps) {
     return arr
   }, [id])
 
+  const online = useMemo(() => {
+    if (!showPresence || !lastSeen) return false
+    const t = new Date(lastSeen).getTime()
+    if (isNaN(t)) return false
+    return Date.now() - t < ONLINE_THRESHOLD_MS
+  }, [lastSeen, showPresence])
+
+  const ringStyle: React.CSSProperties = online
+    ? { boxShadow: '0 0 0 1.5px var(--accent), 0 0 6px rgba(24,233,104,.6)' }
+    : {}
+
   if (src) {
     return (
-      <div className="avatar" style={{ width: size, height: size, overflow: 'hidden' }}>
+      <div className="avatar" style={{ width: size, height: size, overflow: 'hidden', ...ringStyle }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={src} alt="" loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
       </div>
@@ -30,7 +45,7 @@ export function Avatar({ id = 'F3X-000', size = 40, src }: AvatarProps) {
   }
 
   return (
-    <div className="avatar" style={{ width: size, height: size }}>
+    <div className="avatar" style={{ width: size, height: size, ...ringStyle }}>
       <div
         style={{
           display: 'grid',

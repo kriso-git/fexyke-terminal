@@ -137,7 +137,7 @@ const DICT: Record<string, Record<string, string>> = {
   'profile.month': { hu:'HÓNAP', en:'MONTH', de:'MONAT', es:'MES', fr:'MOIS', no:'MÅNED', sv:'MÅNAD' },
   'profile.role_super': { hu:'SUPERADMIN', en:'SUPERADMIN', de:'SUPERADMIN', es:'SUPERADMIN', fr:'SUPERADMIN', no:'SUPERADMIN', sv:'SUPERADMIN' },
   'profile.role_admin': { hu:'ADMIN', en:'ADMIN', de:'ADMIN', es:'ADMIN', fr:'ADMIN', no:'ADMIN', sv:'ADMIN' },
-  'profile.role_user': { hu:'FELHASZNÁLÓ', en:'USER', de:'NUTZER', es:'USUARIO', fr:'UTILISATEUR', no:'BRUKER', sv:'ANVÄNDARE' },
+  'profile.role_user': { hu:'TAG', en:'MEMBER', de:'MITGLIED', es:'MIEMBRO', fr:'MEMBRE', no:'MEDLEM', sv:'MEDLEM' },
 
   // Friend states
   'friend.request': { hu:'◢ ISMERŐS KÉRÉS', en:'◢ ADD FRIEND', de:'◢ FREUND HINZUFÜGEN', es:'◢ AGREGAR AMIGO', fr:'◢ AJOUTER AMI', no:'◢ LEGG TIL VENN', sv:'◢ LÄGG TILL VÄN' },

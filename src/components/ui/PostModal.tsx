@@ -5,6 +5,7 @@ import { Chip } from '@/components/ui/Chip'
 import { Avatar } from '@/components/ui/Avatar'
 import { YouTubePlayer } from '@/components/ui/YouTubePlayer'
 import { AudioPlayer } from '@/components/ui/AudioPlayer'
+import { RolePresenceChip } from '@/components/ui/PresenceChip'
 import { getEntryDetail, createSignal, toggleReaction } from '@/app/actions'
 import type { Entry, Operator, Signal } from '@/lib/types'
 
@@ -162,7 +163,7 @@ export function PostModal({ entryId, currentOperator, onClose }: PostModalProps)
 
             {/* Author */}
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 14, marginBottom: 18 }}>
-              <Avatar id={entry.operator_id} src={entry.operator?.avatar_url} size={32}/>
+              <Avatar id={entry.operator_id} src={entry.operator?.avatar_url} lastSeen={entry.operator?.last_seen} size={32}/>
               <div>
                 <div className="head" style={{ fontSize: 13 }}>{entry.operator?.callsign ?? entry.operator_id}</div>
                 <div className="sys muted" style={{ fontSize: 10 }}>LVL-0{entry.operator?.level ?? 1} · {entry.reads ?? 0} olvasás</div>
@@ -229,7 +230,7 @@ export function PostModal({ entryId, currentOperator, onClose }: PostModalProps)
               <div className="sys muted" style={{ fontSize: 10, marginBottom: 10 }}>◢ KOMMENTEK</div>
               {currentOperator && (
                 <form onSubmit={handleComment} style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-                  <Avatar id={currentOperator.id} src={currentOperator.avatar_url} size={32}/>
+                  <Avatar id={currentOperator.id} src={currentOperator.avatar_url} lastSeen={currentOperator.last_seen} size={32}/>
                   <textarea
                     className="input"
                     rows={2}
@@ -249,11 +250,11 @@ export function PostModal({ entryId, currentOperator, onClose }: PostModalProps)
                   <div className="sys muted" style={{ fontSize: 11, padding: '12px 0' }}>Még nincsenek kommentek.</div>
                 ) : signals.map(s => (
                   <div key={s.id} className="panel" style={{ padding: '10px 12px', display: 'grid', gridTemplateColumns: '32px 1fr', gap: 10 }}>
-                    <Avatar id={s.operator_id} src={s.operator?.avatar_url} size={32}/>
+                    <Avatar id={s.operator_id} src={s.operator?.avatar_url} lastSeen={s.operator?.last_seen} size={32}/>
                     <div>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4, flexWrap: 'wrap' }}>
                         <span className="head" style={{ fontSize: 12 }}>{s.operator?.callsign ?? s.operator_id}</span>
-                        {s.verified && <Chip kind="accent" dot style={{ fontSize: 9 }}>VERIFIED</Chip>}
+                        <RolePresenceChip role={s.operator?.role} lastSeen={s.operator?.last_seen} fontSize={9}/>
                         <span style={{ flex: 1 }}/>
                         <span className="sys muted" style={{ fontSize: 9 }}>
                           {new Date(s.created_at).toLocaleString('hu-HU', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}

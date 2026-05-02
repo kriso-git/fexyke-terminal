@@ -563,7 +563,7 @@ export async function updateOperatorRole(operatorId: string, role: 'operator' | 
 export async function updateOperatorLevel(operatorId: string, level: number) {
   try {
     const op = await getCurrentOperator()
-    if (!op || (op.role !== 'admin' && op.role !== 'superadmin')) return { error: 'Nincs jogosultság.' }
+    if (!op || op.role !== 'superadmin') return { error: 'Csak superadmin változtathat szintet.' }
     if (level < 1 || level > 10) return { error: 'A szint 1 és 10 között lehet.' }
     const admin = createAdminClient()
     const { error } = await admin.from('operators').update({ level }).eq('id', operatorId)

@@ -86,7 +86,7 @@ export default async function HomePage() {
       <DataStream side="right" />
       <div className="scanline-sweep" />
       <TopBar user={userLabel} />
-      <Nav />
+      <Nav role={currentOperator?.role ?? null} />
       <HomeClient {...data} currentOperator={currentOperator} postCount={postCount} totalLikes={totalLikes} />
       <Footer index="001 / 005" />
     </div>

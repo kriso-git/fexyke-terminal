@@ -34,7 +34,7 @@ export async function middleware(request: NextRequest) {
       .eq('auth_id', user.id)
       .single()
 
-    if (!op || (op.role !== 'admin' && op.role !== 'superadmin')) {
+    if (!op || op.role !== 'superadmin') {
       return NextResponse.redirect(new URL('/', request.url))
     }
   }

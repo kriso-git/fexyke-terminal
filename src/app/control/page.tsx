@@ -22,7 +22,7 @@ async function getData() {
 
 export default async function ControlPage() {
   const operator = await getCurrentOperator()
-  if (!operator || (operator.role !== 'admin' && operator.role !== 'superadmin')) {
+  if (!operator || operator.role !== 'superadmin') {
     redirect('/')
   }
 
@@ -34,7 +34,7 @@ export default async function ControlPage() {
       <DataStream side="right" />
       <div className="scanline-sweep" />
       <TopBar user={`${operator.id} · ${operator.callsign}`} status={operator.role.toUpperCase()} />
-      <Nav />
+      <Nav role={operator.role} />
       <AdminClient {...data} currentOperator={operator} />
       <Footer index="005 / 005" />
     </div>

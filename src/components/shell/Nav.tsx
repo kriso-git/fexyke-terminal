@@ -4,15 +4,19 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useI18n } from '@/hooks/useI18n'
 
-export function Nav() {
+interface NavProps {
+  role?: 'operator' | 'admin' | 'superadmin' | null
+}
+
+export function Nav({ role = null }: NavProps) {
   const pathname = usePathname()
   const { t, lang, setLang, LANGS } = useI18n()
 
   const ITEMS = [
-    { k: 'IDX', label: t('nav.idx'), href: '/' },
-    { k: 'PRF', label: t('nav.prf'), href: '/profile' },
-    { k: 'CTL', label: t('nav.ctl'), href: '/control' },
-  ]
+    { k: 'IDX', label: t('nav.idx'), href: '/', show: true },
+    { k: 'PRF', label: t('nav.prf'), href: '/profile', show: true },
+    { k: 'CTL', label: t('nav.ctl'), href: '/control', show: role === 'superadmin' },
+  ].filter(i => i.show)
 
   const isActive = (href: string) =>
     href === '/' ? pathname === '/' : pathname.startsWith(href)
