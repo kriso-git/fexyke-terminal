@@ -284,7 +284,8 @@ textarea.input { resize:vertical; }
 /* These are set as className and overridden at mobile breakpoints */
 
 .r-hero    { display:grid; grid-template-columns:1fr 380px; gap:24px; padding:40px 0 32px; border-bottom:1px solid var(--border-1); }
-.r-gate    { flex:1; display:grid; grid-template-columns:1fr 520px; border-top:1px solid var(--border-1); }
+.r-gate    { flex:1; display:grid; grid-template-columns:1fr; border-top:1px solid var(--border-1); position:relative; place-items:center; padding:48px 24px; }
+.r-gate > .gate-hero { display:none !important; }
 .gate-tile { background:linear-gradient(180deg, rgba(24,233,104,.04), rgba(0,0,0,.4)); border:1px solid var(--border-1); padding:28px 26px; position:relative; box-shadow:0 0 0 1px rgba(24,233,104,.08), 0 18px 48px -12px rgba(0,0,0,.7); }
 .gate-tile::before { content:''; position:absolute; top:-1px; left:-1px; width:14px; height:14px; border-top:1px solid var(--accent); border-left:1px solid var(--accent); pointer-events:none; }
 .gate-tile::after  { content:''; position:absolute; bottom:-1px; right:-1px; width:14px; height:14px; border-bottom:1px solid var(--accent); border-right:1px solid var(--accent); pointer-events:none; }
@@ -298,7 +299,7 @@ textarea.input { resize:vertical; }
 .r-entry-v { display:grid; grid-template-columns:140px 1fr; border-bottom:1px solid var(--border-1); }
 .r-display { font-size:84px; line-height:.92; letter-spacing:-.02em; }
 .r-display-gate { font-size:88px; line-height:.9; letter-spacing:-.03em; }
-.gate-form { padding: 56px 56px 56px 40px; display:flex; flex-direction:column; gap:14px; max-width:560px; width:100%; margin-left:auto; }
+.gate-form { padding: 0; display:flex; flex-direction:column; gap:14px; max-width:480px; width:100%; margin:0 auto; background:transparent !important; }
 
 /* YouTube Player ─── */
 .yt-player-wrap { width:100%; margin:0; }
