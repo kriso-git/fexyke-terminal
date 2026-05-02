@@ -15,7 +15,7 @@ import { YouTubePlayer, YouTubeThumbnail, extractYouTubeId } from '@/components/
 import dynamic from 'next/dynamic'
 
 const PostModal = dynamic(() => import('@/components/ui/PostModal').then(m => m.PostModal), { ssr: false })
-import { createEntry, toggleReaction, fetchEntryById, deleteEntry, createSignal, getEntryComments, listMyDrafts, publishDraft } from '@/app/actions'
+import { createEntry, toggleReaction, fetchEntryById, deleteEntry, createSignal, getEntryComments, listMyDrafts, publishDraft, togglePin } from '@/app/actions'
 import { RolePresenceChip } from '@/components/ui/PresenceChip'
 import type { Entry, Operator, Signal } from '@/lib/types'
 
@@ -660,12 +660,14 @@ function CommentThread({
 }
 
 /* ─── Post card (blog style) ─── */
-function PostCard({ e, i, currentOperator, onDelete, onOpen }: { e: Entry; i: number; currentOperator: Operator | null; onDelete: (id: string) => void; onOpen: (id: string) => void }) {
+function PostCard({ e, i, currentOperator, onDelete, onOpen, onPinChange }: { e: Entry; i: number; currentOperator: Operator | null; onDelete: (id: string) => void; onOpen: (id: string) => void; onPinChange: (id: string, pinned: boolean) => void }) {
   const { t, lang } = useI18n()
   const [reactions, setReactions] = useState<Record<string,number>>(e.reactions ?? {})
   const [userRx, setUserRx]       = useState<string[]>([])
   const [rxPending, setRxPending] = useState<string|null>(null)
   const [deleting, setDeleting]   = useState(false)
+  const [pinPending, setPinPending] = useState(false)
+  const canPin = currentOperator?.role === 'admin' || currentOperator?.role === 'superadmin'
   const isVideo  = e.kind === 'VIDEÓ' || e.kind === 'ADÁS' || e.media_type === 'youtube'
   const isImage  = e.media_type === 'image' && e.media_url
   const week     = getWeekNum(e.created_at)
@@ -679,6 +681,14 @@ function PostCard({ e, i, currentOperator, onDelete, onOpen }: { e: Entry; i: nu
     const res = await deleteEntry(e.id)
     if (res?.error) { alert(res.error); setDeleting(false) }
     else onDelete(e.id)
+  }
+
+  async function handlePin() {
+    if (!canPin || pinPending) return
+    setPinPending(true)
+    const res = await togglePin(e.id, !e.priority)
+    setPinPending(false)
+    if (!res?.error) onPinChange(e.id, !!res.pinned)
   }
 
   async function handleReact(emoji: string) {
@@ -764,6 +774,12 @@ function PostCard({ e, i, currentOperator, onDelete, onOpen }: { e: Entry; i: nu
               <span className="sys muted" style={{ fontSize:10 }}>◢ {e.reads} {t('card.reads')}</span>
               {totalRx > 0 && <span className="sys muted" style={{ fontSize:10 }}>◢ {totalRx} {t('card.likes')}</span>}
               <button onClick={() => onOpen(e.id)} className="sys" style={{ fontSize:10, color:'var(--accent)', background:'none', border:'none', cursor:'pointer', fontFamily:'var(--f-sys)', letterSpacing:'.12em' }}>{t('card.open')}</button>
+              {canPin && (
+                <button onClick={handlePin} disabled={pinPending} className="sys"
+                  style={{ background:'none', border:'none', color: e.priority ? 'var(--magenta)' : 'var(--cyan)', cursor:'pointer', fontFamily:'var(--f-sys)', fontSize:10, letterSpacing:'.12em' }}>
+                  {e.priority ? `◢ ${t('card.unpin')}` : `◢ ${t('card.pin')}`}
+                </button>
+              )}
               {currentOperator?.role === 'superadmin' && (
                 <button onClick={handleDelete} style={{ background:'none', border:'none', color:'var(--red)', cursor:'pointer', fontFamily:'var(--f-sys)', fontSize:10 }}>
                   {t('card.delete')}
@@ -787,6 +803,7 @@ function PostCard({ e, i, currentOperator, onDelete, onOpen }: { e: Entry; i: nu
 const PostCardMemo = memo(PostCard, (a, b) =>
   a.e.id === b.e.id &&
   a.e.reads === b.e.reads &&
+  a.e.priority === b.e.priority &&
   a.e.commentCount === b.e.commentCount &&
   a.currentOperator?.id === b.currentOperator?.id &&
   a.i === b.i
@@ -867,6 +884,16 @@ export function HomeClient({ entries: initialEntries, currentOperator, postCount
     setEntries(prev => prev.filter(e => e.id !== id))
   }
 
+  function handlePinChange(id: string, pinned: boolean) {
+    setEntries(prev => {
+      const updated = prev.map(e => e.id === id ? { ...e, priority: pinned } : e)
+      return [...updated].sort((a, b) => {
+        if (a.priority !== b.priority) return a.priority ? -1 : 1
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      })
+    })
+  }
+
   const isVideo = (e: Entry) => e.kind === 'VIDEÓ' || e.kind === 'ADÁS' || e.media_type === 'youtube'
   const isImage = (e: Entry) => e.media_type === 'image' && !!e.media_url
   const filtered = entries.filter(e => {
@@ -907,7 +934,7 @@ export function HomeClient({ entries: initialEntries, currentOperator, postCount
             </div>
           </div>
         ) : (
-          <div>{filtered.map((e,i) => <PostCardMemo key={e.id} e={e} i={i} currentOperator={currentOperator} onDelete={handleDelete} onOpen={setOpenEntryId}/>)}</div>
+          <div>{filtered.map((e,i) => <PostCardMemo key={e.id} e={e} i={i} currentOperator={currentOperator} onDelete={handleDelete} onOpen={setOpenEntryId} onPinChange={handlePinChange}/>)}</div>
         )}
       </div>
 

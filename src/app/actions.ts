@@ -257,6 +257,23 @@ export async function listMyDrafts() {
   }
 }
 
+export async function togglePin(entryId: string, pinned: boolean) {
+  try {
+    const op = await getCurrentOperator()
+    if (!op || (op.role !== 'admin' && op.role !== 'superadmin')) {
+      return { error: 'Csak admin vagy superadmin tűzhet ki posztot.' }
+    }
+    const admin = createAdminClient()
+    const { error } = await admin.from('entries').update({ priority: pinned }).eq('id', entryId)
+    if (error) return { error: error.message }
+    revalidatePath('/')
+    return { success: true, pinned }
+  } catch (err) {
+    console.error('togglePin error:', err)
+    return { error: 'Szerver hiba.' }
+  }
+}
+
 export async function publishDraft(entryId: string) {
   try {
     const op = await getCurrentOperator()

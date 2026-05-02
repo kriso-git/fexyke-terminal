@@ -485,8 +485,30 @@ textarea.input { resize:vertical; }
   .admin-row-posts     { grid-template-columns: 1fr !important; }
   .control-tabs-row    { overflow-x: auto; }
 
-  /* Hero cube hidden on phone (saves perf + space) */
-  .hero-cube-scene { display: none; }
+  /* Hero cube on phone: small floating top-right corner, doesn't block */
+  .hero-cube-slot {
+    position: fixed !important;
+    top: 88px !important;
+    right: 10px !important;
+    margin: 0 !important;
+    z-index: 7000;
+    pointer-events: none;
+  }
+  .hero-cube-slot .hero-cube-scene {
+    width: 64px !important;
+    height: 64px !important;
+    perspective: 240px !important;
+    pointer-events: auto;
+    opacity: .75;
+  }
+  .hero-cube-slot .hero-cube,
+  .hero-cube-slot .hero-cube-face { width: 64px !important; height: 64px !important; }
+  .hero-cube-slot .hero-cube-face.front  { transform: translateZ(32px) !important; }
+  .hero-cube-slot .hero-cube-face.back   { transform: translateZ(-32px) rotateY(180deg) !important; }
+  .hero-cube-slot .hero-cube-face.right  { transform: rotateY(90deg) translateZ(32px) !important; }
+  .hero-cube-slot .hero-cube-face.left   { transform: rotateY(-90deg) translateZ(32px) !important; }
+  .hero-cube-slot .hero-cube-face.top    { transform: rotateX(90deg) translateZ(32px) !important; }
+  .hero-cube-slot .hero-cube-face.bottom { transform: rotateX(-90deg) translateZ(32px) !important; }
 
   /* Modal padding */
   .post-modal-backdrop { padding: 12px 6px !important; align-items: flex-start !important; }

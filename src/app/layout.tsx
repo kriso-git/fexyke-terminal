@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { ChatWidgetMount } from '@/components/ui/ChatWidgetMount'
+import { BootScreen } from '@/components/shell/BootScreen'
 
 export const metadata: Metadata = {
   title: 'F3XYKEE · TERMINAL',
@@ -19,6 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="hu">
       <body>
+        <BootScreen/>
         {children}
         <ChatWidgetMount/>
       </body>

@@ -323,8 +323,21 @@ export function ChatWidget({ currentOperator }: ChatWidgetProps) {
                       <img src={m.image_url} alt="kép" style={{ maxWidth: '100%', maxHeight: 220, display: 'block' }} loading="lazy"/>
                     )}
                     {m.text && <div style={{ padding: m.image_url ? '6px 4px 0' : 0, whiteSpace: 'pre-wrap' }}>{m.text}</div>}
-                    <div className="sys muted" style={{ fontSize: 8, marginTop: 3, padding: m.image_url ? '0 4px 4px' : 0, textAlign: mine ? 'right' : 'left' }}>
-                      {fmtTime(m.created_at)}{mine && m.read ? ' · OLVASVA' : ''}
+                    <div style={{
+                      fontSize: 11, marginTop: 4,
+                      padding: m.image_url ? '0 4px 4px' : 0,
+                      textAlign: mine ? 'right' : 'left',
+                      fontFamily: 'var(--f-sys)', letterSpacing: '.1em',
+                      color: mine && m.read ? 'var(--accent)' : 'var(--ink-3)',
+                      display: 'flex', gap: 6,
+                      justifyContent: mine ? 'flex-end' : 'flex-start',
+                    }}>
+                      <span>{fmtTime(m.created_at)}</span>
+                      {mine && (
+                        <span style={{ color: m.read ? 'var(--accent)' : 'var(--ink-3)', fontWeight: m.read ? 600 : 400 }}>
+                          {m.read ? '✓✓ OLVASVA' : '✓ KÜLDVE'}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
