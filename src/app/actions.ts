@@ -156,11 +156,21 @@ export async function createEntry(formData: FormData) {
     const { count } = await admin.from('entries').select('*', { count:'exact', head:true })
     const id = `LOG-${(count ?? 0) + 2482}`
 
-    const plainText = content.replace(/<[^>]+>/g, '')
+    const safeContent = content
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<iframe[\s\S]*?>/gi, '')
+      .replace(/<object[\s\S]*?>/gi, '')
+      .replace(/<embed[\s\S]*?>/gi, '')
+      .replace(/<base[\s\S]*?>/gi, '')
+      .replace(/\s(on\w+)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+      .replace(/(href|src|action)\s*=\s*["']?\s*(javascript:|vbscript:|data:text\/html)[^"'\s>]*/gi, '$1="#"')
+
+    const plainText = safeContent.replace(/<[^>]+>/g, '')
     const excerpt   = plainText.slice(0, 180) || mediaLabel || title.slice(0, 180)
 
     const baseRow = {
-      id, title, content, excerpt,
+      id, title, content: safeContent, excerpt,
       kind: dbKind,
       operator_id: op.id,
       cycle: 47, sigs,
@@ -293,7 +303,8 @@ export async function createProfileSignal(formData: FormData) {
 
   if (error) return { error: error.message }
 
-  revalidatePath(`/operators/${targetId}`)
+  const { data: targetOp } = await supabase.from('operators').select('callsign').eq('id', targetId).single()
+  revalidatePath(`/operators/${targetOp?.callsign ?? targetId}`)
   return { success: true }
 }
 

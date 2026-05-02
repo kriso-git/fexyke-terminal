@@ -20,8 +20,12 @@ function sanitizeHtml(html: string): string {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '')
-    .replace(/\son\w+\s*=\s*["'][^"']*["']/gi, '')
-    .replace(/href\s*=\s*["']\s*javascript:[^"']*["']/gi, 'href="#"')
+    .replace(/<iframe[\s\S]*?>/gi, '')
+    .replace(/<object[\s\S]*?>/gi, '')
+    .replace(/<embed[\s\S]*?>/gi, '')
+    .replace(/<base[\s\S]*?>/gi, '')
+    .replace(/\s(on\w+)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/(href|src|action)\s*=\s*["']?\s*(javascript:|vbscript:|data:text\/html)[^"'\s>]*/gi, '$1="#"')
 }
 
 function RenderContent({ content }: { content: string }) {

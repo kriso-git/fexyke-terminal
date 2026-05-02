@@ -32,7 +32,7 @@ export default async function ControlPage() {
       <DataStream side="left" />
       <DataStream side="right" />
       <div className="scanline-sweep" />
-      <TopBar user="F3X-001 · KURIER" status="SUPERADMIN" />
+      <TopBar user={`${operator.id} · ${operator.callsign}`} status={operator.role.toUpperCase()} />
       <div className="superadmin-banner">
         <span className="dot dot-mag" />◢ SUPERADMIN MÓD · MINDEN MŰVELET AUDITÁLVA
         <span style={{flex:1}}/>
