@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import { ChatWidgetMount } from '@/components/ui/ChatWidgetMount'
 
 export const metadata: Metadata = {
   title: 'F3XYKEE · TERMINAL',
@@ -15,7 +16,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="hu">
-      <body>{children}</body>
+      <body>
+        {children}
+        <ChatWidgetMount/>
+      </body>
     </html>
   )
 }

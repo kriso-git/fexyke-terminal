@@ -130,6 +130,33 @@ export async function fetchEntryById(id: string) {
   }
 }
 
+export async function getEntryDetail(id: string) {
+  try {
+    const admin = createAdminClient()
+    const op = await getCurrentOperator()
+    const [entryRes, signalsRes, rxRes] = await Promise.all([
+      admin.from('entries').select('*, operator:operators!operator_id(*)').eq('id', id).single(),
+      admin.from('signals').select('*, operator:operators!operator_id(*)').eq('entry_id', id).order('created_at'),
+      admin.from('entry_reactions').select('emoji, operator_id').eq('entry_id', id),
+    ])
+    const counts: Record<string, number> = {}
+    const userRx: string[] = []
+    for (const r of (rxRes.data ?? []) as { emoji: string; operator_id: string }[]) {
+      counts[r.emoji] = (counts[r.emoji] ?? 0) + 1
+      if (op && r.operator_id === op.id) userRx.push(r.emoji)
+    }
+    return {
+      entry: entryRes.data,
+      signals: signalsRes.data ?? [],
+      reactions: counts,
+      userReactions: userRx,
+    }
+  } catch (err) {
+    console.error('getEntryDetail error:', err)
+    return { entry: null, signals: [], reactions: {}, userReactions: [] }
+  }
+}
+
 export async function createEntry(formData: FormData) {
   try {
     const op = await getCurrentOperator()
@@ -339,6 +366,93 @@ export async function updateProfile(formData: FormData) {
   }
 }
 
+/* ─── Messaging ─── */
+
+async function ensureFriends(myId: string, otherId: string): Promise<boolean> {
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('friendships')
+    .select('id')
+    .eq('status', 'accepted')
+    .or(`and(requester_id.eq.${myId},addressee_id.eq.${otherId}),and(requester_id.eq.${otherId},addressee_id.eq.${myId})`)
+    .maybeSingle()
+  return !!data
+}
+
+export async function sendMessage(receiverId: string, text: string) {
+  try {
+    const op = await getCurrentOperator()
+    if (!op) return { error: 'Be kell lépni.' }
+    const trimmed = text.trim()
+    if (!trimmed) return { error: 'Az üzenet nem lehet üres.' }
+    if (trimmed.length > 2000) return { error: 'Max 2000 karakter.' }
+    if (op.id === receiverId) return { error: 'Magadnak nem küldhetsz üzenetet.' }
+
+    if (!(await ensureFriends(op.id, receiverId))) {
+      return { error: 'Csak ismerősöknek küldhetsz üzenetet.' }
+    }
+
+    const admin = createAdminClient()
+    const { data, error } = await admin
+      .from('messages')
+      .insert({ sender_id: op.id, receiver_id: receiverId, text: trimmed })
+      .select('id, sender_id, receiver_id, text, read, created_at')
+      .single()
+
+    if (error) return { error: error.message }
+    return { success: true, message: data }
+  } catch (err) {
+    console.error('sendMessage error:', err)
+    return { error: 'Szerver hiba.' }
+  }
+}
+
+export async function getConversation(otherId: string, limit = 100) {
+  try {
+    const op = await getCurrentOperator()
+    if (!op) return { messages: [], error: 'Be kell lépni.' }
+
+    const admin = createAdminClient()
+    const { data, error } = await admin
+      .from('messages')
+      .select('id, sender_id, receiver_id, text, read, created_at')
+      .or(`and(sender_id.eq.${op.id},receiver_id.eq.${otherId}),and(sender_id.eq.${otherId},receiver_id.eq.${op.id})`)
+      .order('created_at', { ascending: true })
+      .limit(limit)
+
+    if (error) return { messages: [], error: error.message }
+
+    // mark received messages as read
+    await admin
+      .from('messages')
+      .update({ read: true })
+      .eq('sender_id', otherId)
+      .eq('receiver_id', op.id)
+      .eq('read', false)
+
+    return { messages: data ?? [] }
+  } catch (err) {
+    console.error('getConversation error:', err)
+    return { messages: [], error: 'Szerver hiba.' }
+  }
+}
+
+export async function getUnreadCount() {
+  try {
+    const op = await getCurrentOperator()
+    if (!op) return { count: 0 }
+    const admin = createAdminClient()
+    const { count } = await admin
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('receiver_id', op.id)
+      .eq('read', false)
+    return { count: count ?? 0 }
+  } catch {
+    return { count: 0 }
+  }
+}
+
 /* ─── Reads counter ─── */
 
 export async function incrementReads(entryId: string) {
@@ -387,6 +501,23 @@ export async function deleteOperator(operatorId: string) {
 
     const admin = createAdminClient()
     const { data: target } = await admin.from('operators').select('auth_id').eq('id', operatorId).single()
+
+    // Cascade-clean dependents first (FKs may not have ON DELETE CASCADE)
+    const { data: opEntries } = await admin.from('entries').select('id').eq('operator_id', operatorId)
+    const entryIds = (opEntries ?? []).map((r: { id: string }) => r.id)
+    if (entryIds.length > 0) {
+      await admin.from('entry_reactions').delete().in('entry_id', entryIds)
+      await admin.from('signals').delete().in('entry_id', entryIds)
+    }
+    await admin.from('entries').delete().eq('operator_id', operatorId)
+    await admin.from('signals').delete().eq('operator_id', operatorId)
+    await admin.from('entry_reactions').delete().eq('operator_id', operatorId)
+    await admin.from('profile_signals').delete().eq('author_id', operatorId)
+    await admin.from('profile_signals').delete().eq('target_id', operatorId)
+    await admin.from('friendships').delete().eq('requester_id', operatorId)
+    await admin.from('friendships').delete().eq('addressee_id', operatorId)
+    await admin.from('messages').delete().eq('sender_id', operatorId).then(() => {}, () => {})
+    await admin.from('messages').delete().eq('receiver_id', operatorId).then(() => {}, () => {})
 
     const { error } = await admin.from('operators').delete().eq('id', operatorId)
     if (error) return { error: error.message }
@@ -514,6 +645,27 @@ export async function removeFriend(targetId: string) {
   } catch (err) {
     console.error('removeFriend error:', err)
     return { error: 'Szerver hiba.' }
+  }
+}
+
+export async function getMyFriends() {
+  try {
+    const op = await getCurrentOperator()
+    if (!op) return { friends: [] as { id: string; callsign: string; level: number; avatar_url: string | null }[] }
+    const admin = createAdminClient()
+    const { data } = await admin
+      .from('friendships')
+      .select('requester_id, addressee_id, requester:operators!requester_id(id,callsign,level,avatar_url), addressee:operators!addressee_id(id,callsign,level,avatar_url)')
+      .or(`requester_id.eq.${op.id},addressee_id.eq.${op.id}`)
+      .eq('status', 'accepted')
+
+    type Row = { requester_id: string; addressee_id: string; requester: { id: string; callsign: string; level: number; avatar_url: string | null }; addressee: { id: string; callsign: string; level: number; avatar_url: string | null } }
+    const rows = (data ?? []) as unknown as Row[]
+    const friends = rows.map(r => r.requester_id === op.id ? r.addressee : r.requester)
+    return { friends }
+  } catch (err) {
+    console.error('getMyFriends error:', err)
+    return { friends: [] }
   }
 }
 

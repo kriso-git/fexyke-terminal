@@ -15,6 +15,15 @@ export interface Operator {
   created_at: string
 }
 
+export interface Message {
+  id: string
+  sender_id: string
+  receiver_id: string
+  text: string
+  read: boolean
+  created_at: string
+}
+
 export type FriendshipStatus = 'pending' | 'accepted'
 
 export interface Friendship {

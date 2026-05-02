@@ -12,6 +12,7 @@ import { HeroCube } from '@/components/ui/HeroCube'
 import { LangPicker } from '@/components/ui/LangPicker'
 import { useI18n } from '@/hooks/useI18n'
 import { YouTubePlayer, YouTubeThumbnail, extractYouTubeId } from '@/components/ui/YouTubePlayer'
+import { PostModal } from '@/components/ui/PostModal'
 import { createEntry, toggleReaction, fetchEntryById, deleteEntry, createSignal } from '@/app/actions'
 import type { Entry, Operator } from '@/lib/types'
 
@@ -360,7 +361,7 @@ function CommentComposer({ entryId, currentOperator }: { entryId: string; curren
 }
 
 /* ─── Post card (blog style) ─── */
-function PostCard({ e, i, currentOperator, onDelete }: { e: Entry; i: number; currentOperator: Operator | null; onDelete: (id: string) => void }) {
+function PostCard({ e, i, currentOperator, onDelete, onOpen }: { e: Entry; i: number; currentOperator: Operator | null; onDelete: (id: string) => void; onOpen: (id: string) => void }) {
   const { t, lang } = useI18n()
   const [reactions, setReactions] = useState<Record<string,number>>(e.reactions ?? {})
   const [userRx, setUserRx]       = useState<string[]>([])
@@ -463,7 +464,7 @@ function PostCard({ e, i, currentOperator, onDelete }: { e: Entry; i: number; cu
               <span style={{ flex:1 }}/>
               <span className="sys muted" style={{ fontSize:10 }}>◢ {e.reads} {t('card.reads')}</span>
               {totalRx > 0 && <span className="sys muted" style={{ fontSize:10 }}>◢ {totalRx} {t('card.likes')}</span>}
-              <Link href={`/entries/${e.id}`} className="sys" style={{ fontSize:10, color:'var(--accent)' }}>{t('card.open')}</Link>
+              <button onClick={() => onOpen(e.id)} className="sys" style={{ fontSize:10, color:'var(--accent)', background:'none', border:'none', cursor:'pointer', fontFamily:'var(--f-sys)', letterSpacing:'.12em' }}>{t('card.open')}</button>
               {currentOperator?.role === 'superadmin' && (
                 <button onClick={handleDelete} style={{ background:'none', border:'none', color:'var(--red)', cursor:'pointer', fontFamily:'var(--f-sys)', fontSize:10 }}>
                   {t('card.delete')}
@@ -481,7 +482,7 @@ function PostCard({ e, i, currentOperator, onDelete }: { e: Entry; i: number; cu
 }
 
 /* ─── Archive section ─── */
-function Archive({ entries }: { entries: Entry[] }) {
+function Archive({ entries, onOpen }: { entries: Entry[]; onOpen: (id: string) => void }) {
   const { t } = useI18n()
   const byWeek: Record<number, Entry[]> = {}
   for (const e of entries) {
@@ -516,9 +517,9 @@ function Archive({ entries }: { entries: Entry[] }) {
                   <td>{ws.length}</td>
                   <td>{videos.length}</td>
                   <td>
-                    <Link href={`/entries/${top.id}`} style={{ color:'var(--ink-1)', fontSize:11 }}>
+                    <button onClick={() => onOpen(top.id)} style={{ color:'var(--ink-1)', fontSize:11, background:'none', border:'none', padding:0, cursor:'pointer', textAlign:'left', textDecoration:'underline dotted var(--border-1)' }}>
                       {top.title.slice(0, 40)}{top.title.length > 40 ? '…' : ''}
-                    </Link>
+                    </button>
                   </td>
                 </tr>
               )
@@ -544,6 +545,7 @@ export function HomeClient({ entries: initialEntries, currentOperator, postCount
   const { t } = useI18n()
   const [entries, setEntries] = useState<Entry[]>(initialEntries)
   const [filter, setFilter]   = useState<'MIND'|'SZÖVEG'|'KÉP'|'VIDEÓ'>('MIND')
+  const [openEntryId, setOpenEntryId] = useState<string | null>(null)
 
   async function handlePost(id: string) {
     const entry = await fetchEntryById(id)
@@ -594,11 +596,13 @@ export function HomeClient({ entries: initialEntries, currentOperator, postCount
             </div>
           </div>
         ) : (
-          <div>{filtered.map((e,i) => <PostCard key={e.id} e={e} i={i} currentOperator={currentOperator} onDelete={handleDelete}/>)}</div>
+          <div>{filtered.map((e,i) => <PostCard key={e.id} e={e} i={i} currentOperator={currentOperator} onDelete={handleDelete} onOpen={setOpenEntryId}/>)}</div>
         )}
       </div>
 
-      <Archive entries={entries}/>
+      <Archive entries={entries} onOpen={setOpenEntryId}/>
+
+      <PostModal entryId={openEntryId} currentOperator={currentOperator} onClose={() => setOpenEntryId(null)}/>
     </div>
   )
 }

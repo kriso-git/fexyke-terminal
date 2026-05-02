@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Chip } from '@/components/ui/Chip'
 import { Panel } from '@/components/ui/Panel'
 import { Avatar } from '@/components/ui/Avatar'
@@ -153,10 +154,10 @@ function PostRow({ entry, onChange }: { entry: Entry; onChange: () => void }) {
       <div style={{ display: 'grid', gridTemplateColumns: '120px 80px 1fr 100px 90px 70px auto', gap: 12, alignItems: 'center' }}>
         <span className="mono muted" style={{ fontSize: 10 }}>{entry.id}</span>
         <Chip kind={isVideo ? 'mag' : isImage ? 'cyan' : 'dash'} style={{ fontSize: 9 }}>{kindLabel}</Chip>
-        <Link href={`/entries/${entry.id}`} className="head" style={{ fontSize: 13, color: 'var(--ink-0)', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <span className="head" style={{ fontSize: 13, color: 'var(--ink-0)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {entry.title}
           {entry.priority && <Chip kind="accent" dot style={{ marginLeft: 8, fontSize: 9 }}>KIEMELT</Chip>}
-        </Link>
+        </span>
         <span className="sys muted" style={{ fontSize: 10 }}>{entry.operator?.callsign ?? entry.operator_id}</span>
         <span className="mono muted" style={{ fontSize: 10 }}>{fmtDate(entry.created_at)}</span>
         <span className="sys" style={{ fontSize: 10, color: 'var(--accent)' }}>{entry.reads ?? 0} ◤</span>
@@ -181,6 +182,7 @@ interface AdminClientProps {
 }
 
 export function AdminClient({ operators, entries, currentOperator }: AdminClientProps) {
+  const router = useRouter()
   const [tab, setTab] = useState<Tab>('OVERVIEW')
   const [opSearch, setOpSearch] = useState('')
   const [postSearch, setPostSearch] = useState('')
@@ -188,8 +190,8 @@ export function AdminClient({ operators, entries, currentOperator }: AdminClient
   const [cleanupMsg, setCleanupMsg] = useState<string | null>(null)
 
   function refresh() {
-    // Server actions revalidate; force a soft reload to get fresh server data
-    window.location.reload()
+    // Re-fetch server data without remounting the client tree (preserves tab + scroll)
+    router.refresh()
   }
 
   async function handleCleanup() {
@@ -199,7 +201,7 @@ export function AdminClient({ operators, entries, currentOperator }: AdminClient
     const res = await cleanupSeedOperators()
     setCleanupPending(false)
     if (res.error) setCleanupMsg(`HIBA: ${res.error}`)
-    else { setCleanupMsg(`◢ Törölve: ${res.deleted ?? 0} placeholder fiók.`); setTimeout(refresh, 1200) }
+    else { setCleanupMsg(`◢ Törölve: ${res.deleted ?? 0} placeholder fiók.`); refresh() }
   }
 
   const filteredOps = operators.filter(o =>
