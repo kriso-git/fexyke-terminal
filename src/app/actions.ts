@@ -153,8 +153,10 @@ export async function createEntry(formData: FormData) {
     const dbKind: EntryKind = uiKind === 'VIDEÓ' ? 'ADÁS' : 'ÁTVITEL'
 
     const admin = createAdminClient()
-    const { count } = await admin.from('entries').select('*', { count:'exact', head:true })
-    const id = `LOG-${(count ?? 0) + 2482}`
+    // Generate collision-free ID using timestamp base36 + random suffix
+    const ts = Date.now().toString(36).toUpperCase()
+    const rand = Math.random().toString(36).slice(2, 5).toUpperCase()
+    const id = `LOG-${ts}${rand}`
 
     const safeContent = content
       .replace(/<script[\s\S]*?<\/script>/gi, '')
@@ -342,6 +344,96 @@ export async function updateProfile(formData: FormData) {
 export async function incrementReads(entryId: string) {
   const supabase = await createClient()
   await supabase.rpc('increment_reads', { entry_id: entryId })
+}
+
+/* ─── Admin: operator management ─── */
+
+export async function updateOperatorRole(operatorId: string, role: 'operator' | 'admin' | 'superadmin') {
+  try {
+    const op = await getCurrentOperator()
+    if (!op || op.role !== 'superadmin') return { error: 'Csak superadmin változtathat jogosultságot.' }
+    const admin = createAdminClient()
+    const { error } = await admin.from('operators').update({ role }).eq('id', operatorId)
+    if (error) return { error: error.message }
+    revalidatePath('/control')
+    return { success: true }
+  } catch (err) {
+    console.error('updateOperatorRole error:', err)
+    return { error: 'Szerver hiba.' }
+  }
+}
+
+export async function updateOperatorLevel(operatorId: string, level: number) {
+  try {
+    const op = await getCurrentOperator()
+    if (!op || (op.role !== 'admin' && op.role !== 'superadmin')) return { error: 'Nincs jogosultság.' }
+    if (level < 1 || level > 10) return { error: 'A szint 1 és 10 között lehet.' }
+    const admin = createAdminClient()
+    const { error } = await admin.from('operators').update({ level }).eq('id', operatorId)
+    if (error) return { error: error.message }
+    revalidatePath('/control')
+    return { success: true }
+  } catch (err) {
+    console.error('updateOperatorLevel error:', err)
+    return { error: 'Szerver hiba.' }
+  }
+}
+
+export async function deleteOperator(operatorId: string) {
+  try {
+    const op = await getCurrentOperator()
+    if (!op || op.role !== 'superadmin') return { error: 'Csak superadmin törölhet felhasználót.' }
+    if (op.id === operatorId) return { error: 'Magadat nem törölheted.' }
+
+    const admin = createAdminClient()
+    const { data: target } = await admin.from('operators').select('auth_id').eq('id', operatorId).single()
+
+    const { error } = await admin.from('operators').delete().eq('id', operatorId)
+    if (error) return { error: error.message }
+
+    if (target?.auth_id) {
+      await admin.auth.admin.deleteUser(target.auth_id).catch(() => {})
+    }
+
+    revalidatePath('/control')
+    return { success: true }
+  } catch (err) {
+    console.error('deleteOperator error:', err)
+    return { error: 'Szerver hiba.' }
+  }
+}
+
+export async function cleanupSeedOperators() {
+  try {
+    const op = await getCurrentOperator()
+    if (!op || op.role !== 'superadmin') return { error: 'Csak superadmin végezhet tisztítást.' }
+
+    const admin = createAdminClient()
+    // Delete all operators without an auth_id (seed/placeholder rows)
+    const { data: seedOps } = await admin.from('operators').select('id').is('auth_id', null)
+    const ids = (seedOps ?? []).map((r: { id: string }) => r.id)
+
+    if (ids.length === 0) return { success: true, deleted: 0 }
+
+    // Cascade-clean dependent rows first
+    await admin.from('entries').delete().in('operator_id', ids)
+    await admin.from('signals').delete().in('operator_id', ids)
+    await admin.from('entry_reactions').delete().in('operator_id', ids)
+    await admin.from('profile_signals').delete().in('author_id', ids)
+    await admin.from('profile_signals').delete().in('target_id', ids)
+    await admin.from('friendships').delete().in('requester_id', ids)
+    await admin.from('friendships').delete().in('addressee_id', ids)
+
+    const { error } = await admin.from('operators').delete().in('id', ids)
+    if (error) return { error: error.message }
+
+    revalidatePath('/control')
+    revalidatePath('/')
+    return { success: true, deleted: ids.length }
+  } catch (err) {
+    console.error('cleanupSeedOperators error:', err)
+    return { error: 'Szerver hiba.' }
+  }
 }
 
 /* ─── Friendships ─── */

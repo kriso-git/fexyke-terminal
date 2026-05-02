@@ -93,8 +93,9 @@ export function AuthClient() {
       </div>
 
       {/* RIGHT form */}
-      <div className="gate-form" style={{ display:'flex', flexDirection:'column', gap:16, background:'var(--bg-1)' }}>
-        {/* Tabs */}
+      <div className="gate-form" style={{ background:'var(--bg-1)' }}>
+        {/* Tile wrapper */}
+        <div className="gate-tile gate-tile-stack">
         <div className="tabs">
           {([['login',t('auth.login')],['register',t('auth.register')],['recovery',t('auth.recovery')]] as [Tab,string][]).map(([key,label]) => (
             <div key={key} className={`tab${tab===key?' active':''}`}
@@ -215,25 +216,7 @@ export function AuthClient() {
           </Panel>
         )}
 
-        {/* Gate log */}
-        <Panel tag="◢ KAPU NAPLÓ" title={t('auth.gate_log')}>
-          <div>
-            {[
-              ['00:14:02','NULLSET',     'SIKER',     'acc'],
-              ['00:08:41','(ismeretlen)','ELUTASÍTVA', 'err'],
-              ['00:04:22','HALO',        'SIKER',     'acc'],
-              ['00:01:09','PARALLAX',    'SIKER',     'acc'],
-              ['23:57:40','(ismeretlen)','ELUTASÍTVA', 'err'],
-              ['23:44:11','KURIER',      'SIKER',     'acc'],
-            ].map((r,i,a) => (
-              <div key={i} style={{ display:'grid', gridTemplateColumns:'80px 1fr auto', gap:10, padding:'6px 0', borderBottom:i<a.length-1?'1px solid var(--border-0)':'none', alignItems:'center' }}>
-                <span className="mono muted" style={{ fontSize:11 }}>{r[0]}</span>
-                <span className="sys muted" style={{ fontSize:12 }}>{r[1]}</span>
-                <Chip kind={r[3]==='acc'?'accent':'mag'} dot>{r[2]}</Chip>
-              </div>
-            ))}
-          </div>
-        </Panel>
+        </div>
       </div>
     </div>
   )

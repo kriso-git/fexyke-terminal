@@ -1,173 +1,368 @@
 'use client'
 
-import { useState, ReactNode } from 'react'
+import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { Chip } from '@/components/ui/Chip'
 import { Panel } from '@/components/ui/Panel'
 import { Avatar } from '@/components/ui/Avatar'
+import {
+  updateOperatorRole,
+  updateOperatorLevel,
+  deleteOperator,
+  cleanupSeedOperators,
+  deleteEntry,
+} from '@/app/actions'
 import type { Operator, Entry } from '@/lib/types'
 
-const SEED_OPS: Operator[] = [
-  { id:'F3X-001', auth_id:null, callsign:'KURIER',   level:4, role:'superadmin', node:'f3x-pri-01', joined_cycle:1,  bio:null, created_at:'2026-01-10T00:00:00Z' },
-  { id:'F3X-014', auth_id:null, callsign:'NULLSET',  level:3, role:'admin',      node:'f3x-pri-01', joined_cycle:12, bio:null, created_at:'2026-02-01T00:00:00Z' },
-  { id:'F3X-022', auth_id:null, callsign:'HALO',     level:2, role:'operator',   node:'f3x-pri-01', joined_cycle:18, bio:null, created_at:'2026-02-20T00:00:00Z' },
-  { id:'F3X-031', auth_id:null, callsign:'MOTH',     level:2, role:'operator',   node:'f3x-pri-01', joined_cycle:21, bio:null, created_at:'2026-03-01T00:00:00Z' },
-  { id:'F3X-044', auth_id:null, callsign:'PARALLAX', level:2, role:'operator',   node:'f3x-pri-01', joined_cycle:28, bio:null, created_at:'2026-03-15T00:00:00Z' },
-  { id:'F3X-055', auth_id:null, callsign:'VOID',     level:1, role:'operator',   node:'f3x-pri-01', joined_cycle:30, bio:null, created_at:'2026-03-20T00:00:00Z' },
-]
+type Role = 'operator' | 'admin' | 'superadmin'
+type Tab = 'OVERVIEW' | 'USERS' | 'POSTS' | 'LOG'
 
-const LOG_ROWS = [
-  ['00:14:02','INFO',    'F3X-014','Poszt publikálva · LOG-2481'],
-  ['00:12:44','RENDSZER','—',      'Kapcsolat integritás 0.98 · ellenőrzés kész'],
-  ['00:08:41','BIZTONSÁ','F3X-087','Belépés elutasítva · helytelen jelszó'],
-  ['00:04:22','INFO',    'F3X-022','Poszt publikálva · LOG-2480'],
-  ['00:02:14','KRITIKUS','—',      'Szerver timeout · automatikus újracsatlakozás'],
-  ['00:00:14','INFO',    'F3X-014','Session indult · SES-7F2A-0481'],
-  ['23:57:40','BIZTONSÁ','—',      'Belépés elutasítva · ismeretlen felhasználónév'],
-  ['23:47:11','INFO',    'F3X-001','Üzenet kézbesítve F3X-014 részére'],
-]
-
-function KPI({ k, v, hint, kind = 'accent' }: { k:string; v:string; hint?:string; kind?:'accent'|'mag'|'cyan' }) {
-  const color = kind==='mag'?'var(--magenta)':kind==='cyan'?'var(--cyan)':'var(--accent)'
+function KPI({ k, v, hint, kind = 'accent' }: { k: string; v: string; hint?: string; kind?: 'accent' | 'mag' | 'cyan' }) {
+  const color = kind === 'mag' ? 'var(--magenta)' : kind === 'cyan' ? 'var(--cyan)' : 'var(--accent)'
   return (
-    <div className="panel" style={{ padding:'18px 20px' }}>
-      <div className="sys muted" style={{ fontSize:10 }}>{k}</div>
-      <div className="head" style={{ fontSize:40, color, textShadow:kind==='accent'?'var(--accent-glow)':'none', marginTop:6 }}>{v}</div>
-      {hint && <div className="sys muted" style={{ marginTop:4, fontSize:10 }}>{hint}</div>}
+    <div className="panel" style={{ padding: '18px 20px' }}>
+      <div className="sys muted" style={{ fontSize: 10 }}>{k}</div>
+      <div className="head" style={{ fontSize: 40, color, textShadow: kind === 'accent' ? 'var(--accent-glow)' : 'none', marginTop: 6 }}>{v}</div>
+      {hint && <div className="sys muted" style={{ marginTop: 4, fontSize: 10 }}>{hint}</div>}
     </div>
   )
 }
 
-function CollapseSection({ tag, title, open: initOpen, children }: { tag:string; title:string; open?:boolean; children: ReactNode }) {
-  const [open, setOpen] = useState(initOpen ?? true)
+/* ─── User row with role + level controls ─── */
+function UserRow({ op, currentOp, onChange }: { op: Operator; currentOp: Operator; onChange: () => void }) {
+  const [pending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
+  const isSelf = op.id === currentOp.id
+
+  const fmtDate = (iso: string) => {
+    if (!iso) return '—'
+    try { return new Date(iso).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric', year: 'numeric' }) } catch { return '—' }
+  }
+
+  function changeRole(role: Role) {
+    if (currentOp.role !== 'superadmin') return
+    setError(null)
+    startTransition(async () => {
+      const res = await updateOperatorRole(op.id, role)
+      if (res.error) setError(res.error)
+      else onChange()
+    })
+  }
+
+  function changeLevel(delta: number) {
+    const newLevel = Math.max(1, Math.min(10, op.level + delta))
+    if (newLevel === op.level) return
+    setError(null)
+    startTransition(async () => {
+      const res = await updateOperatorLevel(op.id, newLevel)
+      if (res.error) setError(res.error)
+      else onChange()
+    })
+  }
+
+  function handleDelete() {
+    if (currentOp.role !== 'superadmin') return
+    if (isSelf) return
+    if (!confirm(`Biztosan törlöd ${op.callsign} fiókját? Ez minden posztját, kommentjét és reakcióját is törli.`)) return
+    setError(null)
+    startTransition(async () => {
+      const res = await deleteOperator(op.id)
+      if (res.error) setError(res.error)
+      else onChange()
+    })
+  }
+
+  const roleColor = op.role === 'superadmin' ? 'var(--magenta)' : op.role === 'admin' ? 'var(--accent)' : 'var(--ink-2)'
+  const xp = op.xp ?? 0
+
   return (
-    <Panel tag={tag} title={title}
-      chips={
-        <button className="btn btn-ghost btn-sm" style={{ minHeight:0, padding:'3px 10px' }}
-          onClick={() => setOpen(o => !o)}>
-          {open ? '▼' : '▶'}
+    <div style={{ borderBottom: '1px solid var(--border-0)', padding: '12px 14px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '36px 90px 1fr auto auto auto auto', gap: 12, alignItems: 'center' }}>
+        <Avatar id={op.id} src={op.avatar_url} size={32} />
+        <span className="mono muted" style={{ fontSize: 10 }}>{op.id}</span>
+        <Link href={`/operators/${op.callsign}`} style={{ textDecoration: 'none' }}>
+          <div className="head" style={{ fontSize: 14, color: 'var(--ink-0)' }}>{op.callsign}</div>
+          <div className="sys muted" style={{ fontSize: 10 }}>{fmtDate(op.created_at)} · {xp} XP</div>
+        </Link>
+
+        {/* Role select */}
+        <select
+          className="input"
+          disabled={pending || currentOp.role !== 'superadmin' || isSelf}
+          value={op.role}
+          onChange={e => changeRole(e.target.value as Role)}
+          style={{ fontSize: 10, padding: '4px 6px', minWidth: 104, color: roleColor }}
+        >
+          <option value="operator">FELHASZNÁLÓ</option>
+          <option value="admin">ADMIN</option>
+          <option value="superadmin">SUPERADMIN</option>
+        </select>
+
+        {/* Level controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <button className="btn btn-ghost btn-sm" disabled={pending || op.level <= 1} onClick={() => changeLevel(-1)} style={{ padding: '2px 7px', minHeight: 0, fontSize: 11 }}>−</button>
+          <Chip kind="accent" style={{ minWidth: 56, justifyContent: 'center', fontSize: 10 }}>LVL-{String(op.level).padStart(2, '0')}</Chip>
+          <button className="btn btn-ghost btn-sm" disabled={pending || op.level >= 10} onClick={() => changeLevel(+1)} style={{ padding: '2px 7px', minHeight: 0, fontSize: 11 }}>+</button>
+        </div>
+
+        {/* Status */}
+        <Chip kind={op.auth_id ? 'accent' : 'dash'} dot={!!op.auth_id} style={{ fontSize: 9 }}>
+          {op.auth_id ? 'AKTÍV' : 'NINCS AUTH'}
+        </Chip>
+
+        {/* Delete */}
+        <button
+          className="btn btn-ghost btn-sm"
+          disabled={pending || currentOp.role !== 'superadmin' || isSelf}
+          onClick={handleDelete}
+          style={{ padding: '4px 10px', color: 'var(--red)', borderColor: 'rgba(255,58,58,.3)', fontSize: 10 }}
+        >
+          ◢ TÖRÖL
         </button>
-      }
-      style={{ marginBottom:18 }}
-    >
-      {open && children}
-    </Panel>
+      </div>
+      {error && <div style={{ marginTop: 6, padding: '4px 8px', background: 'rgba(255,58,58,.1)', color: 'var(--red)', fontSize: 10 }}>◢ {error}</div>}
+    </div>
+  )
+}
+
+/* ─── Post row ─── */
+function PostRow({ entry, onChange }: { entry: Entry; onChange: () => void }) {
+  const [pending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
+
+  const fmtDate = (iso: string) => {
+    try { return new Date(iso).toLocaleString('hu-HU', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) } catch { return '—' }
+  }
+
+  function handleDelete() {
+    if (!confirm(`Biztosan törlöd a posztot: "${entry.title}"?`)) return
+    setError(null)
+    startTransition(async () => {
+      const res = await deleteEntry(entry.id)
+      if (res.error) setError(res.error)
+      else onChange()
+    })
+  }
+
+  const isVideo = entry.kind === 'VIDEÓ' || entry.kind === 'ADÁS' || entry.media_type === 'youtube'
+  const isImage = entry.media_type === 'image'
+  const kindLabel = isVideo ? 'VIDEÓ' : isImage ? 'KÉP' : 'SZÖVEG'
+
+  return (
+    <div style={{ borderBottom: '1px solid var(--border-0)', padding: '12px 14px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '120px 80px 1fr 100px 90px 70px auto', gap: 12, alignItems: 'center' }}>
+        <span className="mono muted" style={{ fontSize: 10 }}>{entry.id}</span>
+        <Chip kind={isVideo ? 'mag' : isImage ? 'cyan' : 'dash'} style={{ fontSize: 9 }}>{kindLabel}</Chip>
+        <Link href={`/entries/${entry.id}`} className="head" style={{ fontSize: 13, color: 'var(--ink-0)', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {entry.title}
+          {entry.priority && <Chip kind="accent" dot style={{ marginLeft: 8, fontSize: 9 }}>KIEMELT</Chip>}
+        </Link>
+        <span className="sys muted" style={{ fontSize: 10 }}>{entry.operator?.callsign ?? entry.operator_id}</span>
+        <span className="mono muted" style={{ fontSize: 10 }}>{fmtDate(entry.created_at)}</span>
+        <span className="sys" style={{ fontSize: 10, color: 'var(--accent)' }}>{entry.reads ?? 0} ◤</span>
+        <button
+          className="btn btn-ghost btn-sm"
+          disabled={pending}
+          onClick={handleDelete}
+          style={{ padding: '4px 10px', color: 'var(--red)', borderColor: 'rgba(255,58,58,.3)', fontSize: 10 }}
+        >
+          ◢ TÖRÖL
+        </button>
+      </div>
+      {error && <div style={{ marginTop: 6, padding: '4px 8px', background: 'rgba(255,58,58,.1)', color: 'var(--red)', fontSize: 10 }}>◢ {error}</div>}
+    </div>
   )
 }
 
 interface AdminClientProps {
   operators: Operator[]
   entries: Entry[]
+  currentOperator: Operator
 }
 
-export function AdminClient({ operators, entries }: AdminClientProps) {
-  const [tab, setTab] = useState('ÁTTEKINTÉS')
-  const ops = operators.length > 0 ? operators : SEED_OPS
+export function AdminClient({ operators, entries, currentOperator }: AdminClientProps) {
+  const [tab, setTab] = useState<Tab>('OVERVIEW')
+  const [opSearch, setOpSearch] = useState('')
+  const [postSearch, setPostSearch] = useState('')
+  const [cleanupPending, setCleanupPending] = useState(false)
+  const [cleanupMsg, setCleanupMsg] = useState<string | null>(null)
 
-  const onlineOps = ops.filter(o => o.level >= 2).length
-  const liveEntries = entries.length || 2481
-  const openTopics  = 38
-
-  const fmtDate = (iso: string) => {
-    try { return new Date(iso).toLocaleDateString('hu-HU', { month:'short', day:'numeric' }) } catch { return '—' }
+  function refresh() {
+    // Server actions revalidate; force a soft reload to get fresh server data
+    window.location.reload()
   }
 
-  const lastSeen = (op: Operator) => op.level >= 2 ? 'Ma' : '3 napja'
+  async function handleCleanup() {
+    if (!confirm('Töröljünk minden auth-azonosító nélküli (seed/placeholder) felhasználót és tartalmaikat? Ez nem visszafordítható.')) return
+    setCleanupPending(true)
+    setCleanupMsg(null)
+    const res = await cleanupSeedOperators()
+    setCleanupPending(false)
+    if (res.error) setCleanupMsg(`HIBA: ${res.error}`)
+    else { setCleanupMsg(`◢ Törölve: ${res.deleted ?? 0} placeholder fiók.`); setTimeout(refresh, 1200) }
+  }
+
+  const filteredOps = operators.filter(o =>
+    !opSearch || o.callsign.toLowerCase().includes(opSearch.toLowerCase()) || o.id.toLowerCase().includes(opSearch.toLowerCase())
+  )
+  const filteredEntries = entries.filter(e =>
+    !postSearch || e.title.toLowerCase().includes(postSearch.toLowerCase()) || e.id.toLowerCase().includes(postSearch.toLowerCase())
+  )
+
+  const totalPosts = entries.length
+  const totalUsers = operators.length
+  const realUsers = operators.filter(o => !!o.auth_id).length
+  const placeholders = totalUsers - realUsers
+  const totalXP = operators.reduce((s, o) => s + (o.xp ?? 0), 0)
+
+  /* ─── Build a real activity log from posts ─── */
+  type LogEntry = { ts: string; level: string; actor: string; msg: string }
+  const logEntries: LogEntry[] = entries
+    .slice(0, 30)
+    .map(e => ({
+      ts: new Date(e.created_at).toLocaleString('hu-HU', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
+      level: e.priority ? 'KIEMELT' : 'INFO',
+      actor: e.operator?.callsign ?? e.operator_id,
+      msg: `Poszt publikálva · ${e.id} · "${e.title.slice(0, 60)}${e.title.length > 60 ? '…' : ''}"`,
+    }))
 
   return (
-    <div className="shell" style={{ padding:'24px 56px' }}>
-      {/* Superadmin banner */}
+    <div className="shell" style={{ padding: '24px 56px' }}>
       <div className="superadmin-banner">
-        <span className="dot dot-mag"/>
-        ◢ MODERÁTORI FELÜLET · KORLÁTOZOTT HOZZÁFÉRÉS · MINDEN MŰVELET NAPLÓZVA
+        <span className="dot dot-mag" />
+        ◢ MODERÁTORI FELÜLET · {currentOperator.callsign} · MINDEN MŰVELET NAPLÓZVA
       </div>
 
       {/* Header */}
-      <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', padding:'24px 0 20px', borderBottom:'1px solid var(--border-1)' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', padding: '24px 0 20px', borderBottom: '1px solid var(--border-1)' }}>
         <div>
-          <div className="sys muted" style={{ fontSize:10, marginBottom:6 }}>◢ IRÁNYÍTÁS · CTL-01</div>
-          <h1 className="head" style={{ margin:0, fontSize:32 }}>MODERÁTORI FELÜLET</h1>
+          <div className="sys muted" style={{ fontSize: 10, marginBottom: 6 }}>◢ IRÁNYÍTÁS · CTL-01</div>
+          <h1 className="head" style={{ margin: 0, fontSize: 32 }}>MODERÁTORI FELÜLET</h1>
         </div>
-        <div style={{ display:'flex', gap:8 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
           <Chip kind="accent" dot>RENDSZER · STABIL</Chip>
-          <button className="btn btn-sm">◢ NAPLÓ EXPORT</button>
+          {currentOperator.role === 'superadmin' && (
+            <button className="btn btn-sm" disabled={cleanupPending} onClick={handleCleanup} style={{ color: 'var(--magenta)', borderColor: 'rgba(255,77,191,.4)' }}>
+              {cleanupPending ? '◢ TÖRLÉS…' : '◢ PLACEHOLDER TISZTÍTÁS'}
+            </button>
+          )}
         </div>
       </div>
+      {cleanupMsg && (
+        <div style={{ marginTop: 10, padding: '8px 12px', background: cleanupMsg.startsWith('HIBA') ? 'rgba(255,58,58,.1)' : 'rgba(24,233,104,.1)', border: `1px solid ${cleanupMsg.startsWith('HIBA') ? 'var(--red)' : 'var(--accent)'}`, color: cleanupMsg.startsWith('HIBA') ? 'var(--red)' : 'var(--accent)', fontFamily: 'var(--f-sys)', fontSize: 11 }}>
+          {cleanupMsg}
+        </div>
+      )}
 
       {/* Tabs */}
-      <div className="tabs" style={{ marginTop:18 }}>
-        {['ÁTTEKINTÉS','FELHASZNÁLÓK','POSZTOK','TÉMÁK','NAPLÓ'].map(t => (
-          <div key={t} className={`tab${tab===t?' active':''}`} onClick={() => setTab(t)}>{t}</div>
-        ))}
-        <div style={{ flex:1, borderBottom:'1px solid var(--border-1)' }}/>
+      <div className="tabs" style={{ marginTop: 18 }}>
+        {(['OVERVIEW', 'USERS', 'POSTS', 'LOG'] as Tab[]).map(t => {
+          const labels: Record<Tab, string> = { OVERVIEW: 'ÁTTEKINTÉS', USERS: 'FELHASZNÁLÓK', POSTS: 'POSZTOK', LOG: 'NAPLÓ' }
+          return (
+            <div key={t} className={`tab${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>{labels[t]}</div>
+          )
+        })}
+        <div style={{ flex: 1, borderBottom: '1px solid var(--border-1)' }} />
       </div>
 
-      {/* 3 KPI */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, marginTop:22 }}>
-        <KPI k="POSZTOK · KINT"        v={String(liveEntries)} hint="+12 / 24 óra"/>
-        <KPI k="FELHASZNÁLÓK · ONLINE" v={`${onlineOps} / ${ops.length}`} hint="aktív sessiök" kind="cyan"/>
-        <KPI k="TÉMÁK · NYITOTT"       v={String(openTopics)} hint="4 archivált" kind="mag"/>
-      </div>
+      {tab === 'OVERVIEW' && (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginTop: 22 }}>
+            <KPI k="POSZTOK · ÖSSZESEN" v={String(totalPosts)} hint="rendszerben" />
+            <KPI k="FELHASZNÁLÓK · VALÓS" v={`${realUsers} / ${totalUsers}`} hint={placeholders > 0 ? `${placeholders} placeholder` : 'tiszta'} kind="cyan" />
+            <KPI k="ÖSSZES XP" v={String(totalXP)} hint="rendszer aktivitás" kind="mag" />
+            <KPI k="SAJÁT JOG" v={currentOperator.role.toUpperCase()} hint={`LVL-0${currentOperator.level}`} />
+          </div>
 
-      {/* Collapsible: Users */}
-      <div style={{ marginTop:22 }}>
-        <CollapseSection tag="◢ FELHASZNÁLÓK" title={`REGISZTER · ${ops.length}`} open={true}>
-          <div>
-            {/* Table header */}
-            <div style={{ display:'grid', gridTemplateColumns:'88px 32px 1fr 72px 80px 90px 100px 88px', background:'var(--bg-2)', borderBottom:'1px solid var(--border-1)' }}>
-              {['ID','','FELHASZNÁLÓNÉV','SZINT','CSATL.','UTOLSÓ','ÁLLAPOT',''].map(h => (
-                <div key={h} className="sys muted" style={{ padding:'7px 10px', fontSize:9 }}>{h}</div>
+          <Panel tag="◢ GYORS NÉZET" title="LEGÚJABB POSZTOK" style={{ marginTop: 22 }}>
+            {entries.slice(0, 5).map(e => (
+              <PostRow key={e.id} entry={e} onChange={refresh} />
+            ))}
+            {entries.length === 0 && <div className="sys muted" style={{ padding: 14, fontSize: 11 }}>Nincs poszt.</div>}
+          </Panel>
+        </>
+      )}
+
+      {tab === 'USERS' && (
+        <div style={{ marginTop: 22 }}>
+          <Panel tag="◢ FELHASZNÁLÓK" title={`REGISZTER · ${operators.length}`}
+            chips={
+              <input
+                className="input"
+                placeholder="⌕ Keresés…"
+                value={opSearch}
+                onChange={e => setOpSearch(e.target.value)}
+                style={{ fontSize: 11, padding: '4px 8px', width: 220 }}
+              />
+            }
+          >
+            <div style={{ display: 'grid', gridTemplateColumns: '36px 90px 1fr 116px 130px 90px auto', gap: 12, padding: '8px 14px', borderBottom: '1px solid var(--border-1)', background: 'var(--bg-2)' }}>
+              {['', 'ID', 'FELHASZNÁLÓ', 'JOGOSULTSÁG', 'SZINT', 'STÁTUSZ', ''].map((h, i) => (
+                <span key={i} className="sys muted" style={{ fontSize: 9 }}>{h}</span>
               ))}
             </div>
-            {ops.map((op, ri) => {
-              const online = op.level >= 2
-              return (
-                <div key={op.id} style={{ display:'grid', gridTemplateColumns:'88px 32px 1fr 72px 80px 90px 100px 88px', borderBottom: ri < ops.length-1 ? '1px solid var(--border-0)' : 'none', alignItems:'center' }}>
-                  <span className="mono muted" style={{ padding:'10px', fontSize:10 }}>{op.id}</span>
-                  <div style={{ padding:'10px 4px' }}><Avatar id={op.id} size={22}/></div>
-                  <span className="head" style={{ padding:'10px', fontSize:13 }}>
-                    <Link href={`/operators/${op.callsign}`} style={{ color:'inherit', textDecoration:'none' }}>{op.callsign}</Link>
-                  </span>
-                  <span style={{ padding:'10px' }}><Chip style={{ fontSize:9 }}>LVL-0{op.level}</Chip></span>
-                  <span className="mono muted" style={{ padding:'10px', fontSize:11 }}>{fmtDate(op.created_at)}</span>
-                  <span className="sys muted" style={{ padding:'10px', fontSize:10 }}>{lastSeen(op)}</span>
-                  <div style={{ padding:'10px', display:'flex', alignItems:'center', gap:6 }}>
-                    <span className={`dot${!online?' dot-err':''}`} style={{ width:6, height:6 }}/>
-                    <span className="sys" style={{ fontSize:10, color: online?'var(--accent)':'var(--red)' }}>
-                      {online ? 'ONLINE' : 'OFFLINE'}
-                    </span>
-                  </div>
-                  <span className="sys muted" style={{ padding:'10px', fontSize:10, cursor:'pointer', color:'var(--ink-3)' }}>⋯</span>
-                </div>
-              )
-            })}
-          </div>
-          <div style={{ display:'flex', gap:8, padding:'12px 0 4px', borderTop:'1px solid var(--border-1)', marginTop:4 }}>
-            <button className="btn btn-sm">SZINT MÓD.</button>
-            <button className="btn btn-sm">JELSZÓ RESET</button>
-            <button className="btn btn-sm" style={{ color:'var(--red)', borderColor:'rgba(255,58,58,.3)' }}>TILTÁS</button>
-            <span style={{ flex:1 }}/>
-            <button className="btn btn-primary btn-sm">◢ ÚJ FELHASZNÁLÓ</button>
-          </div>
-        </CollapseSection>
+            {filteredOps.length === 0 ? (
+              <div className="sys muted" style={{ padding: 16, fontSize: 11 }}>Nincs találat.</div>
+            ) : filteredOps.map(op => (
+              <UserRow key={op.id} op={op} currentOp={currentOperator} onChange={refresh} />
+            ))}
+          </Panel>
+        </div>
+      )}
 
-        {/* Collapsible: Event log */}
-        <CollapseSection tag="◢ ESEMÉNYNAPLÓ" title="RENDSZER NAPLÓ · ÉLŐ" open={true}>
-          <div style={{ fontFamily:'var(--f-mono)', fontSize:11, lineHeight:1.7 }}>
-            {LOG_ROWS.map((r, i, a) => {
-              const c = r[1]==='KRITIKUS'?'var(--red)':r[1]==='BIZTONSÁ'?'var(--amber)':r[1]==='RENDSZER'?'var(--cyan)':'var(--ink-2)'
-              return (
-                <div key={i} style={{ display:'grid', gridTemplateColumns:'80px 80px 90px 1fr', gap:10, padding:'6px 0', borderBottom:i<a.length-1?'1px solid var(--border-0)':'none', alignItems:'center' }}>
-                  <span style={{ color:'var(--ink-3)' }}>{r[0]}</span>
-                  <span className="sys" style={{ color:c, fontSize:9, letterSpacing:'.12em' }}>{r[1]}</span>
-                  <span className="mono" style={{ color:'var(--ink-1)' }}>{r[2]}</span>
-                  <span style={{ color:'var(--ink-1)' }}>{r[3]}</span>
-                </div>
-              )
-            })}
-          </div>
-        </CollapseSection>
-      </div>
+      {tab === 'POSTS' && (
+        <div style={{ marginTop: 22 }}>
+          <Panel tag="◢ POSZTOK" title={`KEZELÉS · ${entries.length}`}
+            chips={
+              <input
+                className="input"
+                placeholder="⌕ Cím vagy ID…"
+                value={postSearch}
+                onChange={e => setPostSearch(e.target.value)}
+                style={{ fontSize: 11, padding: '4px 8px', width: 220 }}
+              />
+            }
+          >
+            <div style={{ display: 'grid', gridTemplateColumns: '120px 80px 1fr 100px 90px 70px auto', gap: 12, padding: '8px 14px', borderBottom: '1px solid var(--border-1)', background: 'var(--bg-2)' }}>
+              {['ID', 'TÍPUS', 'CÍM', 'SZERZŐ', 'IDŐPONT', 'OLV.', ''].map((h, i) => (
+                <span key={i} className="sys muted" style={{ fontSize: 9 }}>{h}</span>
+              ))}
+            </div>
+            {filteredEntries.length === 0 ? (
+              <div className="sys muted" style={{ padding: 16, fontSize: 11 }}>Nincs találat.</div>
+            ) : filteredEntries.map(e => (
+              <PostRow key={e.id} entry={e} onChange={refresh} />
+            ))}
+          </Panel>
+        </div>
+      )}
+
+      {tab === 'LOG' && (
+        <div style={{ marginTop: 22 }}>
+          <Panel tag="◢ ESEMÉNYNAPLÓ" title="RENDSZER NAPLÓ · ÉLŐ">
+            <div style={{ display: 'grid', gridTemplateColumns: '110px 90px 110px 1fr', gap: 12, padding: '8px 14px', borderBottom: '1px solid var(--border-1)', background: 'var(--bg-2)' }}>
+              {['IDŐ', 'SZINT', 'SZEREPLŐ', 'ESEMÉNY'].map((h, i) => (
+                <span key={i} className="sys muted" style={{ fontSize: 9 }}>{h}</span>
+              ))}
+            </div>
+            <div style={{ fontFamily: 'var(--f-mono)', fontSize: 11, lineHeight: 1.7 }}>
+              {logEntries.length === 0 ? (
+                <div className="sys muted" style={{ padding: 16, fontSize: 11 }}>Nincs esemény.</div>
+              ) : logEntries.map((r, i, a) => {
+                const c = r.level === 'KIEMELT' ? 'var(--magenta)' : 'var(--accent)'
+                return (
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '110px 90px 110px 1fr', gap: 12, padding: '8px 14px', borderBottom: i < a.length - 1 ? '1px solid var(--border-0)' : 'none', alignItems: 'center' }}>
+                    <span style={{ color: 'var(--ink-3)' }}>{r.ts}</span>
+                    <span className="sys" style={{ color: c, fontSize: 9, letterSpacing: '.12em' }}>{r.level}</span>
+                    <span className="mono" style={{ color: 'var(--ink-1)' }}>{r.actor}</span>
+                    <span style={{ color: 'var(--ink-1)' }}>{r.msg}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </Panel>
+        </div>
+      )}
     </div>
   )
 }
