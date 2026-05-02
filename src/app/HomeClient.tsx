@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, memo } from 'react'
 import Link from 'next/link'
 import { Chip } from '@/components/ui/Chip'
 import { Panel } from '@/components/ui/Panel'
@@ -12,7 +12,9 @@ import { HeroCube } from '@/components/ui/HeroCube'
 import { LangPicker } from '@/components/ui/LangPicker'
 import { useI18n } from '@/hooks/useI18n'
 import { YouTubePlayer, YouTubeThumbnail, extractYouTubeId } from '@/components/ui/YouTubePlayer'
-import { PostModal } from '@/components/ui/PostModal'
+import dynamic from 'next/dynamic'
+
+const PostModal = dynamic(() => import('@/components/ui/PostModal').then(m => m.PostModal), { ssr: false })
 import { createEntry, toggleReaction, fetchEntryById, deleteEntry, createSignal } from '@/app/actions'
 import type { Entry, Operator } from '@/lib/types'
 
@@ -59,7 +61,7 @@ function getWeekNum(dateStr: string) {
 function Hero({ currentOperator, postCount, totalLikes }: { currentOperator: Operator | null; postCount: number; totalLikes: number }) {
   const { t } = useI18n()
   return (
-    <div style={{ display:'grid', gridTemplateColumns:'1fr 400px', gap:32, padding:'40px 0 32px', borderBottom:'1px solid var(--border-1)', alignItems:'start' }}>
+    <div className="r-hero" style={{ gap:32, padding:'40px 0 32px', borderBottom:'1px solid var(--border-1)', alignItems:'start' }}>
 
       {/* Left — title + sub + lang + CTA */}
       <div>
@@ -87,8 +89,8 @@ function Hero({ currentOperator, postCount, totalLikes }: { currentOperator: Ope
       {/* Right — Cube + UserCard stacked */}
       <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
 
-        {/* HeroCube centered */}
-        <div style={{ display:'flex', justifyContent:'center', padding:'12px 0 0' }}>
+        {/* HeroCube — small, top-right, doesn't block anything */}
+        <div style={{ display:'flex', justifyContent:'flex-end', padding:'4px 12px 0 0' }}>
           <HeroCube/>
         </div>
 
@@ -396,7 +398,7 @@ function PostCard({ e, i, currentOperator, onDelete, onOpen }: { e: Entry; i: nu
       <div className="entry-card panel" style={{ padding:0 }}>
 
         {/* 2-column layout: 140px gutter | 1fr content */}
-        <div style={{ display:'grid', gridTemplateColumns:'140px 1fr', borderBottom:'1px solid var(--border-1)' }}>
+        <div className="entry-card-grid" style={{ display:'grid', gridTemplateColumns:'140px 1fr', borderBottom:'1px solid var(--border-1)' }}>
 
           {/* Left gutter */}
           <div style={{ padding:'16px 12px', borderRight:'1px solid var(--border-1)', display:'flex', flexDirection:'column', gap:8, background:'rgba(0,0,0,.2)' }}>
@@ -439,7 +441,7 @@ function PostCard({ e, i, currentOperator, onDelete, onOpen }: { e: Entry; i: nu
             {isImage && e.media_url && (
               <div style={{ marginTop:4, maxHeight:360, overflow:'hidden', borderRadius:2 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={e.media_url} alt={e.media_label ?? ''} style={{ width:'100%', height:'auto', objectFit:'cover', opacity:.9, display:'block' }}/>
+                <img src={e.media_url} alt={e.media_label ?? ''} loading="lazy" decoding="async" style={{ width:'100%', height:'auto', maxHeight:520, objectFit:'contain', opacity:.95, display:'block', background:'var(--bg-2)' }}/>
                 {e.media_label && <div className="sys muted" style={{ fontSize:10, marginTop:4 }}>{e.media_label}</div>}
               </div>
             )}
@@ -480,6 +482,12 @@ function PostCard({ e, i, currentOperator, onDelete, onOpen }: { e: Entry; i: nu
     </div>
   )
 }
+const PostCardMemo = memo(PostCard, (a, b) =>
+  a.e.id === b.e.id &&
+  a.e.reads === b.e.reads &&
+  a.currentOperator?.id === b.currentOperator?.id &&
+  a.i === b.i
+)
 
 /* ─── Archive section ─── */
 function Archive({ entries, onOpen }: { entries: Entry[]; onOpen: (id: string) => void }) {
@@ -596,7 +604,7 @@ export function HomeClient({ entries: initialEntries, currentOperator, postCount
             </div>
           </div>
         ) : (
-          <div>{filtered.map((e,i) => <PostCard key={e.id} e={e} i={i} currentOperator={currentOperator} onDelete={handleDelete} onOpen={setOpenEntryId}/>)}</div>
+          <div>{filtered.map((e,i) => <PostCardMemo key={e.id} e={e} i={i} currentOperator={currentOperator} onDelete={handleDelete} onOpen={setOpenEntryId}/>)}</div>
         )}
       </div>
 

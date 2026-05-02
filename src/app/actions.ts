@@ -379,12 +379,12 @@ async function ensureFriends(myId: string, otherId: string): Promise<boolean> {
   return !!data
 }
 
-export async function sendMessage(receiverId: string, text: string) {
+export async function sendMessage(receiverId: string, text: string, imageUrl?: string | null) {
   try {
     const op = await getCurrentOperator()
     if (!op) return { error: 'Be kell lépni.' }
-    const trimmed = text.trim()
-    if (!trimmed) return { error: 'Az üzenet nem lehet üres.' }
+    const trimmed = (text ?? '').trim()
+    if (!trimmed && !imageUrl) return { error: 'Az üzenet nem lehet üres.' }
     if (trimmed.length > 2000) return { error: 'Max 2000 karakter.' }
     if (op.id === receiverId) return { error: 'Magadnak nem küldhetsz üzenetet.' }
 
@@ -395,14 +395,31 @@ export async function sendMessage(receiverId: string, text: string) {
     const admin = createAdminClient()
     const { data, error } = await admin
       .from('messages')
-      .insert({ sender_id: op.id, receiver_id: receiverId, text: trimmed })
-      .select('id, sender_id, receiver_id, text, read, created_at')
+      .insert({ sender_id: op.id, receiver_id: receiverId, text: trimmed || null, image_url: imageUrl || null })
+      .select('id, sender_id, receiver_id, text, image_url, read, created_at')
       .single()
 
     if (error) return { error: error.message }
     return { success: true, message: data }
   } catch (err) {
     console.error('sendMessage error:', err)
+    return { error: 'Szerver hiba.' }
+  }
+}
+
+export async function updateChatColor(color: string | null) {
+  try {
+    const op = await getCurrentOperator()
+    if (!op) return { error: 'Be kell lépni.' }
+    // accept '#rrggbb' or null/empty to reset
+    const clean = color && /^#[0-9a-fA-F]{6}$/.test(color) ? color : null
+    const admin = createAdminClient()
+    const { error } = await admin.from('operators').update({ chat_color: clean }).eq('id', op.id)
+    if (error) return { error: error.message }
+    revalidatePath('/')
+    return { success: true, color: clean }
+  } catch (err) {
+    console.error('updateChatColor error:', err)
     return { error: 'Szerver hiba.' }
   }
 }
@@ -415,7 +432,7 @@ export async function getConversation(otherId: string, limit = 100) {
     const admin = createAdminClient()
     const { data, error } = await admin
       .from('messages')
-      .select('id, sender_id, receiver_id, text, read, created_at')
+      .select('id, sender_id, receiver_id, text, image_url, read, created_at')
       .or(`and(sender_id.eq.${op.id},receiver_id.eq.${otherId}),and(sender_id.eq.${otherId},receiver_id.eq.${op.id})`)
       .order('created_at', { ascending: true })
       .limit(limit)
@@ -651,15 +668,16 @@ export async function removeFriend(targetId: string) {
 export async function getMyFriends() {
   try {
     const op = await getCurrentOperator()
-    if (!op) return { friends: [] as { id: string; callsign: string; level: number; avatar_url: string | null }[] }
+    type FriendShape = { id: string; callsign: string; level: number; avatar_url: string | null; chat_color: string | null; last_seen: string | null }
+    if (!op) return { friends: [] as FriendShape[] }
     const admin = createAdminClient()
     const { data } = await admin
       .from('friendships')
-      .select('requester_id, addressee_id, requester:operators!requester_id(id,callsign,level,avatar_url), addressee:operators!addressee_id(id,callsign,level,avatar_url)')
+      .select('requester_id, addressee_id, requester:operators!requester_id(id,callsign,level,avatar_url,chat_color,last_seen), addressee:operators!addressee_id(id,callsign,level,avatar_url,chat_color,last_seen)')
       .or(`requester_id.eq.${op.id},addressee_id.eq.${op.id}`)
       .eq('status', 'accepted')
 
-    type Row = { requester_id: string; addressee_id: string; requester: { id: string; callsign: string; level: number; avatar_url: string | null }; addressee: { id: string; callsign: string; level: number; avatar_url: string | null } }
+    type Row = { requester_id: string; addressee_id: string; requester: FriendShape; addressee: FriendShape }
     const rows = (data ?? []) as unknown as Row[]
     const friends = rows.map(r => r.requester_id === op.id ? r.addressee : r.requester)
     return { friends }

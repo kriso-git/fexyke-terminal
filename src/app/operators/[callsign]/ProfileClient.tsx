@@ -18,18 +18,6 @@ type FriendshipState =
   | { state: 'pending_in'; id: string }
   | { state: 'friends'; id: string }
 
-const SEED_OP: Operator = {
-  id:'F3X-014', auth_id:null, callsign:'NULLSET', level:3, role:'admin', node:'f3x-pri-01', joined_cycle:12,
-  bio:'Tizenkét ciklus óta figyelem a hideg szektorok protokoll-aláírásait. Hozzám érnek be először a külső rács szinkronjai.',
-  created_at:'',
-}
-
-const SEED_SIGNALS: ProfileSignal[] = [
-  { id:'ps1', target_id:'F3X-014', author_id:'F3X-001', text:'Jól láttad a sodródást. Szívesen együttműködom újra.', verified:true, created_at:'2026-04-20T14:31:00Z',
-    author:{ id:'F3X-001', auth_id:null, callsign:'KURIER', level:4, role:'superadmin', node:'f3x-pri-01', joined_cycle:1, bio:null, created_at:'' } },
-  { id:'ps2', target_id:'F3X-014', author_id:'F3X-022', text:'Köszi az elemzést — sokat segített a projekt irányítói oldalán.', verified:false, created_at:'2026-04-18T09:04:00Z',
-    author:{ id:'F3X-022', auth_id:null, callsign:'HALO', level:2, role:'operator', node:'f3x-pri-01', joined_cycle:18, bio:null, created_at:'' } },
-]
 
 /* ─── FriendBtn ─── */
 function FriendBtn({ targetId, friendship }: { targetId: string; friendship: FriendshipState }) {
@@ -167,9 +155,11 @@ interface ProfileClientProps {
   friends: Operator[]
   pendingIn: { id: string; requester: Operator }[]
   friendship: FriendshipState
+  allOperators: Operator[]
+  stats: { likes: number; comments: number; reads: number }
 }
 
-export function ProfileClient({ operator, entries, profileSignals, currentOperator, friends, pendingIn, friendship }: ProfileClientProps) {
+export function ProfileClient({ operator, entries, profileSignals, currentOperator, friends, pendingIn, friendship, allOperators, stats }: ProfileClientProps) {
   const { t, lang } = useI18n()
   const [psError, setPsError]     = useState<string | null>(null)
   const [psPending, setPsPending] = useState(false)
@@ -185,15 +175,12 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
   const [avatarUploading, setAvatarUploading] = useState(false)
   const avatarInputRef              = useRef<HTMLInputElement>(null)
 
-  const op    = operator ?? SEED_OP
-  const sigs  = profileSignals.length > 0 ? profileSignals : SEED_SIGNALS
+  if (!operator) return <div className="shell" style={{ padding:'80px 20px', textAlign:'center' }}><div className="sys muted">Felhasználó nem található.</div></div>
+
+  const op    = operator
+  const sigs  = profileSignals
   const isSelf = currentOperator?.id === op.id
   const roleLabel = op.role === 'superadmin' ? t('profile.role_super') : op.role === 'admin' ? t('profile.role_admin') : t('profile.role_user')
-
-  // Build a rough operator list from available signal authors
-  const knownOps: Operator[] = []
-  for (const s of sigs) { if (s.author && !knownOps.find(o => o.id === s.author!.id)) knownOps.push(s.author as Operator) }
-  if (currentOperator && !knownOps.find(o => o.id === currentOperator.id)) knownOps.push(currentOperator)
 
   const localeMap: Record<string, string> = { hu:'hu-HU', en:'en-US', de:'de-DE', es:'es-ES', fr:'fr-FR', no:'no-NO', sv:'sv-SE' }
   const fmtDate = (iso: string) => {
@@ -246,7 +233,7 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
   return (
     <div className="shell">
       {/* Profile header */}
-      <div style={{ display:'grid', gridTemplateColumns:'220px 1fr 320px', gap:28, padding:'36px 0 28px', borderBottom:'1px solid var(--border-1)', alignItems:'start' }}>
+      <div className="profile-header-grid" style={{ display:'grid', gridTemplateColumns:'220px 1fr 320px', gap:28, padding:'36px 0 28px', borderBottom:'1px solid var(--border-1)', alignItems:'start' }}>
 
         {/* Avatar */}
         <div>
@@ -284,10 +271,22 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
 
         {/* Callsign + bio + actions */}
         <div>
-          <div style={{ display:'flex', gap:8, marginBottom:14 }}>
+          <div style={{ display:'flex', gap:8, marginBottom:14, flexWrap:'wrap' }}>
             <Chip kind="solid" dot>{op.id}</Chip>
             <Chip kind="accent">{roleLabel} · LVL-0{op.level}</Chip>
-            <Chip kind="cyan">ONLINE</Chip>
+            {(() => {
+              const ls = op.last_seen ? new Date(op.last_seen).getTime() : 0
+              const online = ls && (Date.now() - ls < 5 * 60 * 1000)
+              if (online) return <Chip kind="cyan" dot>ONLINE</Chip>
+              if (!ls) return <Chip kind="dash">OFFLINE</Chip>
+              const diff = (Date.now() - ls) / 1000
+              const rel =
+                diff < 3600 ? `${Math.floor(diff / 60)} perce`
+                : diff < 86400 ? `${Math.floor(diff / 3600)} órája`
+                : diff < 86400 * 7 ? `${Math.floor(diff / 86400)} napja`
+                : new Date(op.last_seen!).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' })
+              return <Chip kind="dash">UTOLJÁRA · {rel}</Chip>
+            })()}
           </div>
           <h1 className="display" style={{ margin:0, fontSize:72, lineHeight:.95, letterSpacing:'-.02em' }}>{op.callsign}</h1>
           <p style={{ maxWidth:620, color:'var(--ink-1)', fontSize:14, lineHeight:1.6, marginTop:14 }}>
@@ -349,7 +348,7 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
             )
           })()}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-            {[[t('profile.posts'), entries.length], [t('profile.friend_count'), friends.length], [t('profile.chain'),'17'], [t('profile.readers'),'3.2K'], [t('profile.comments'),'91'], [t('profile.month'), op.joined_cycle || 35]].map(([k,v]) => (
+            {[[t('profile.posts'), entries.length], [t('profile.friend_count'), friends.length], [t('card.likes'), stats.likes], [t('profile.readers'), stats.reads], [t('profile.comments'), stats.comments], [t('profile.month'), op.joined_cycle ?? 0]].map(([k,v]) => (
               <div key={String(k)} className="panel" style={{ padding:'8px 10px', background:'transparent' }}>
                 <div className="sys muted" style={{ fontSize:9 }}>{k}</div>
                 <div className="head" style={{ fontSize:22, color:'var(--accent)' }}>{v}</div>
@@ -364,11 +363,11 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
       </div>
 
       {/* Main + sidebar */}
-      <div style={{ display:'grid', gridTemplateColumns:'280px 1fr', gap:28, padding:'28px 0 56px' }}>
+      <div className="profile-main-grid" style={{ display:'grid', gridTemplateColumns:'280px 1fr', gap:28, padding:'28px 0 56px' }}>
 
         {/* Sidebar */}
         <aside style={{ display:'flex', flexDirection:'column', gap:18 }}>
-          <UserSearch operators={knownOps}/>
+          <UserSearch operators={allOperators}/>
 
           <Panel tag={`◢ ${t('profile.id')}`} title={t('profile.data')}>
             <Meta k={t('profile.name')}          v={op.callsign}/>
@@ -427,7 +426,7 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
             <form onSubmit={handleProfileSignal} style={{ marginBottom:18 }}>
               <input type="hidden" name="target_id" value={op.id}/>
               <div className="panel" style={{ padding:14, display:'flex', gap:12 }}>
-                <Avatar id={currentOperator.id} size={40}/>
+                <Avatar id={currentOperator.id} src={currentOperator.avatar_url} size={40}/>
                 <div style={{ flex:1, display:'flex', flexDirection:'column', gap:10 }}>
                   <textarea name="text" className="input" rows={3}
                     placeholder={t('profile.msg_ph')}
@@ -455,19 +454,24 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
 
           {/* Messages */}
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-            {sigs.map(s => (
+            {sigs.length === 0 ? (
+              <div className="panel" style={{ padding:18, textAlign:'center', borderStyle:'dashed' }}>
+                <div className="sys muted" style={{ fontSize:12 }}>Még nincsenek üzenetek a falon.</div>
+              </div>
+            ) : sigs.map(s => (
               <div key={s.id} className="panel" style={{ padding:14, display:'grid', gridTemplateColumns:'40px 1fr', gap:12 }}>
-                <Avatar id={s.author?.id ?? s.author_id} size={40}/>
+                <Link href={s.author?.callsign ? `/operators/${s.author.callsign}` : '#'} style={{ textDecoration:'none' }}>
+                  <Avatar id={s.author?.id ?? s.author_id} src={s.author?.avatar_url} size={40}/>
+                </Link>
                 <div>
                   <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
-                    <span className="head" style={{ fontSize:15 }}>{s.author?.callsign ?? '—'}</span>
+                    <Link href={s.author?.callsign ? `/operators/${s.author.callsign}` : '#'} className="head" style={{ fontSize:15, color: s.author?.chat_color || 'var(--ink-0)', textDecoration:'none' }}>{s.author?.callsign ?? '—'}</Link>
                     <span style={{ flex:1 }}/>
                     {s.verified && <Chip kind="accent" dot>VERIFIED</Chip>}
                     <span className="sys muted" style={{ fontSize:10 }}>{fmtDate(s.created_at)}</span>
                   </div>
-                  <div style={{ color:'var(--ink-0)', fontSize:14, lineHeight:1.6 }}>{s.text}</div>
+                  <div style={{ color:'var(--ink-0)', fontSize:14, lineHeight:1.6, wordBreak:'break-word' }}>{s.text}</div>
                   <div style={{ display:'flex', gap:12, marginTop:8, paddingTop:8, borderTop:'1px dashed var(--border-1)' }}>
-                    <span className="sys muted" style={{ cursor:'pointer', fontSize:10 }}>▸ VÁLASZ</span>
                     <span style={{ flex:1 }}/>
                     <span className="sys dim" style={{ fontSize:10 }}>MSG-{s.id.slice(-4).toUpperCase()}</span>
                   </div>

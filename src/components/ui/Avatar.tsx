@@ -24,7 +24,7 @@ export function Avatar({ id = 'F3X-000', size = 40, src }: AvatarProps) {
     return (
       <div className="avatar" style={{ width: size, height: size, overflow: 'hidden' }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
+        <img src={src} alt="" loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
       </div>
     )
   }

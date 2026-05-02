@@ -353,21 +353,21 @@ textarea.input { resize:vertical; }
 [data-density="compact"] .nav .item { padding:8px 14px; }
 
 /* ─── HeroCube ─── */
-.hero-cube-scene { width:200px; height:200px; perspective:500px; flex-shrink:0; cursor:grab; user-select:none; }
+.hero-cube-scene { width:140px; height:140px; perspective:420px; flex-shrink:0; cursor:grab; user-select:none; pointer-events:auto; }
 .hero-cube-scene:active { cursor:grabbing; }
-.hero-cube { width:200px; height:200px; position:relative; transform-style:preserve-3d; }
-.hero-cube-face { position:absolute; width:200px; height:200px; border:1px solid rgba(24,233,104,.6); background:var(--bg-2); background-size:cover; background-position:center; overflow:hidden; }
+.hero-cube { width:140px; height:140px; position:relative; transform-style:preserve-3d; }
+.hero-cube-face { position:absolute; width:140px; height:140px; border:1px solid rgba(24,233,104,.6); background:var(--bg-2); background-size:cover; background-position:center; overflow:hidden; }
 .hero-cube-face::before,.hero-cube-face::after,.hero-cube-face .hud-br,.hero-cube-face .hud-bl { content:""; position:absolute; width:10px; height:10px; border-color:var(--accent); opacity:.8; z-index:2; }
 .hero-cube-face::before { top:-1px; left:-1px; border-top:2px solid; border-left:2px solid; }
 .hero-cube-face::after  { top:-1px; right:-1px; border-top:2px solid; border-right:2px solid; }
 .hero-cube-face .hud-br { bottom:-1px; right:-1px; border-bottom:2px solid var(--accent); border-right:2px solid var(--accent); }
 .hero-cube-face .hud-bl { bottom:-1px; left:-1px;  border-bottom:2px solid var(--accent); border-left:2px solid var(--accent); }
-.hero-cube-face.front  { transform:translateZ(100px); }
-.hero-cube-face.back   { transform:translateZ(-100px) rotateY(180deg); }
-.hero-cube-face.right  { transform:rotateY(90deg) translateZ(100px); }
-.hero-cube-face.left   { transform:rotateY(-90deg) translateZ(100px); }
-.hero-cube-face.top    { transform:rotateX(90deg) translateZ(100px); }
-.hero-cube-face.bottom { transform:rotateX(-90deg) translateZ(100px); }
+.hero-cube-face.front  { transform:translateZ(70px); }
+.hero-cube-face.back   { transform:translateZ(-70px) rotateY(180deg); }
+.hero-cube-face.right  { transform:rotateY(90deg) translateZ(70px); }
+.hero-cube-face.left   { transform:rotateY(-90deg) translateZ(70px); }
+.hero-cube-face.top    { transform:rotateX(90deg) translateZ(70px); }
+.hero-cube-face.bottom { transform:rotateX(-90deg) translateZ(70px); }
 
 /* ─── Easter egg ─── */
 .tisza-egg { position:fixed; bottom:0; right:24px; z-index:9999; background:none; border:none; padding:0; cursor:pointer; mix-blend-mode:screen; }
@@ -467,7 +467,37 @@ textarea.input { resize:vertical; }
   .yt-play-btn      { width: 36px !important; height: 36px !important; }
   .yt-controls      { padding: 8px !important; gap: 6px !important; }
   .yt-play-overlay-icon { width: 48px !important; height: 48px !important; }
+
+  /* Profile + control inline grids → stack */
+  .profile-header-grid { grid-template-columns: 1fr !important; gap: 18px !important; }
+  .profile-main-grid   { grid-template-columns: 1fr !important; gap: 18px !important; }
+  .entry-card-grid     { grid-template-columns: 1fr !important; }
+  .admin-shell         { padding: 16px !important; }
+  .admin-row-users     { grid-template-columns: 1fr !important; }
+  .admin-row-posts     { grid-template-columns: 1fr !important; }
+  .control-tabs-row    { overflow-x: auto; }
+
+  /* Hero cube hidden on phone (saves perf + space) */
+  .hero-cube-scene { display: none; }
+
+  /* Modal padding */
+  .post-modal-backdrop { padding: 12px 6px !important; align-items: flex-start !important; }
+  .post-modal { max-width: 100% !important; }
+
+  /* Bigger tap targets on inputs */
+  .input { min-height: 36px; font-size: 16px; }
 }
+
+/* Safari address-bar safe area */
+@supports (height: 100dvh) {
+  .page { min-height: 100dvh; }
+}
+
+/* Cross-browser tap highlight */
+* { -webkit-tap-highlight-color: transparent; }
+
+/* Smoother iOS momentum scroll on overflow containers */
+.shell, .nav, .tabs, .chat-panel, .post-modal { -webkit-overflow-scrolling: touch; }
 
 @media (max-width: 480px) {
   .shell { padding: 0 12px; }

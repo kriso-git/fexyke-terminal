@@ -12,6 +12,8 @@ export interface Operator {
   bio: string | null
   avatar_url?: string | null
   xp?: number
+  last_seen?: string | null
+  chat_color?: string | null
   created_at: string
 }
 
@@ -19,7 +21,8 @@ export interface Message {
   id: string
   sender_id: string
   receiver_id: string
-  text: string
+  text: string | null
+  image_url?: string | null
   read: boolean
   created_at: string
 }
