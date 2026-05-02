@@ -58,6 +58,7 @@ export interface Entry {
   reactions?: Record<string, number>
   initialComments?: Signal[]
   commentCount?: number
+  status?: 'draft' | 'published'
 }
 
 export interface EntryReaction {

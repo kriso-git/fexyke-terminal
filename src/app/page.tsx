@@ -10,7 +10,12 @@ import { createAdminClient } from '@/lib/supabase-admin'
 async function getData() {
   const admin = createAdminClient()
   const [entriesRes, operatorsRes, threadsRes] = await Promise.all([
-    admin.from('entries').select('*, operator:operators!operator_id(*)').order('created_at', { ascending: false }).limit(10),
+    admin.from('entries')
+      .select('*, operator:operators!operator_id(*)')
+      .neq('status', 'draft')
+      .order('priority', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(20),
     admin.from('operators').select('*').order('created_at', { ascending: true }).limit(20),
     admin.from('threads').select('*').order('created_at', { ascending: false }).limit(4),
   ])

@@ -15,7 +15,7 @@ import { YouTubePlayer, YouTubeThumbnail, extractYouTubeId } from '@/components/
 import dynamic from 'next/dynamic'
 
 const PostModal = dynamic(() => import('@/components/ui/PostModal').then(m => m.PostModal), { ssr: false })
-import { createEntry, toggleReaction, fetchEntryById, deleteEntry, createSignal, getEntryComments } from '@/app/actions'
+import { createEntry, toggleReaction, fetchEntryById, deleteEntry, createSignal, getEntryComments, listMyDrafts, publishDraft } from '@/app/actions'
 import type { Entry, Operator, Signal } from '@/lib/types'
 
 const ALLOWED_UPLOAD = new Set([
@@ -85,14 +85,14 @@ function Hero({ currentOperator, postCount, totalLikes }: { currentOperator: Ope
             <Link href="/gate" className="btn btn-primary">{t('hero.enter')}</Link>
           )}
           <Link href="#feed" className="btn">{t('hero.posts')}</Link>
-          <div className="hero-cube-slot" aria-hidden style={{ marginLeft:'auto', display:'flex', alignItems:'center' }}>
+          <div className="hero-cube-slot" aria-hidden style={{ display:'flex', alignItems:'center', marginLeft:8, marginTop:-32 }}>
             <HeroCube/>
           </div>
         </div>
       </div>
 
       {/* Right — UserCard */}
-      <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+      <div className="hero-profile-col" style={{ display:'flex', flexDirection:'column', gap:20, marginTop:80 }}>
 
         {/* UserCard */}
         <div className="panel panel-hud panel-raised" style={{ position:'relative' }}>
@@ -139,9 +139,11 @@ function PostPanel({ op, onPost }: { op: Operator | null; onPost: (id: string) =
   const { t } = useI18n()
   const [open, setOpen]               = useState(true)
   const [kind, setKind]               = useState<'SZÖVEG'|'KÉP'|'VIDEÓ'>('SZÖVEG')
+  const [title, setTitle]             = useState('')
   const [content, setContent]         = useState('')
   const [youtubeUrl, setYoutubeUrl]   = useState('')
   const [tags, setTags]               = useState('')
+  const [priority, setPriority]       = useState(false)
   const [uploadedFile, setUploadedFile] = useState<{url:string;name:string;type:string}|null>(null)
   const [mediaLabel, setMediaLabel]   = useState('')
   const [uploading, setUploading]     = useState(false)
@@ -150,10 +152,40 @@ function PostPanel({ op, onPost }: { op: Operator | null; onPost: (id: string) =
   const [error, setError]             = useState<string|null>(null)
   const [pending, setPending]         = useState(false)
   const [done, setDone]               = useState(false)
+  const [savedDraft, setSavedDraft]   = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
+  const [drafts, setDrafts]           = useState<Entry[]>([])
+  const [showDrafts, setShowDrafts]   = useState(false)
   const contentRef   = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Load drafts on mount + on demand
+  const refreshDrafts = useCallback(async () => {
+    const res = await listMyDrafts()
+    setDrafts(res.drafts as Entry[])
+  }, [])
+
   if (!op || (op.role !== 'admin' && op.role !== 'superadmin')) return null
+
+  function loadDraft(d: Entry) {
+    setKind(d.media_type === 'youtube' ? 'VIDEÓ' : d.media_type === 'image' ? 'KÉP' : 'SZÖVEG')
+    setTitle(d.title)
+    setContent(d.content ?? '')
+    setTags((d.sigs ?? []).join(', '))
+    setPriority(d.priority)
+    if (d.media_type === 'youtube' && d.media_url) {
+      setYoutubeUrl(d.media_url); setUploadedFile(null); setMediaLabel('')
+    } else if (d.media_url && d.media_type) {
+      setUploadedFile({ url: d.media_url, name: d.media_label ?? '', type: d.media_type === 'image' ? 'image/jpeg' : 'audio/mpeg' })
+      setMediaLabel(d.media_label ?? '')
+      setYoutubeUrl('')
+    } else {
+      setUploadedFile(null); setMediaLabel(''); setYoutubeUrl('')
+    }
+    setShowDrafts(false)
+    // Note: deleting the old draft after publish is handled when user submits as 'publish'
+    sessionStorage.setItem('f3x_loaded_draft', d.id)
+  }
 
   const handleFile = useCallback(async (file: File | null | undefined) => {
     if (!file) return
@@ -169,17 +201,21 @@ function PostPanel({ op, onPost }: { op: Operator | null; onPost: (id: string) =
     } finally { setUploading(false) }
   }, [mediaLabel])
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>, mode: 'draft'|'publish') {
-    e.preventDefault()
-    if (kind === 'VIDEÓ' && !youtubeUrl.trim()) { setError('YouTube URL megadása kötelező.'); return }
-    if (kind === 'KÉP' && !uploadedFile) { setError('Kép feltöltése kötelező.'); return }
-    setPending(true); setError(null)
-    const fd = new FormData(e.currentTarget)
+  async function handleSubmit(mode: 'draft'|'publish') {
+    if (!title.trim()) { setError('Cím megadása kötelező.'); return }
+    if (mode === 'publish') {
+      if (kind === 'VIDEÓ' && !youtubeUrl.trim()) { setError('YouTube URL megadása kötelező.'); return }
+      if (kind === 'KÉP' && !uploadedFile) { setError('Kép feltöltése kötelező.'); return }
+    }
+    setPending(true); setError(null); setSavedDraft(false); setDone(false)
+    const fd = new FormData()
+    fd.set('title', title)
     fd.set('kind', kind === 'VIDEÓ' ? 'VIDEÓ' : 'POSZT')
     fd.set('content', content)
     fd.set('sigs', tags)
-    if (mode === 'draft') fd.set('priority', '')
-    if (kind === 'VIDEÓ') {
+    fd.set('status', mode === 'draft' ? 'draft' : 'published')
+    if (priority && mode === 'publish') fd.set('priority', 'on')
+    if (kind === 'VIDEÓ' && youtubeUrl.trim()) {
       fd.set('media_type', 'youtube'); fd.set('media_url', youtubeUrl.trim()); fd.set('media_label', '')
     } else if (uploadedFile) {
       fd.set('media_type', uploadedFile.type.startsWith('audio/') ? 'audio' : 'image')
@@ -188,25 +224,71 @@ function PostPanel({ op, onPost }: { op: Operator | null; onPost: (id: string) =
       fd.set('media_type', ''); fd.set('media_url', ''); fd.set('media_label', '')
     }
     const res = await createEntry(fd)
-    if (res?.error) { setError(res.error); setPending(false) }
-    else {
-      setDone(true)
-      ;(e.currentTarget as HTMLFormElement).reset()
-      setContent(''); setYoutubeUrl(''); setTags(''); setUploadedFile(null); setMediaLabel('')
-      if (res?.id) onPost(res.id)
-      setTimeout(() => { setPending(false); setDone(false) }, 1800)
+    if (res?.error) { setError(res.error); setPending(false); return }
+
+    // If we just published a loaded draft, delete the old draft row
+    const loadedDraftId = sessionStorage.getItem('f3x_loaded_draft')
+    if (mode === 'publish' && loadedDraftId) {
+      await deleteEntry(loadedDraftId).catch(() => {})
+      sessionStorage.removeItem('f3x_loaded_draft')
     }
+
+    if (mode === 'draft') {
+      setSavedDraft(true)
+      setPending(false)
+      refreshDrafts()
+      setTimeout(() => setSavedDraft(false), 2000)
+      return
+    }
+
+    setDone(true)
+    setTitle(''); setContent(''); setYoutubeUrl(''); setTags(''); setUploadedFile(null); setMediaLabel(''); setPriority(false)
+    if (res?.id) onPost(res.id)
+    refreshDrafts()
+    setTimeout(() => { setPending(false); setDone(false) }, 1800)
   }
 
   const ytId = extractYouTubeId(youtubeUrl)
 
   return (
     <Panel tag={`◢ ${t('post.new')}`} title={t('post.create')} className="panel-raised"
-      chips={<button type="button" onClick={()=>setOpen(o=>!o)} className="btn btn-ghost btn-sm">{open?t('post.close'):t('post.open')}</button>}
+      chips={
+        <div style={{ display:'flex', gap:6 }}>
+          <button type="button"
+            onClick={async () => { if (!showDrafts) await refreshDrafts(); setShowDrafts(s=>!s) }}
+            className="btn btn-ghost btn-sm">
+            ◢ VÁZLATOK{drafts.length>0 ? ` · ${drafts.length}` : ''}
+          </button>
+          <button type="button" onClick={()=>setOpen(o=>!o)} className="btn btn-ghost btn-sm">{open?t('post.close'):t('post.open')}</button>
+        </div>
+      }
       style={{ marginBottom:28 }}
     >
+      {open && showDrafts && (
+        <div style={{ marginBottom:14, padding:12, border:'1px dashed var(--border-1)', background:'rgba(0,0,0,.25)' }}>
+          <div className="sys muted" style={{ fontSize:10, marginBottom:8, letterSpacing:'.14em' }}>◢ MENTETT VÁZLATOK</div>
+          {drafts.length === 0 ? (
+            <div className="sys muted" style={{ fontSize:11 }}>Nincsenek mentett vázlatok.</div>
+          ) : (
+            <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+              {drafts.map(d => (
+                <div key={d.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 8px', border:'1px solid var(--border-0)', background:'var(--bg-2)' }}>
+                  <Chip kind="dash" style={{ fontSize:9 }}>{d.media_type==='youtube'?'VIDEÓ':d.media_type==='image'?'KÉP':'SZÖVEG'}</Chip>
+                  <span className="head" style={{ fontSize:13, flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{d.title || '(cím nélkül)'}</span>
+                  <span className="sys muted" style={{ fontSize:9 }}>{new Date(d.created_at).toLocaleDateString('hu-HU',{month:'short',day:'numeric'})}</span>
+                  <button type="button" onClick={()=>loadDraft(d)} className="btn btn-ghost btn-sm" style={{ padding:'2px 8px', fontSize:10, minHeight:0 }}>BETÖLT</button>
+                  <button type="button"
+                    onClick={async ()=>{ if(!confirm('Vázlat törlése?')) return; await deleteEntry(d.id); refreshDrafts() }}
+                    className="btn btn-ghost btn-sm"
+                    style={{ padding:'2px 8px', fontSize:10, minHeight:0, color:'var(--red)', borderColor:'rgba(255,58,58,.3)' }}>TÖRÖL</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       {open && (
-        <form onSubmit={(e) => handleSubmit(e, 'publish')}>
+        <form onSubmit={(e) => { e.preventDefault(); handleSubmit('publish') }}>
           <div className="r-form">
             <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
               {/* Kind */}
@@ -221,6 +303,7 @@ function PostPanel({ op, onPost }: { op: Operator | null; onPost: (id: string) =
               </div>
 
               <input name="title" className="input" required
+                value={title} onChange={ev=>setTitle(ev.target.value)}
                 placeholder={kind==='VIDEÓ' ? t('post.title_video') : kind==='KÉP' ? t('post.title_image') : t('post.title_text')}
                 style={{ fontSize:17 }}/>
 
@@ -290,6 +373,7 @@ function PostPanel({ op, onPost }: { op: Operator | null; onPost: (id: string) =
 
               {error && <div style={{ padding:'8px 12px', background:'rgba(255,58,58,.1)', border:'1px solid var(--red)', color:'var(--red)', fontFamily:'var(--f-sys)', fontSize:11 }}>◢ {error}</div>}
               {done  && <div style={{ padding:'8px 12px', background:'rgba(24,233,104,.1)', border:'1px solid var(--accent)', color:'var(--accent)', fontFamily:'var(--f-sys)', fontSize:11 }}>{t('post.created')}</div>}
+              {savedDraft && <div style={{ padding:'8px 12px', background:'rgba(77,240,255,.1)', border:'1px solid var(--cyan)', color:'var(--cyan)', fontFamily:'var(--f-sys)', fontSize:11 }}>◢ Vázlat mentve!</div>}
             </div>
 
             {/* Right sidebar */}
@@ -300,12 +384,20 @@ function PostPanel({ op, onPost }: { op: Operator | null; onPost: (id: string) =
               {kind==='VIDEÓ' && ytId && <Meta k={t('post.video_id')} v={ytId}/>}
               <div style={{ borderTop:'1px solid var(--border-1)', paddingTop:10, marginTop:4, display:'flex', flexDirection:'column', gap:6 }}>
                 <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer' }}>
-                  <input type="checkbox" name="priority" style={{ accentColor:'var(--accent)' }}/>
+                  <input type="checkbox" name="priority" checked={priority} onChange={ev=>setPriority(ev.target.checked)} style={{ accentColor:'var(--accent)' }}/>
                   <span className="sys muted" style={{ fontSize:11 }}>{t('post.priority')}</span>
                 </label>
                 <div style={{ display:'flex', gap:6 }}>
-                  <button type="button" className="btn btn-ghost btn-sm" style={{ flex:1, justifyContent:'center', opacity:.7 }} disabled={pending || uploading}>{t('post.draft')}</button>
-                  <button type="button" className="btn btn-ghost btn-sm" style={{ flex:1, justifyContent:'center', opacity:.7 }} disabled={pending || uploading}>{t('post.preview')}</button>
+                  <button type="button" onClick={() => handleSubmit('draft')}
+                    className="btn btn-ghost btn-sm"
+                    style={{ flex:1, justifyContent:'center' }}
+                    disabled={pending || uploading || !title.trim()}
+                  >{t('post.draft')}</button>
+                  <button type="button" onClick={() => setShowPreview(true)}
+                    className="btn btn-ghost btn-sm"
+                    style={{ flex:1, justifyContent:'center' }}
+                    disabled={!title.trim()}
+                  >{t('post.preview')}</button>
                 </div>
                 <button type="submit" className="btn btn-primary" style={{ width:'100%', justifyContent:'center' }} disabled={pending || uploading}>
                   {done ? t('post.success') : pending ? t('post.publishing') : t('post.publish')}
@@ -315,7 +407,92 @@ function PostPanel({ op, onPost }: { op: Operator | null; onPost: (id: string) =
           </div>
         </form>
       )}
+      {showPreview && (
+        <PreviewModal
+          title={title}
+          content={content}
+          tags={tags}
+          kind={kind}
+          priority={priority}
+          youtubeUrl={youtubeUrl}
+          uploadedFile={uploadedFile}
+          mediaLabel={mediaLabel}
+          op={op}
+          onClose={() => setShowPreview(false)}
+        />
+      )}
     </Panel>
+  )
+}
+
+/* ─── Preview modal ─── */
+function PreviewModal({
+  title, content, tags, kind, priority, youtubeUrl, uploadedFile, mediaLabel, op, onClose,
+}: {
+  title: string; content: string; tags: string;
+  kind: 'SZÖVEG'|'KÉP'|'VIDEÓ'; priority: boolean;
+  youtubeUrl: string;
+  uploadedFile: { url:string; name:string; type:string } | null;
+  mediaLabel: string;
+  op: Operator;
+  onClose: () => void;
+}) {
+  function sanitize(html: string) {
+    return html
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<iframe[\s\S]*?>/gi, '')
+      .replace(/\s(on\w+)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+  }
+  const sigList = tags.split(',').map(s => s.trim()).filter(Boolean)
+  const isVideo = kind === 'VIDEÓ'
+  const isImage = kind === 'KÉP' && uploadedFile?.type.startsWith('image/')
+  const isAudio = uploadedFile?.type.startsWith('audio/')
+
+  return (
+    <div onClick={(e)=>{ if (e.target===e.currentTarget) onClose() }}
+      style={{ position:'fixed', inset:0, zIndex:9000, background:'rgba(0,0,0,.78)', backdropFilter:'blur(4px)', display:'flex', alignItems:'flex-start', justifyContent:'center', padding:'40px 16px', overflowY:'auto' }}>
+      <div style={{ position:'relative', width:'100%', maxWidth:880, background:'var(--bg-1)', border:'1px solid var(--accent)', boxShadow:'0 0 0 1px rgba(24,233,104,.15), 0 30px 80px -20px rgba(0,0,0,.9)' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10, padding:'12px 16px', borderBottom:'1px solid var(--border-1)', background:'var(--bg-2)' }}>
+          <span className="dot dot-mag"/>
+          <span className="sys" style={{ fontSize:10, letterSpacing:'.18em', color:'var(--magenta)' }}>◢ ELŐNÉZET · NEM PUBLIKÁLT</span>
+          <span style={{ flex:1 }}/>
+          <button onClick={onClose} className="btn btn-ghost btn-sm" style={{ padding:'4px 10px', fontSize:11, minHeight:0 }}>✕ BEZÁR</button>
+        </div>
+        <div style={{ padding:'24px 28px 28px' }}>
+          <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap', marginBottom:14 }}>
+            <Chip kind={priority ? 'solid' : 'accent'}>{isVideo ? 'VIDEÓ' : isImage ? 'KÉP' : isAudio ? 'HANG' : 'SZÖVEG'}</Chip>
+            {priority && <Chip kind="solid" dot>KIEMELT</Chip>}
+            {sigList.map(s => <Chip key={s} kind="dash">{s}</Chip>)}
+          </div>
+          <h2 className="head" style={{ margin:0, fontSize:32, lineHeight:1.1, color:'var(--ink-0)' }}>{title || '(cím nélkül)'}</h2>
+          <div style={{ display:'flex', gap:10, alignItems:'center', marginTop:14, marginBottom:18 }}>
+            <Avatar id={op.id} src={op.avatar_url} size={32}/>
+            <div>
+              <div className="head" style={{ fontSize:13 }}>{op.callsign}</div>
+              <div className="sys muted" style={{ fontSize:10 }}>LVL-0{op.level} · ELŐNÉZET</div>
+            </div>
+          </div>
+          {isVideo && youtubeUrl && (
+            <div style={{ marginBottom:18 }}><YouTubePlayer url={youtubeUrl}/></div>
+          )}
+          {isImage && uploadedFile && (
+            <div style={{ marginBottom:18 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={uploadedFile.url} alt={mediaLabel} loading="lazy" style={{ width:'100%', maxHeight:520, objectFit:'contain', display:'block', background:'var(--bg-2)' }}/>
+              {mediaLabel && <div className="sys muted" style={{ fontSize:10, marginTop:6 }}>{mediaLabel}</div>}
+            </div>
+          )}
+          {content && (
+            <div style={{ fontSize:14, lineHeight:1.7, color:'var(--ink-0)' }}
+              dangerouslySetInnerHTML={{ __html: sanitize(content) }}/>
+          )}
+          {!content && !youtubeUrl && !uploadedFile && (
+            <div className="sys muted" style={{ fontSize:11, textAlign:'center', padding:'20px 0' }}>Még nincs tartalom hozzáadva.</div>
+          )}
+        </div>
+      </div>
+    </div>
   )
 }
 

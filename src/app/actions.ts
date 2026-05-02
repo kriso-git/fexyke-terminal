@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase-server'
 import { createAdminClient } from '@/lib/supabase-admin'
 // toggleReaction uses admin client to bypass RLS
 import { getCurrentOperator } from '@/lib/session'
-import type { EntryKind } from '@/lib/types'
+import type { Entry, EntryKind } from '@/lib/types'
 
 /* ─── Auth ─── */
 
@@ -198,18 +198,28 @@ export async function createEntry(formData: FormData) {
     const plainText = safeContent.replace(/<[^>]+>/g, '')
     const excerpt   = plainText.slice(0, 180) || mediaLabel || title.slice(0, 180)
 
-    const baseRow = {
+    const status = formData.get('status') === 'draft' ? 'draft' : 'published'
+    const baseRow: Record<string, unknown> = {
       id, title, content: safeContent, excerpt,
       kind: dbKind,
       operator_id: op.id,
       cycle: 47, sigs,
       priority: formData.get('priority') === 'on',
       alert: false,
+      status,
     }
 
     // Try insert with media fields first; if columns don't exist yet, retry without them
     const mediaRow = mediaUrl ? { media_url: mediaUrl, media_type: mediaType, media_label: mediaLabel } : {}
-    const { error } = await admin.from('entries').insert({ ...baseRow, ...mediaRow })
+    let { error } = await admin.from('entries').insert({ ...baseRow, ...mediaRow })
+
+    // Retry without status if the column doesn't exist yet (migration 009 not applied)
+    if (error && /column .*status/i.test(error.message)) {
+      const noStatus = { ...baseRow }
+      delete (noStatus as { status?: unknown }).status
+      const r2 = await admin.from('entries').insert({ ...noStatus, ...mediaRow })
+      error = r2.error
+    }
 
     if (error) {
       if (mediaUrl && (error.message.includes('media_') || error.message.includes('column'))) {
@@ -226,6 +236,42 @@ export async function createEntry(formData: FormData) {
   } catch (err) {
     console.error('createEntry error:', err)
     return { error: 'Szerver hiba. Próbáld újra.' }
+  }
+}
+
+export async function listMyDrafts() {
+  try {
+    const op = await getCurrentOperator()
+    if (!op) return { drafts: [] as Entry[] }
+    const admin = createAdminClient()
+    const { data } = await admin
+      .from('entries')
+      .select('*')
+      .eq('operator_id', op.id)
+      .eq('status', 'draft')
+      .order('created_at', { ascending: false })
+    return { drafts: (data ?? []) as Entry[] }
+  } catch (err) {
+    console.error('listMyDrafts error:', err)
+    return { drafts: [] as Entry[] }
+  }
+}
+
+export async function publishDraft(entryId: string) {
+  try {
+    const op = await getCurrentOperator()
+    if (!op) return { error: 'Be kell lépni.' }
+    const admin = createAdminClient()
+    const { data: target } = await admin.from('entries').select('operator_id').eq('id', entryId).single()
+    if (!target) return { error: 'Bejegyzés nem található.' }
+    if (target.operator_id !== op.id && op.role !== 'superadmin') return { error: 'Nincs jogosultság.' }
+    const { error } = await admin.from('entries').update({ status: 'published' }).eq('id', entryId)
+    if (error) return { error: error.message }
+    revalidatePath('/')
+    return { success: true }
+  } catch (err) {
+    console.error('publishDraft error:', err)
+    return { error: 'Szerver hiba.' }
   }
 }
 
