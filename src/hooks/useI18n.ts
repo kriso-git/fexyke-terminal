@@ -256,10 +256,17 @@ const DICT: Record<string, Record<string, string>> = {
   'admin.event_info': { hu:'INFO', en:'INFO', de:'INFO', es:'INFO', fr:'INFO', no:'INFO', sv:'INFO', ua:'ІНФО', ru:'ИНФО' },
 }
 
+function escapeForText(v: string | number): string {
+  // Defense-in-depth: even though all current callers pass already-validated
+  // identifiers, escape angle brackets so a future caller can't inject markup
+  // into a text node or a confirm() prompt.
+  return String(v).replace(/[<>]/g, c => (c === '<' ? '〈' : '〉'))
+}
+
 function format(template: string, vars: Record<string, string | number>): string {
   let s = template
   for (const [k, v] of Object.entries(vars)) {
-    s = s.replaceAll(`{${k}}`, String(v))
+    s = s.replaceAll(`{${k}}`, escapeForText(v))
   }
   return s
 }

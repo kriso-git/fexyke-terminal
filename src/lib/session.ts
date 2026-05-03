@@ -13,6 +13,7 @@ export async function getCurrentOperator(): Promise<Operator | null> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
+  // Own row — auth_id is fine to read for the current user.
   const { data } = await supabase
     .from('operators')
     .select('*')

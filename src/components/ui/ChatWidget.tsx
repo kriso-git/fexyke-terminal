@@ -466,7 +466,7 @@ export function ChatWidget({ currentOperator }: ChatWidgetProps) {
 
 /* ─── Message body with post-link preview ─── */
 
-const POST_URL_RE = /\/\?post=(LOG-[A-Z0-9]{1,20})/
+const POST_URL_RE = /\/\?post=(LOG-[A-Z0-9]{1,20})/i
 
 function MessageBody({ text, hasImage }: { text: string; hasImage: boolean }) {
   const m = text.match(POST_URL_RE)
@@ -474,7 +474,7 @@ function MessageBody({ text, hasImage }: { text: string; hasImage: boolean }) {
   if (!m) {
     return <div style={{ padding, whiteSpace: 'pre-wrap' }}>{text}</div>
   }
-  const entryId = m[1]
+  const entryId = m[1].toUpperCase()
   // Strip the URL from the visible text — render the surrounding text + a preview card
   const without = text.replace(m[0], '').trim()
   return (

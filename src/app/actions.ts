@@ -9,6 +9,7 @@ import { getCurrentOperator } from '@/lib/session'
 import { dbErr } from '@/lib/serverError'
 import { assertOpId, assertUuid, assertEntryId } from '@/lib/validate'
 import { sanitizeHtml } from '@/lib/sanitize'
+import { PUBLIC_OPERATOR_COLS, OPERATOR_JOIN } from '@/lib/operatorFields'
 import type { Entry, EntryKind } from '@/lib/types'
 
 /* ─── Auth ─── */
@@ -83,11 +84,13 @@ export async function register(formData: FormData) {
       return { error: authError?.message ?? 'Regisztráció sikertelen.' }
     }
 
-    // Generate unique operator ID — retry up to 5 times on collision
+    // Generate a unique operator ID — uniform sampling over a confusable-free
+    // alphabet, retried on collision.
+    const ALPH = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789' // no I/L/O/0/1
     let opId = ''
     for (let attempt = 0; attempt < 5; attempt++) {
-      const rand = Array.from(crypto.getRandomValues(new Uint8Array(4)))
-        .map(b => b.toString(36).toUpperCase()).join('').slice(0, 6)
+      const bytes = crypto.getRandomValues(new Uint8Array(6))
+      const rand = Array.from(bytes).map(b => ALPH[b % ALPH.length]).join('')
       const candidate = `F3X-${rand}`
       const { data: taken } = await admin.from('operators').select('id').eq('id', candidate).maybeSingle()
       if (!taken) { opId = candidate; break }
@@ -137,7 +140,7 @@ export async function fetchEntryById(id: string) {
     const admin = createAdminClient()
     const { data } = await admin
       .from('entries')
-      .select('*, operator:operators!operator_id(*)')
+      .select(`*, ${OPERATOR_JOIN}`)
       .eq('id', id)
       .single()
     return data
@@ -151,8 +154,8 @@ export async function getEntryDetail(id: string) {
     const admin = createAdminClient()
     const op = await getCurrentOperator()
     const [entryRes, signalsRes, rxRes] = await Promise.all([
-      admin.from('entries').select('*, operator:operators!operator_id(*)').eq('id', id).single(),
-      admin.from('signals').select('*, operator:operators!operator_id(*)').eq('entry_id', id).order('created_at'),
+      admin.from('entries').select(`*, ${OPERATOR_JOIN}`).eq('id', id).single(),
+      admin.from('signals').select(`*, ${OPERATOR_JOIN}`).eq('entry_id', id).order('created_at'),
       admin.from('entry_reactions').select('emoji, operator_id').eq('entry_id', id),
     ])
     const counts: Record<string, number> = {}
@@ -575,11 +578,16 @@ export async function createSignal(formData: FormData) {
     .maybeSingle()
   if (recent) return { error: 'Túl gyors. Várj egy pillanatot.' }
 
+  // Comments are rendered as plain text in React. Strip raw HTML markers
+  // anyway so a future code path that switches to `dangerouslySetInnerHTML`
+  // can't accidentally execute stored markup.
+  const safeText = text ? text.replace(/[<>]/g, c => (c === '<' ? '&lt;' : '&gt;')) : null
+
   const { error } = await admin.from('signals').insert({
     entry_id:    entryId,
     operator_id: op.id,
     parent_id:   parentId || null,
-    text:        text || null,
+    text:        safeText,
     image_url:   imageUrl,
     sigs:        [],
     verified:    op.level >= 3,
@@ -597,7 +605,7 @@ export async function getEntryComments(entryId: string) {
     const admin = createAdminClient()
     const { data } = await admin
       .from('signals')
-      .select('id, entry_id, operator_id, parent_id, text, image_url, sigs, verified, created_at, operator:operators!operator_id(*)')
+      .select(`id, entry_id, operator_id, parent_id, text, image_url, sigs, verified, created_at, ${OPERATOR_JOIN}`)
       .eq('entry_id', entryId)
       .order('created_at', { ascending: true })
 
@@ -651,10 +659,12 @@ export async function createProfileSignal(formData: FormData) {
     .maybeSingle()
   if (recent) return { error: 'Túl gyors. Várj egy pillanatot.' }
 
+  const safeText = text ? text.replace(/[<>]/g, c => (c === '<' ? '&lt;' : '&gt;')) : null
+
   const { error } = await admin.from('profile_signals').insert({
     target_id:  targetId,
     author_id:  op.id,
-    text:       text || null,
+    text:       safeText,
     image_url:  imageUrl,
     verified:   op.level >= 3,
   })
@@ -684,7 +694,10 @@ export async function updateProfile(formData: FormData) {
     }
 
     const updates: Record<string, unknown> = {}
-    if (bio !== undefined) updates.bio = bio || null
+    if (bio !== undefined) {
+      const safeBio = bio ? bio.replace(/[<>]/g, c => (c === '<' ? '&lt;' : '&gt;')) : null
+      updates.bio = safeBio
+    }
     if (avatarUrl !== undefined) updates.avatar_url = avatarUrl
 
     if (Object.keys(updates).length === 0) return { success: true }
@@ -731,20 +744,29 @@ export async function sendMessage(receiverId: string, text: string, imageUrl?: s
 
     const admin = createAdminClient()
 
-    // Rate-limit: max 1 message per 2 seconds per sender
-    const twoSecAgo = new Date(Date.now() - 2000).toISOString()
-    const { data: recent } = await admin
-      .from('messages')
-      .select('id')
-      .eq('sender_id', op.id)
-      .gte('created_at', twoSecAgo)
-      .limit(1)
-      .maybeSingle()
-    if (recent) return { error: 'Túl gyors. Várj egy pillanatot.' }
+    // Layered flood-limit:
+    //   • burst:    1 message  / 2 sec
+    //   • short:   30 messages / 1 min
+    //   • daily: 1000 messages / 24 h
+    const now = Date.now()
+    const twoSecAgo = new Date(now - 2_000).toISOString()
+    const oneMinAgo = new Date(now - 60_000).toISOString()
+    const oneDayAgo = new Date(now - 86_400_000).toISOString()
+
+    const [{ data: burst }, { count: lastMinute }, { count: lastDay }] = await Promise.all([
+      admin.from('messages').select('id').eq('sender_id', op.id).gte('created_at', twoSecAgo).limit(1).maybeSingle(),
+      admin.from('messages').select('*', { count: 'exact', head: true }).eq('sender_id', op.id).gte('created_at', oneMinAgo),
+      admin.from('messages').select('*', { count: 'exact', head: true }).eq('sender_id', op.id).gte('created_at', oneDayAgo),
+    ])
+    if (burst) return { error: 'Túl gyors. Várj egy pillanatot.' }
+    if ((lastMinute ?? 0) >= 30) return { error: 'Üzenet-limit (30 / perc) elérve.' }
+    if ((lastDay ?? 0) >= 1000) return { error: 'Napi üzenet-limit (1000) elérve.' }
+
+    const safeText = trimmed ? trimmed.replace(/[<>]/g, c => (c === '<' ? '&lt;' : '&gt;')) : null
 
     const { data, error } = await admin
       .from('messages')
-      .insert({ sender_id: op.id, receiver_id: receiverId, text: trimmed || null, image_url: imageUrl || null })
+      .insert({ sender_id: op.id, receiver_id: receiverId, text: safeText, image_url: imageUrl || null })
       .select('id, sender_id, receiver_id, text, image_url, read, created_at')
       .single()
 
@@ -863,8 +885,19 @@ export async function incrementReads(entryId: string) {
     const op = await getCurrentOperator()
     if (!op) return // unauthenticated — silently ignore
 
-    // Rate-limit: at most one increment per operator per entry per 10 minutes
     const admin = createAdminClient()
+
+    // Layer 1: per-operator overall cap — max 30 increments per minute (defeats
+    // a bot that hops between many entry IDs to inflate stats site-wide).
+    const oneMinAgo = new Date(Date.now() - 60_000).toISOString()
+    const { count: lastMinute } = await admin
+      .from('entry_read_log')
+      .select('*', { count: 'exact', head: true })
+      .eq('operator_id', op.id)
+      .gte('created_at', oneMinAgo)
+    if ((lastMinute ?? 0) >= 30) return
+
+    // Layer 2: per-operator per-entry — at most one increment per 10 minutes.
     const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString()
     const { data: recent } = await admin
       .from('entry_read_log')
@@ -874,7 +907,6 @@ export async function incrementReads(entryId: string) {
       .gte('created_at', tenMinAgo)
       .limit(1)
       .maybeSingle()
-
     if (recent) return
 
     await admin.from('entry_read_log').insert({ entry_id: entryId, operator_id: op.id })
@@ -927,10 +959,34 @@ async function reAuthSuperadmin(adminPassword: string): Promise<{ ok: true } | {
   const supabase = await createClient()
   const { data: { user: me } } = await supabase.auth.getUser()
   if (!me?.email) return { ok: false, error: 'Nem sikerült azonosítani a superadmin fiókot.' }
-  // Use a fresh admin-side check to avoid clobbering the current session
+
+  // DB-based brute-force guard: max 5 failed re-auths in 5 minutes for this actor
   const admin = createAdminClient()
-  const { error } = await admin.auth.signInWithPassword({ email: me.email, password: adminPassword })
-  if (error) return { ok: false, error: 'Saját jelszó ellenőrzés sikertelen. Hozzáférés megtagadva.' }
+  const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+  const { count: recentFails } = await admin
+    .from('admin_audit_log')
+    .select('*', { count: 'exact', head: true })
+    .eq('actor_id', me.id)
+    .eq('action', 'reauth_fail')
+    .gte('created_at', fiveMinAgo)
+  if ((recentFails ?? 0) >= 5) {
+    return { ok: false, error: 'Túl sok sikertelen kísérlet. Várj 5 percet.' }
+  }
+
+  // Verify with a separate, throw-away client so we don't replace the active SSR session.
+  // createAdminClient() uses the service role key but signInWithPassword runs the same
+  // password-grant flow on the auth server — the resulting session token is discarded.
+  const verifier = createAdminClient()
+  const { data: signed, error } = await verifier.auth.signInWithPassword({ email: me.email, password: adminPassword })
+  if (error || !signed?.user || signed.user.id !== me.id) {
+    await admin.from('admin_audit_log').insert({
+      actor_id: me.id, action: 'reauth_fail', target_id: null,
+      detail: { reason: error?.message ?? 'unknown' },
+    }).then(({ error }) => { if (error) console.error('[audit_log_write_failed]', error) }, (e: unknown) => { console.error('[audit_log_write_threw]', e) })
+    return { ok: false, error: 'Saját jelszó ellenőrzés sikertelen. Hozzáférés megtagadva.' }
+  }
+  // Sign out the verifier session so no token survives in the admin client memory
+  await verifier.auth.signOut().catch(() => {})
   return { ok: true }
 }
 
@@ -954,7 +1010,7 @@ export async function updateOperatorPassword(operatorId: string, newPassword: st
     await admin.from('admin_audit_log').insert({
       actor_id: op.id, action: 'password_change', target_id: operatorId,
       detail: { target_callsign: target.callsign },
-    }).then(() => {}, () => {})
+    }).then(({ error }) => { if (error) console.error('[audit_log_write_failed]', error) }, (e: unknown) => { console.error('[audit_log_write_threw]', e) })
 
     revalidatePath('/control')
     return { success: true }
@@ -994,7 +1050,7 @@ export async function updateOperatorCallsign(operatorId: string, newCallsign: st
     await admin.from('admin_audit_log').insert({
       actor_id: op.id, action: 'callsign_change', target_id: operatorId,
       detail: { old_callsign: oldCallsign, new_callsign: clean },
-    }).then(() => {}, () => {})
+    }).then(({ error }) => { if (error) console.error('[audit_log_write_failed]', error) }, (e: unknown) => { console.error('[audit_log_write_threw]', e) })
 
     // Sync auth email + metadata so login still works (email follows the callsign)
     if (target.auth_id) {
@@ -1050,7 +1106,7 @@ export async function deleteOperator(operatorId: string) {
 
     await admin.from('admin_audit_log').insert({
       actor_id: op.id, action: 'operator_delete', target_id: operatorId,
-    }).then(() => {}, () => {})
+    }).then(({ error }) => { if (error) console.error('[audit_log_write_failed]', error) }, (e: unknown) => { console.error('[audit_log_write_threw]', e) })
 
     revalidatePath('/control')
     return { success: true }

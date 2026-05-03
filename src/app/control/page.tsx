@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getCurrentOperator } from '@/lib/session'
 import { createAdminClient } from '@/lib/supabase-admin'
+import { OPERATOR_JOIN } from '@/lib/operatorFields'
 import { TopBar } from '@/components/shell/TopBar'
 import { Nav } from '@/components/shell/Nav'
 import { Footer } from '@/components/shell/Footer'
@@ -10,9 +11,11 @@ import type { Operator, Entry } from '@/lib/types'
 
 async function getData() {
   const admin = createAdminClient()
+  // Operators list keeps `auth_id` (used for status + admin ops) — admin-only page.
+  // Entry joins drop auth_id via OPERATOR_JOIN.
   const [opsRes, entriesRes] = await Promise.all([
     admin.from('operators').select('*').order('created_at'),
-    admin.from('entries').select('*, operator:operators!operator_id(*)').order('created_at', { ascending: false }).limit(100),
+    admin.from('entries').select(`*, ${OPERATOR_JOIN}`).order('created_at', { ascending: false }).limit(100),
   ])
   return {
     operators: (opsRes.data ?? []) as Operator[],

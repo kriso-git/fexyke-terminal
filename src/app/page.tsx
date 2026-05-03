@@ -7,12 +7,13 @@ import { HomeClient } from './HomeClient'
 import { TiszaEgg } from '@/components/ui/TiszaEgg'
 import type { Entry, Operator, Signal, Thread } from '@/lib/types'
 import { createAdminClient } from '@/lib/supabase-admin'
+import { OPERATOR_JOIN } from '@/lib/operatorFields'
 
 async function getData() {
   const admin = createAdminClient()
   const [entriesRes, operatorsRes, threadsRes] = await Promise.all([
     admin.from('entries')
-      .select('*, operator:operators!operator_id(*)')
+      .select(`*, ${OPERATOR_JOIN}`)
       .neq('status', 'draft')
       .order('priority', { ascending: false })
       .order('created_at', { ascending: false })
@@ -31,7 +32,7 @@ async function getData() {
     const ids = entries.map(e => e.id)
     const [rxRes, sigRes] = await Promise.all([
       admin.from('entry_reactions').select('entry_id, emoji').in('entry_id', ids),
-      admin.from('signals').select('id, entry_id, operator_id, parent_id, text, image_url, sigs, verified, created_at, operator:operators!operator_id(*)').in('entry_id', ids).order('created_at', { ascending: true }),
+      admin.from('signals').select(`id, entry_id, operator_id, parent_id, text, image_url, sigs, verified, created_at, ${OPERATOR_JOIN}`).in('entry_id', ids).order('created_at', { ascending: true }),
     ])
     for (const r of (rxRes.data ?? []) as { entry_id: string; emoji: string }[]) {
       if (!reactionsByEntry[r.entry_id]) reactionsByEntry[r.entry_id] = {}

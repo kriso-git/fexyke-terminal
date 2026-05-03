@@ -22,8 +22,38 @@ const MIME_TO_EXT: Record<string, string> = {
 const MAX_DIM = 1920    // longest side
 const JPEG_QUALITY = 82
 
+function originAllowed(req: NextRequest): boolean {
+  const origin = req.headers.get('origin')
+  const referer = req.headers.get('referer')
+  const host = req.headers.get('host') ?? ''
+  // First-party only: origin/referer must match this deployment's host.
+  // (Browsers always send Origin on cross-origin POSTs; same-origin POSTs may
+  // omit Origin but include Referer.)
+  const candidate = origin ?? referer ?? ''
+  if (!candidate) return false
+  try {
+    const url = new URL(candidate)
+    if (url.host === host) return true
+  } catch {
+    return false
+  }
+  // Allow the configured site URL too (covers proxy/edge cases)
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? ''
+  if (siteUrl) {
+    try {
+      const u = new URL(siteUrl)
+      if (candidate.startsWith(u.origin)) return true
+    } catch {}
+  }
+  return false
+}
+
 export async function POST(req: NextRequest) {
   try {
+    if (!originAllowed(req)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Nem vagy bejelentkezve' }, { status: 401 })

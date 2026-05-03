@@ -2,9 +2,24 @@ import type { NextConfig } from 'next'
 
 const SUPABASE_ORIGIN = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '')
 
+const isDev = process.env.NODE_ENV !== 'production'
+
+// SHA256 of the boot-state inline script in src/app/layout.tsx — kept here so we
+// can drop 'unsafe-inline' if/when Next.js stops emitting other inline scripts.
+const BOOT_SCRIPT_HASH = "'sha256-Y5cgrWiP79tTqpyu2vo0M5E6VSotQ/G9/YZzJFrE5CU='"
+
+// Next.js 16 still injects inline hydration scripts/styles → 'unsafe-inline'
+// remains for now. 'unsafe-eval' is only needed in dev (Turbopack HMR).
+const scriptSrc = [
+  "'self'",
+  "'unsafe-inline'",
+  BOOT_SCRIPT_HASH,
+  ...(isDev ? ["'unsafe-eval'"] : []),
+].join(' ')
+
 const cspDirectives = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  `script-src ${scriptSrc}`,
   "style-src 'self' 'unsafe-inline'",
   `img-src 'self' data: blob: ${SUPABASE_ORIGIN} https://img.youtube.com https://i.ytimg.com`,
   `media-src 'self' blob: ${SUPABASE_ORIGIN}`,
