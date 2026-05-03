@@ -1,7 +1,5 @@
-// Sequential numeric IDs (F3X-0001) are the new format; the broader
-// alphanumeric pattern stays accepted so historical IDs from before the
-// renumbering still pass validation.
-const OP_ID_RE    = /^F3X-[A-Z0-9]{1,20}$/
+// Operator IDs are numeric (e.g. "0001"). Allow 1–20 digits.
+const OP_ID_RE    = /^\d{1,20}$/
 const UUID_RE     = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const ENTRY_ID_RE = /^LOG-[A-Z0-9]{1,20}$/
 

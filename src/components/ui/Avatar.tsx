@@ -12,7 +12,7 @@ interface AvatarProps {
 
 const ONLINE_THRESHOLD_MS = 5 * 60 * 1000
 
-export function Avatar({ id = 'F3X-000', size = 40, src, lastSeen, showPresence = true }: AvatarProps) {
+export function Avatar({ id = '0000', size = 40, src, lastSeen, showPresence = true }: AvatarProps) {
   const shapes = useMemo(() => {
     const n = id.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
     const arr: number[] = []

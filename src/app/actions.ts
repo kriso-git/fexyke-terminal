@@ -84,27 +84,26 @@ export async function register(formData: FormData) {
       return { error: authError?.message ?? 'Regisztráció sikertelen.' }
     }
 
-    // Issue the next sequential operator ID (F3X-NNNN) via a Postgres
-    // SEQUENCE-backed RPC. Falls back to a MAX(...)+1 query if the RPC
-    // hasn't been deployed yet (migration 014 not applied).
+    // Issue the next sequential numeric operator ID (e.g. "0001") via a
+    // Postgres SEQUENCE-backed RPC. Falls back to a MAX(...)+1 scan if
+    // the RPC isn't deployed yet (migration 015 not applied).
     let opId = ''
     {
       const { data: nextId, error: rpcErr } = await admin.rpc('next_operator_id')
-      if (!rpcErr && typeof nextId === 'string' && /^F3X-\d{4,}$/.test(nextId)) {
+      if (!rpcErr && typeof nextId === 'string' && /^\d{1,20}$/.test(nextId)) {
         opId = nextId
       } else {
-        // Fallback: scan existing IDs and pick MAX+1 (race-prone but safe with
-        // unique-constraint retry).
-        const { data: rows } = await admin.from('operators').select('id').like('id', 'F3X-%')
+        const { data: rows } = await admin.from('operators').select('id')
         let max = 0
         for (const r of rows ?? []) {
-          const m = (r as { id: string }).id.match(/^F3X-(\d+)$/)
+          const id = (r as { id: string }).id
+          const m = id.match(/^\d+$/)
           if (m) {
-            const n = parseInt(m[1], 10)
+            const n = parseInt(id, 10)
             if (n > max) max = n
           }
         }
-        opId = `F3X-${String(max + 1).padStart(4, '0')}`
+        opId = String(max + 1).padStart(4, '0')
       }
     }
     if (!opId) {
@@ -133,13 +132,11 @@ export async function register(formData: FormData) {
       if (!isUnique) break
       // Re-issue a fresh ID and retry
       const { data: retryId } = await admin.rpc('next_operator_id')
-      if (typeof retryId === 'string' && /^F3X-\d{4,}$/.test(retryId)) {
+      if (typeof retryId === 'string' && /^\d{1,20}$/.test(retryId)) {
         opId = retryId
       } else {
-        // Bump locally as a last resort
-        const m = opId.match(/^F3X-(\d+)$/)
-        const n = m ? parseInt(m[1], 10) + 1 : 1
-        opId = `F3X-${String(n).padStart(4, '0')}`
+        const n = (parseInt(opId, 10) || 0) + 1
+        opId = String(n).padStart(4, '0')
       }
     }
 
