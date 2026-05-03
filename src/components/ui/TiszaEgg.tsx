@@ -44,28 +44,39 @@ export function TiszaEgg() {
         bottom: 18,
         left: 18,
         zIndex: 7000,
-        padding: 0,
-        background: 'none',
-        border: 'none',
+        width: 56,
+        height: 56,
+        padding: 6,
+        background: 'var(--bg-1)',
+        border: '1px solid var(--accent)',
+        boxShadow: '0 0 0 1px rgba(24,233,104,.18), 0 0 14px -2px rgba(24,233,104,.35)',
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        opacity: playing ? 1 : 0.5,
-        transition: 'opacity .2s, transform .2s',
+        transition: 'box-shadow .18s, transform .18s, background .18s',
         WebkitTapHighlightColor: 'transparent',
       }}
     >
+      {/* Corner accents — matches the panel aesthetic across the app */}
+      <span aria-hidden style={{ position:'absolute', top:-1, left:-1,  width:6, height:6, borderTop:'1px solid var(--accent)',    borderLeft:'1px solid var(--accent)' }}/>
+      <span aria-hidden style={{ position:'absolute', top:-1, right:-1, width:6, height:6, borderTop:'1px solid var(--accent)',    borderRight:'1px solid var(--accent)' }}/>
+      <span aria-hidden style={{ position:'absolute', bottom:-1, left:-1, width:6, height:6, borderBottom:'1px solid var(--accent)', borderLeft:'1px solid var(--accent)' }}/>
+      <span aria-hidden style={{ position:'absolute', bottom:-1, right:-1, width:6, height:6, borderBottom:'1px solid var(--accent)', borderRight:'1px solid var(--accent)' }}/>
+
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/assets/TISZA_2024.svg.png"
+        src="/assets/tisza-logo.png"
         alt=""
         style={{
-          width: 64,
-          height: 'auto',
+          width: '100%',
+          height: '100%',
           objectFit: 'contain',
           pointerEvents: 'none',
-          borderRadius: 4,
+          filter: playing
+            ? 'drop-shadow(0 0 6px rgba(24,233,104,.7))'
+            : 'drop-shadow(0 0 3px rgba(24,233,104,.35))',
+          transition: 'filter .18s',
         }}
       />
     </button>

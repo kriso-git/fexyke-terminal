@@ -673,16 +673,20 @@ html.booting body { background: #000; }
 /* Smoother iOS momentum scroll on overflow containers */
 .shell, .nav, .tabs, .chat-panel, .post-modal { -webkit-overflow-scrolling: touch; }
 
-/* Tisza easter-egg button (bottom-right on home page) */
-.tisza-egg:hover { opacity: .9 !important; transform: scale(1.08); }
+/* Tisza easter-egg button — terminal-style framed mini-panel */
+.tisza-egg { position: fixed; }
+.tisza-egg:hover {
+  transform: translateY(-1px);
+  background: var(--bg-2) !important;
+  box-shadow: 0 0 0 1px rgba(24,233,104,.35), 0 0 22px -2px rgba(24,233,104,.55) !important;
+}
 .tisza-egg-playing { animation: tiszaPulse 1.4s ease-in-out infinite; }
 @keyframes tiszaPulse {
-  0%, 100% { filter: drop-shadow(0 0 8px var(--accent)); transform: scale(1); }
-  50%       { filter: drop-shadow(0 0 20px var(--accent)); transform: scale(1.06); }
+  0%, 100% { box-shadow: 0 0 0 1px rgba(24,233,104,.25), 0 0 14px -2px rgba(24,233,104,.45); }
+  50%      { box-shadow: 0 0 0 1px rgba(24,233,104,.55), 0 0 28px  0   rgba(24,233,104,.85); }
 }
 @media (max-width: 768px) {
-  .tisza-egg { bottom: 12px !important; left: 12px !important; }
-  .tisza-egg img { width: 48px !important; }
+  .tisza-egg { bottom: 12px !important; left: 12px !important; width: 48px !important; height: 48px !important; padding: 4px !important; }
 }
 
 @media (max-width: 480px) {
