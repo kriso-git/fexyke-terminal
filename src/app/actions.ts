@@ -6,6 +6,9 @@ import { createClient } from '@/lib/supabase-server'
 import { createAdminClient } from '@/lib/supabase-admin'
 // toggleReaction uses admin client to bypass RLS
 import { getCurrentOperator } from '@/lib/session'
+import { dbErr } from '@/lib/serverError'
+import { assertOpId, assertUuid, assertEntryId } from '@/lib/validate'
+import { sanitizeHtml } from '@/lib/sanitize'
 import type { Entry, EntryKind } from '@/lib/types'
 
 /* ─── Auth ─── */
@@ -80,7 +83,20 @@ export async function register(formData: FormData) {
       return { error: authError?.message ?? 'Regisztráció sikertelen.' }
     }
 
-    const opId = 'F3X-' + String(Math.floor(Math.random() * 900) + 100)
+    // Generate unique operator ID — retry up to 5 times on collision
+    let opId = ''
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const rand = Array.from(crypto.getRandomValues(new Uint8Array(4)))
+        .map(b => b.toString(36).toUpperCase()).join('').slice(0, 6)
+      const candidate = `F3X-${rand}`
+      const { data: taken } = await admin.from('operators').select('id').eq('id', candidate).maybeSingle()
+      if (!taken) { opId = candidate; break }
+    }
+    if (!opId) {
+      await admin.auth.admin.deleteUser(authData.user.id)
+      return { error: 'Nem sikerült egyedi azonosítót generálni. Próbáld újra.' }
+    }
+
     const { error: insertError } = await admin.from('operators').insert({
       id: opId,
       auth_id: authData.user.id,
@@ -94,7 +110,7 @@ export async function register(formData: FormData) {
 
     if (insertError) {
       await admin.auth.admin.deleteUser(authData.user.id)
-      return { error: 'Operátor rekord létrehozása sikertelen: ' + insertError.message }
+      return { error: dbErr(insertError, 'register:insertOperator') }
     }
 
     // Bejelentkezés a frissen létrehozott userrel
@@ -185,15 +201,7 @@ export async function createEntry(formData: FormData) {
     const rand = Math.random().toString(36).slice(2, 5).toUpperCase()
     const id = `LOG-${ts}${rand}`
 
-    const safeContent = content
-      .replace(/<script[\s\S]*?<\/script>/gi, '')
-      .replace(/<style[\s\S]*?<\/style>/gi, '')
-      .replace(/<iframe[\s\S]*?>/gi, '')
-      .replace(/<object[\s\S]*?>/gi, '')
-      .replace(/<embed[\s\S]*?>/gi, '')
-      .replace(/<base[\s\S]*?>/gi, '')
-      .replace(/\s(on\w+)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-      .replace(/(href|src|action)\s*=\s*["']?\s*(javascript:|vbscript:|data:text\/html)[^"'\s>]*/gi, '$1="#"')
+    const safeContent = sanitizeHtml(content)
 
     const plainText = safeContent.replace(/<[^>]+>/g, '')
     const excerpt   = plainText.slice(0, 180) || mediaLabel || title.slice(0, 180)
@@ -263,9 +271,10 @@ export async function togglePin(entryId: string, pinned: boolean) {
     if (!op || (op.role !== 'admin' && op.role !== 'superadmin')) {
       return { error: 'Csak admin vagy superadmin tűzhet ki posztot.' }
     }
+    try { assertEntryId(entryId) } catch { return { error: 'Érvénytelen azonosító.' } }
     const admin = createAdminClient()
     const { error } = await admin.from('entries').update({ priority: pinned }).eq('id', entryId)
-    if (error) return { error: error.message }
+    if (error) return { error: dbErr(error, 'togglePin') }
     revalidatePath('/')
     return { success: true, pinned }
   } catch (err) {
@@ -278,12 +287,13 @@ export async function publishDraft(entryId: string) {
   try {
     const op = await getCurrentOperator()
     if (!op) return { error: 'Be kell lépni.' }
+    try { assertEntryId(entryId) } catch { return { error: 'Érvénytelen azonosító.' } }
     const admin = createAdminClient()
     const { data: target } = await admin.from('entries').select('operator_id').eq('id', entryId).single()
     if (!target) return { error: 'Bejegyzés nem található.' }
     if (target.operator_id !== op.id && op.role !== 'superadmin') return { error: 'Nincs jogosultság.' }
     const { error } = await admin.from('entries').update({ status: 'published' }).eq('id', entryId)
-    if (error) return { error: error.message }
+    if (error) return { error: dbErr(error, 'publishDraft') }
     revalidatePath('/')
     return { success: true }
   } catch (err) {
@@ -296,9 +306,10 @@ export async function deleteEntry(entryId: string) {
   try {
     const op = await getCurrentOperator()
     if (!op || op.role !== 'superadmin') return { error: 'Csak superadmin törölhet bejegyzést.' }
+    try { assertEntryId(entryId) } catch { return { error: 'Érvénytelen azonosító.' } }
     const admin = createAdminClient()
     const { error } = await admin.from('entries').delete().eq('id', entryId)
-    if (error) return { error: error.message }
+    if (error) return { error: dbErr(error, 'deleteEntry') }
     revalidatePath('/', 'layout')
     return { success: true }
   } catch (err) {
@@ -311,6 +322,8 @@ export async function toggleReaction(entryId: string, emoji: string) {
   try {
     const op = await getCurrentOperator()
     if (!op) return { error: 'Be kell lépni a reakcióhoz.' }
+    try { assertEntryId(entryId) } catch { return { error: 'Érvénytelen azonosító.' } }
+    if (emoji.length > 8) return { error: 'Érvénytelen emoji.' }
 
     const admin = createAdminClient()
 
@@ -352,6 +365,8 @@ export async function toggleSignalReaction(signalId: string, emoji: string) {
   try {
     const op = await getCurrentOperator()
     if (!op) return { error: 'Be kell lépni a reakcióhoz.' }
+    try { assertUuid(signalId) } catch { return { error: 'Érvénytelen azonosító.' } }
+    if (emoji.length > 8) return { error: 'Érvénytelen emoji.' }
 
     const admin = createAdminClient()
 
@@ -380,7 +395,7 @@ export async function toggleSignalReaction(signalId: string, emoji: string) {
         .eq('signal_id', signalId).eq('operator_id', op.id).eq('emoji', emoji)
     } else {
       const { error } = await admin.from('signal_reactions').insert({ signal_id: signalId, operator_id: op.id, emoji })
-      if (error) return { error: error.message }
+      if (error) return { error: dbErr(error, 'toggleSignalReaction') }
       // Award XP to the comment author (+1) — only on add, not on remove
       const { data: sig } = await admin.from('signals').select('operator_id').eq('id', signalId).single()
       if (sig?.operator_id && sig.operator_id !== op.id) {
@@ -409,6 +424,8 @@ export async function toggleProfileSignalReaction(signalId: string, emoji: strin
   try {
     const op = await getCurrentOperator()
     if (!op) return { error: 'Be kell lépni.' }
+    try { assertUuid(signalId) } catch { return { error: 'Érvénytelen azonosító.' } }
+    if (emoji.length > 8) return { error: 'Érvénytelen emoji.' }
 
     const admin = createAdminClient()
 
@@ -436,7 +453,7 @@ export async function toggleProfileSignalReaction(signalId: string, emoji: strin
         .eq('signal_id', signalId).eq('operator_id', op.id).eq('emoji', emoji)
     } else {
       const { error } = await admin.from('profile_signal_reactions').insert({ signal_id: signalId, operator_id: op.id, emoji })
-      if (error) return { error: error.message }
+      if (error) return { error: dbErr(error, 'toggleProfileSignalReaction') }
     }
 
     const { data: all } = await admin.from('profile_signal_reactions').select('emoji, operator_id').eq('signal_id', signalId)
@@ -457,6 +474,7 @@ export async function deleteProfileSignal(signalId: string) {
   try {
     const op = await getCurrentOperator()
     if (!op) return { error: 'Be kell lépni.' }
+    try { assertUuid(signalId) } catch { return { error: 'Érvénytelen azonosító.' } }
     const admin = createAdminClient()
     const { data: sig } = await admin.from('profile_signals').select('target_id, author_id').eq('id', signalId).single()
     if (!sig) return { error: 'Üzenet nem található.' }
@@ -465,7 +483,7 @@ export async function deleteProfileSignal(signalId: string) {
       return { error: 'Nincs jogosultság.' }
     }
     const { error } = await admin.from('profile_signals').delete().eq('id', signalId)
-    if (error) return { error: error.message }
+    if (error) return { error: dbErr(error, 'deleteProfileSignal') }
     return { success: true }
   } catch (err) {
     console.error('deleteProfileSignal error:', err)
@@ -477,13 +495,14 @@ export async function toggleProfileSignalPin(signalId: string, pinned: boolean) 
   try {
     const op = await getCurrentOperator()
     if (!op) return { error: 'Be kell lépni.' }
+    try { assertUuid(signalId) } catch { return { error: 'Érvénytelen azonosító.' } }
     const admin = createAdminClient()
     const { data: sig } = await admin.from('profile_signals').select('target_id').eq('id', signalId).single()
     if (!sig) return { error: 'Üzenet nem található.' }
     // Only the wall owner can pin / unpin
     if (sig.target_id !== op.id) return { error: 'Csak a fal tulajdonosa tűzhet ki.' }
     const { error } = await admin.from('profile_signals').update({ pinned }).eq('id', signalId)
-    if (error) return { error: error.message }
+    if (error) return { error: dbErr(error, 'toggleProfileSignalPin') }
     return { success: true, pinned }
   } catch (err) {
     console.error('toggleProfileSignalPin error:', err)
@@ -511,7 +530,7 @@ export async function updateInterests(interests: string[]) {
       if (/interests/i.test(error.message) || /column/i.test(error.message) || /schema cache/i.test(error.message)) {
         return { success: true, skipped: true, interests: cleaned }
       }
-      return { error: error.message }
+      return { error: dbErr(error, 'updateInterests') }
     }
     revalidatePath(`/operators/${op.callsign}`)
     return { success: true, interests: cleaned }
@@ -532,9 +551,30 @@ export async function createSignal(formData: FormData) {
   const imageUrl = ((formData.get('image_url') as string) ?? '').trim() || null
   const parentId = formData.get('parent_id') as string | null
 
+  try { assertEntryId(entryId) } catch { return { error: 'Érvénytelen azonosító.' } }
+  if (parentId) {
+    try { assertUuid(parentId) } catch { return { error: 'Érvénytelen szülő ID.' } }
+  }
+  if (text.length > 4000) return { error: 'Túl hosszú szöveg.' }
   if (!text && !imageUrl) return { error: 'A jelzés nem lehet üres.' }
 
   const admin = createAdminClient()
+
+  // Verify entry exists
+  const { data: entry } = await admin.from('entries').select('id').eq('id', entryId).maybeSingle()
+  if (!entry) return { error: 'A bejegyzés nem található.' }
+
+  // Rate-limit: max 1 signal per 5 seconds per operator
+  const fiveSecAgo = new Date(Date.now() - 5000).toISOString()
+  const { data: recent } = await admin
+    .from('signals')
+    .select('id')
+    .eq('operator_id', op.id)
+    .gte('created_at', fiveSecAgo)
+    .limit(1)
+    .maybeSingle()
+  if (recent) return { error: 'Túl gyors. Várj egy pillanatot.' }
+
   const { error } = await admin.from('signals').insert({
     entry_id:    entryId,
     operator_id: op.id,
@@ -545,7 +585,7 @@ export async function createSignal(formData: FormData) {
     verified:    op.level >= 3,
   })
 
-  if (error) return { error: error.message }
+  if (error) return { error: dbErr(error, 'createSignal') }
 
   revalidatePath('/')
   revalidatePath(`/entries/${entryId}`)
@@ -590,9 +630,27 @@ export async function createProfileSignal(formData: FormData) {
   const text      = ((formData.get('text') as string) ?? '').trim()
   const imageUrl  = ((formData.get('image_url') as string) ?? '').trim() || null
 
+  try { assertOpId(targetId) } catch { return { error: 'Érvénytelen azonosító.' } }
+  if (text.length > 4000) return { error: 'Túl hosszú szöveg.' }
   if (!text && !imageUrl) return { error: 'Az üzenet nem lehet üres.' }
 
   const admin = createAdminClient()
+
+  // Verify target operator exists
+  const { data: targetOp } = await admin.from('operators').select('callsign').eq('id', targetId).maybeSingle()
+  if (!targetOp) return { error: 'A célzott felhasználó nem található.' }
+
+  // Rate-limit: max 1 profile signal per 5 seconds per author
+  const fiveSecAgo = new Date(Date.now() - 5000).toISOString()
+  const { data: recent } = await admin
+    .from('profile_signals')
+    .select('id')
+    .eq('author_id', op.id)
+    .gte('created_at', fiveSecAgo)
+    .limit(1)
+    .maybeSingle()
+  if (recent) return { error: 'Túl gyors. Várj egy pillanatot.' }
+
   const { error } = await admin.from('profile_signals').insert({
     target_id:  targetId,
     author_id:  op.id,
@@ -601,10 +659,9 @@ export async function createProfileSignal(formData: FormData) {
     verified:   op.level >= 3,
   })
 
-  if (error) return { error: error.message }
+  if (error) return { error: dbErr(error, 'createProfileSignal') }
 
-  const { data: targetOp } = await admin.from('operators').select('callsign').eq('id', targetId).single()
-  revalidatePath(`/operators/${targetOp?.callsign ?? targetId}`)
+  revalidatePath(`/operators/${targetOp.callsign ?? targetId}`)
   return { success: true }
 }
 
@@ -618,6 +675,14 @@ export async function updateProfile(formData: FormData) {
     const bio       = (formData.get('bio') as string | null)?.trim() ?? undefined
     const avatarUrl = (formData.get('avatar_url') as string | null)?.trim() || undefined
 
+    // Whitelist: only accept avatar URLs from our own Supabase storage
+    if (avatarUrl) {
+      const storageBase = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '') + '/storage/v1/object/public/'
+      if (!avatarUrl.startsWith(storageBase)) {
+        return { error: 'Érvénytelen avatar URL.' }
+      }
+    }
+
     const updates: Record<string, unknown> = {}
     if (bio !== undefined) updates.bio = bio || null
     if (avatarUrl !== undefined) updates.avatar_url = avatarUrl
@@ -626,7 +691,7 @@ export async function updateProfile(formData: FormData) {
 
     const admin = createAdminClient()
     const { error } = await admin.from('operators').update(updates).eq('id', op.id)
-    if (error) return { error: error.message }
+    if (error) return { error: dbErr(error, 'updateProfile') }
 
     revalidatePath(`/operators/${op.callsign}`)
     revalidatePath('/')
@@ -654,6 +719,7 @@ export async function sendMessage(receiverId: string, text: string, imageUrl?: s
   try {
     const op = await getCurrentOperator()
     if (!op) return { error: 'Be kell lépni.' }
+    try { assertOpId(receiverId) } catch { return { error: 'Érvénytelen címzett.' } }
     const trimmed = (text ?? '').trim()
     if (!trimmed && !imageUrl) return { error: 'Az üzenet nem lehet üres.' }
     if (trimmed.length > 2000) return { error: 'Max 2000 karakter.' }
@@ -664,13 +730,25 @@ export async function sendMessage(receiverId: string, text: string, imageUrl?: s
     }
 
     const admin = createAdminClient()
+
+    // Rate-limit: max 1 message per 2 seconds per sender
+    const twoSecAgo = new Date(Date.now() - 2000).toISOString()
+    const { data: recent } = await admin
+      .from('messages')
+      .select('id')
+      .eq('sender_id', op.id)
+      .gte('created_at', twoSecAgo)
+      .limit(1)
+      .maybeSingle()
+    if (recent) return { error: 'Túl gyors. Várj egy pillanatot.' }
+
     const { data, error } = await admin
       .from('messages')
       .insert({ sender_id: op.id, receiver_id: receiverId, text: trimmed || null, image_url: imageUrl || null })
       .select('id, sender_id, receiver_id, text, image_url, read, created_at')
       .single()
 
-    if (error) return { error: error.message }
+    if (error) return { error: dbErr(error, 'sendMessage') }
     return { success: true, message: data }
   } catch (err) {
     console.error('sendMessage error:', err)
@@ -686,7 +764,7 @@ export async function updateChatColor(color: string | null) {
     const clean = color && /^#[0-9a-fA-F]{6}$/.test(color) ? color : null
     const admin = createAdminClient()
     const { error } = await admin.from('operators').update({ chat_color: clean }).eq('id', op.id)
-    if (error) return { error: error.message }
+    if (error) return { error: dbErr(error, 'updateChatColor') }
     revalidatePath('/')
     return { success: true, color: clean }
   } catch (err) {
@@ -699,6 +777,7 @@ export async function getConversation(otherId: string, limit = 100) {
   try {
     const op = await getCurrentOperator()
     if (!op) return { messages: [], error: 'Be kell lépni.' }
+    try { assertOpId(otherId) } catch { return { messages: [], error: 'Érvénytelen azonosító.' } }
 
     const admin = createAdminClient()
     const { data, error } = await admin
@@ -708,7 +787,7 @@ export async function getConversation(otherId: string, limit = 100) {
       .order('created_at', { ascending: true })
       .limit(limit)
 
-    if (error) return { messages: [], error: error.message }
+    if (error) return { messages: [], error: dbErr(error, 'getConversation') }
 
     // mark received messages as read
     await admin
@@ -744,8 +823,30 @@ export async function getUnreadCount() {
 /* ─── Reads counter ─── */
 
 export async function incrementReads(entryId: string) {
-  const supabase = await createClient()
-  await supabase.rpc('increment_reads', { entry_id: entryId })
+  try {
+    try { assertEntryId(entryId) } catch { return }
+    const op = await getCurrentOperator()
+    if (!op) return // unauthenticated — silently ignore
+
+    // Rate-limit: at most one increment per operator per entry per 10 minutes
+    const admin = createAdminClient()
+    const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString()
+    const { data: recent } = await admin
+      .from('entry_read_log')
+      .select('id')
+      .eq('entry_id', entryId)
+      .eq('operator_id', op.id)
+      .gte('created_at', tenMinAgo)
+      .limit(1)
+      .maybeSingle()
+
+    if (recent) return
+
+    await admin.from('entry_read_log').insert({ entry_id: entryId, operator_id: op.id })
+    await admin.rpc('increment_reads', { entry_id: entryId })
+  } catch {
+    // reads counter is non-critical; never surface errors
+  }
 }
 
 /* ─── Admin: operator management ─── */
@@ -754,9 +855,11 @@ export async function updateOperatorRole(operatorId: string, role: 'operator' | 
   try {
     const op = await getCurrentOperator()
     if (!op || op.role !== 'superadmin') return { error: 'Csak superadmin változtathat jogosultságot.' }
+    try { assertOpId(operatorId) } catch { return { error: 'Érvénytelen azonosító.' } }
+    if (role !== 'operator' && role !== 'admin' && role !== 'superadmin') return { error: 'Érvénytelen jogosultság.' }
     const admin = createAdminClient()
     const { error } = await admin.from('operators').update({ role }).eq('id', operatorId)
-    if (error) return { error: error.message }
+    if (error) return { error: dbErr(error, 'updateOperatorRole') }
     revalidatePath('/control')
     return { success: true }
   } catch (err) {
@@ -769,10 +872,11 @@ export async function updateOperatorLevel(operatorId: string, level: number) {
   try {
     const op = await getCurrentOperator()
     if (!op || op.role !== 'superadmin') return { error: 'Csak superadmin változtathat szintet.' }
-    if (level < 1 || level > 10) return { error: 'A szint 1 és 10 között lehet.' }
+    try { assertOpId(operatorId) } catch { return { error: 'Érvénytelen azonosító.' } }
+    if (!Number.isInteger(level) || level < 1 || level > 10) return { error: 'A szint 1 és 10 között lehet.' }
     const admin = createAdminClient()
     const { error } = await admin.from('operators').update({ level }).eq('id', operatorId)
-    if (error) return { error: error.message }
+    if (error) return { error: dbErr(error, 'updateOperatorLevel') }
     revalidatePath('/control')
     return { success: true }
   } catch (err) {
@@ -781,18 +885,41 @@ export async function updateOperatorLevel(operatorId: string, level: number) {
   }
 }
 
-export async function updateOperatorPassword(operatorId: string, newPassword: string) {
+async function reAuthSuperadmin(adminPassword: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!adminPassword || adminPassword.length < 6) {
+    return { ok: false, error: 'Saját jelszó megadása kötelező.' }
+  }
+  const supabase = await createClient()
+  const { data: { user: me } } = await supabase.auth.getUser()
+  if (!me?.email) return { ok: false, error: 'Nem sikerült azonosítani a superadmin fiókot.' }
+  // Use a fresh admin-side check to avoid clobbering the current session
+  const admin = createAdminClient()
+  const { error } = await admin.auth.signInWithPassword({ email: me.email, password: adminPassword })
+  if (error) return { ok: false, error: 'Saját jelszó ellenőrzés sikertelen. Hozzáférés megtagadva.' }
+  return { ok: true }
+}
+
+export async function updateOperatorPassword(operatorId: string, newPassword: string, adminPassword: string) {
   try {
     const op = await getCurrentOperator()
     if (!op || op.role !== 'superadmin') return { error: 'Csak superadmin változtathat jelszót.' }
+    try { assertOpId(operatorId) } catch { return { error: 'Érvénytelen azonosító.' } }
     if (!newPassword || newPassword.length < 6) return { error: 'A jelszó legalább 6 karakter.' }
+
+    const reAuth = await reAuthSuperadmin(adminPassword)
+    if (!reAuth.ok) return { error: reAuth.error }
 
     const admin = createAdminClient()
     const { data: target } = await admin.from('operators').select('auth_id, callsign').eq('id', operatorId).single()
     if (!target?.auth_id) return { error: 'A felhasználónak nincs auth fiókja.' }
 
     const { error } = await admin.auth.admin.updateUserById(target.auth_id, { password: newPassword })
-    if (error) return { error: error.message }
+    if (error) return { error: dbErr(error, 'updateOperatorPassword') }
+
+    await admin.from('admin_audit_log').insert({
+      actor_id: op.id, action: 'password_change', target_id: operatorId,
+      detail: { target_callsign: target.callsign },
+    }).then(() => {}, () => {})
 
     revalidatePath('/control')
     return { success: true }
@@ -802,14 +929,18 @@ export async function updateOperatorPassword(operatorId: string, newPassword: st
   }
 }
 
-export async function updateOperatorCallsign(operatorId: string, newCallsign: string) {
+export async function updateOperatorCallsign(operatorId: string, newCallsign: string, adminPassword: string) {
   try {
     const op = await getCurrentOperator()
     if (!op || op.role !== 'superadmin') return { error: 'Csak superadmin változtathat hívójelet.' }
+    try { assertOpId(operatorId) } catch { return { error: 'Érvénytelen azonosító.' } }
 
     const clean = (newCallsign ?? '').trim().toUpperCase()
     if (!clean || clean.length < 3) return { error: 'A hívójel legalább 3 karakter.' }
     if (!/^[A-Z0-9]+$/.test(clean)) return { error: 'A hívójel csak betűket és számokat tartalmazhat.' }
+
+    const reAuth = await reAuthSuperadmin(adminPassword)
+    if (!reAuth.ok) return { error: reAuth.error }
 
     const admin = createAdminClient()
 
@@ -817,12 +948,18 @@ export async function updateOperatorCallsign(operatorId: string, newCallsign: st
     const { data: existing } = await admin.from('operators').select('id').eq('callsign', clean).maybeSingle()
     if (existing && existing.id !== operatorId) return { error: 'Ez a hívójel már foglalt.' }
 
-    const { data: target } = await admin.from('operators').select('auth_id').eq('id', operatorId).single()
+    const { data: target } = await admin.from('operators').select('auth_id, callsign').eq('id', operatorId).single()
     if (!target) return { error: 'Operátor nem található.' }
+    const oldCallsign = target.callsign ?? ''
 
     // Update operators row
     const { error: opErr } = await admin.from('operators').update({ callsign: clean }).eq('id', operatorId)
-    if (opErr) return { error: opErr.message }
+    if (opErr) return { error: dbErr(opErr, 'updateOperatorCallsign') }
+
+    await admin.from('admin_audit_log').insert({
+      actor_id: op.id, action: 'callsign_change', target_id: operatorId,
+      detail: { old_callsign: oldCallsign, new_callsign: clean },
+    }).then(() => {}, () => {})
 
     // Sync auth email + metadata so login still works (email follows the callsign)
     if (target.auth_id) {
@@ -847,6 +984,7 @@ export async function deleteOperator(operatorId: string) {
     const op = await getCurrentOperator()
     if (!op || op.role !== 'superadmin') return { error: 'Csak superadmin törölhet felhasználót.' }
     if (op.id === operatorId) return { error: 'Magadat nem törölheted.' }
+    try { assertOpId(operatorId) } catch { return { error: 'Érvénytelen azonosító.' } }
 
     const admin = createAdminClient()
     const { data: target } = await admin.from('operators').select('auth_id').eq('id', operatorId).single()
@@ -869,11 +1007,15 @@ export async function deleteOperator(operatorId: string) {
     await admin.from('messages').delete().eq('receiver_id', operatorId).then(() => {}, () => {})
 
     const { error } = await admin.from('operators').delete().eq('id', operatorId)
-    if (error) return { error: error.message }
+    if (error) return { error: dbErr(error, 'deleteOperator') }
 
     if (target?.auth_id) {
       await admin.auth.admin.deleteUser(target.auth_id).catch(() => {})
     }
+
+    await admin.from('admin_audit_log').insert({
+      actor_id: op.id, action: 'operator_delete', target_id: operatorId,
+    }).then(() => {}, () => {})
 
     revalidatePath('/control')
     return { success: true }
@@ -905,7 +1047,7 @@ export async function cleanupSeedOperators() {
     await admin.from('friendships').delete().in('addressee_id', ids)
 
     const { error } = await admin.from('operators').delete().in('id', ids)
-    if (error) return { error: error.message }
+    if (error) return { error: dbErr(error, 'cleanupSeedOperators') }
 
     revalidatePath('/control')
     revalidatePath('/')
@@ -922,6 +1064,7 @@ export async function sendFriendRequest(targetId: string) {
   try {
     const op = await getCurrentOperator()
     if (!op) return { error: 'Be kell lépni.' }
+    try { assertOpId(targetId) } catch { return { error: 'Érvénytelen azonosító.' } }
     if (op.id === targetId) return { error: 'Magadnak nem küldhetsz kérést.' }
 
     const admin = createAdminClient()
@@ -939,7 +1082,7 @@ export async function sendFriendRequest(targetId: string) {
       addressee_id: targetId,
       status: 'pending',
     })
-    if (error) return { error: error.message }
+    if (error) return { error: dbErr(error, 'sendFriendRequest') }
 
     const { data: targetOp } = await admin.from('operators').select('callsign').eq('id', targetId).single()
     revalidatePath(`/operators/${targetOp?.callsign ?? targetId}`)
@@ -954,6 +1097,7 @@ export async function acceptFriendRequest(friendshipId: string) {
   try {
     const op = await getCurrentOperator()
     if (!op) return { error: 'Be kell lépni.' }
+    try { assertUuid(friendshipId) } catch { return { error: 'Érvénytelen azonosító.' } }
 
     const admin = createAdminClient()
 
@@ -965,7 +1109,7 @@ export async function acceptFriendRequest(friendshipId: string) {
       .from('friendships')
       .update({ status: 'accepted', accepted_at: new Date().toISOString() })
       .eq('id', friendshipId)
-    if (error) return { error: error.message }
+    if (error) return { error: dbErr(error, 'acceptFriendRequest') }
 
     revalidatePath(`/operators/${op.callsign}`)
     return { success: true }
@@ -979,13 +1123,14 @@ export async function removeFriend(targetId: string) {
   try {
     const op = await getCurrentOperator()
     if (!op) return { error: 'Be kell lépni.' }
+    try { assertOpId(targetId) } catch { return { error: 'Érvénytelen azonosító.' } }
 
     const admin = createAdminClient()
     const { error } = await admin
       .from('friendships')
       .delete()
       .or(`and(requester_id.eq.${op.id},addressee_id.eq.${targetId}),and(requester_id.eq.${targetId},addressee_id.eq.${op.id})`)
-    if (error) return { error: error.message }
+    if (error) return { error: dbErr(error, 'removeFriend') }
 
     const { data: targetOp } = await admin.from('operators').select('callsign').eq('id', targetId).single()
     revalidatePath(`/operators/${targetOp?.callsign ?? targetId}`)
@@ -1023,6 +1168,7 @@ export async function getFriendshipState(targetId: string) {
   try {
     const op = await getCurrentOperator()
     if (!op || op.id === targetId) return { state: 'self' as const }
+    try { assertOpId(targetId) } catch { return { state: 'none' as const } }
 
     const admin = createAdminClient()
     const { data } = await admin

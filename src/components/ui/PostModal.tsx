@@ -8,22 +8,11 @@ import { YouTubePlayer } from '@/components/ui/YouTubePlayer'
 import { AudioPlayer } from '@/components/ui/AudioPlayer'
 import { RolePresenceChip } from '@/components/ui/PresenceChip'
 import { getEntryDetail, createSignal, toggleReaction } from '@/app/actions'
+import { sanitizeHtml } from '@/lib/sanitize'
+import { ShareButton } from '@/components/ui/ShareButton'
 import type { Entry, Operator, Signal } from '@/lib/types'
 
 const EMOJIS = ['👍', '🔥', '💀', '😂']
-
-function sanitizeHtml(html: string): string {
-  if (!html) return ''
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<style[\s\S]*?<\/style>/gi, '')
-    .replace(/<iframe[\s\S]*?>/gi, '')
-    .replace(/<object[\s\S]*?>/gi, '')
-    .replace(/<embed[\s\S]*?>/gi, '')
-    .replace(/<base[\s\S]*?>/gi, '')
-    .replace(/\s(on\w+)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-    .replace(/(href|src|action)\s*=\s*["']?\s*(javascript:|vbscript:|data:text\/html)[^"'\s>]*/gi, '$1="#"')
-}
 
 interface PostModalProps {
   entryId: string | null
@@ -133,6 +122,14 @@ export function PostModal({ entryId, currentOperator, onClose }: PostModalProps)
           <span className="sys" style={{ fontSize: 10, letterSpacing: '.18em', color: 'var(--magenta)' }}>◢ POSZT NÉZET · LEBEGŐ</span>
           <span style={{ flex: 1 }}/>
           <span className="mono muted" style={{ fontSize: 10 }}>{entry?.id ?? ''}</span>
+          {entry && (
+            <ShareButton
+              url={`/?post=${entry.id}`}
+              title={entry.title}
+              text={entry.excerpt ?? entry.title}
+              size="sm"
+            />
+          )}
           <button
             onClick={onClose}
             className="btn btn-ghost btn-sm"

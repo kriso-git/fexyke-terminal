@@ -19,14 +19,19 @@ export async function getCurrentOperator(): Promise<Operator | null> {
     .eq('auth_id', user.id)
     .single()
 
-  // Synchronously refresh last_seen so the value we return is fresh
+  // Throttle last_seen writes — only update if older than 60 seconds
   if (data) {
-    try {
-      const admin = createAdminClient()
-      const now = new Date().toISOString()
-      await admin.from('operators').update({ last_seen: now }).eq('id', (data as Operator).id)
-      ;(data as Operator).last_seen = now
-    } catch {}
+    const op = data as Operator
+    const lastSeen = op.last_seen ? new Date(op.last_seen).getTime() : 0
+    const staleSec = (Date.now() - lastSeen) / 1000
+    if (staleSec > 60) {
+      try {
+        const admin = createAdminClient()
+        const now = new Date().toISOString()
+        await admin.from('operators').update({ last_seen: now }).eq('id', op.id)
+        op.last_seen = now
+      } catch {}
+    }
   }
 
   return data as Operator | null

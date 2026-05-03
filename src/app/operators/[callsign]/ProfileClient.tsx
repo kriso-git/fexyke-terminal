@@ -11,6 +11,7 @@ import { createProfileSignal, updateProfile, sendFriendRequest, acceptFriendRequ
 import { useRouter } from 'next/navigation'
 import { useI18n } from '@/hooks/useI18n'
 import { RolePresenceChip } from '@/components/ui/PresenceChip'
+import { ShareButton } from '@/components/ui/ShareButton'
 import type { Operator, Entry, ProfileSignal } from '@/lib/types'
 
 type FriendshipState =
@@ -447,6 +448,7 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
           </p>
           <div style={{ display:'flex', gap:8, marginTop:18, flexWrap:'wrap', alignItems:'center' }}>
             <FriendBtn targetId={op.id} friendship={friendship}/>
+            <ShareButton url={`/operators/${op.callsign}`} title={op.callsign} variant="button" size="md"/>
             {isSelf && !isEditing && (
               <button className="btn" onClick={() => { setBioEdit(op.bio ?? ''); setInterestsEdit(op.interests ?? []); setIsEditing(true) }}>
                 {t('profile.edit')}

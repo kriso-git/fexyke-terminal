@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import { Chip } from '@/components/ui/Chip'
 import { Panel } from '@/components/ui/Panel'
 import { Avatar } from '@/components/ui/Avatar'
+import { LangPicker } from '@/components/ui/LangPicker'
+import { useI18n } from '@/hooks/useI18n'
 import {
   updateOperatorRole,
   updateOperatorLevel,
@@ -33,6 +35,7 @@ function KPI({ k, v, hint, kind = 'accent' }: { k: string; v: string; hint?: str
 
 /* ─── User row with role + level controls ─── */
 function UserRow({ op, currentOp, onChange }: { op: Operator; currentOp: Operator; onChange: () => void }) {
+  const { t } = useI18n()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
@@ -40,29 +43,32 @@ function UserRow({ op, currentOp, onChange }: { op: Operator; currentOp: Operato
   const [csValue, setCsValue] = useState(op.callsign)
   const [showPw, setShowPw] = useState(false)
   const [pwValue, setPwValue] = useState('')
+  const [adminPw, setAdminPw] = useState('')
   const isSelf = op.id === currentOp.id
 
   function changeCallsign() {
     if (currentOp.role !== 'superadmin') return
     const v = csValue.trim().toUpperCase()
     if (v === op.callsign) { setEditingCs(false); return }
+    if (adminPw.length < 6) { setError(t('admin.confirm_own_password')); return }
     setError(null); setInfo(null)
     startTransition(async () => {
-      const res = await updateOperatorCallsign(op.id, v)
+      const res = await updateOperatorCallsign(op.id, v, adminPw)
       if (res.error) setError(res.error)
-      else { setInfo(`Hívójel frissítve: ${res.callsign}`); setEditingCs(false); onChange() }
+      else { setInfo(t('admin.callsign_updated', { V: res.callsign ?? '' })); setEditingCs(false); setAdminPw(''); onChange() }
     })
   }
 
   function changePassword() {
     if (currentOp.role !== 'superadmin') return
-    if (pwValue.length < 6) { setError('A jelszó legalább 6 karakter.'); return }
-    if (!confirm(`Beállítsuk ${op.callsign} új jelszavát: "${pwValue}" ?`)) return
+    if (pwValue.length < 6) { setError(t('admin.password_min')); return }
+    if (adminPw.length < 6) { setError(t('admin.confirm_own_password')); return }
+    if (!confirm(t('admin.password_set_confirm', { NAME: op.callsign, PW: pwValue }))) return
     setError(null); setInfo(null)
     startTransition(async () => {
-      const res = await updateOperatorPassword(op.id, pwValue)
+      const res = await updateOperatorPassword(op.id, pwValue, adminPw)
       if (res.error) setError(res.error)
-      else { setInfo(`Jelszó frissítve.`); setPwValue(''); setShowPw(false) }
+      else { setInfo(t('admin.password_updated')); setPwValue(''); setAdminPw(''); setShowPw(false) }
     })
   }
 
@@ -95,7 +101,7 @@ function UserRow({ op, currentOp, onChange }: { op: Operator; currentOp: Operato
   function handleDelete() {
     if (currentOp.role !== 'superadmin') return
     if (isSelf) return
-    if (!confirm(`Biztosan törlöd ${op.callsign} fiókját? Ez minden posztját, kommentjét és reakcióját is törli.`)) return
+    if (!confirm(t('admin.delete_user_confirm', { NAME: op.callsign }))) return
     setError(null)
     startTransition(async () => {
       const res = await deleteOperator(op.id)
@@ -111,8 +117,8 @@ function UserRow({ op, currentOp, onChange }: { op: Operator; currentOp: Operato
     <div style={{ borderBottom: '1px solid var(--border-0)', padding: '12px 14px' }}>
       <div className="admin-user-row" style={{ display: 'grid', gridTemplateColumns: '36px 90px 1fr auto auto auto auto', gap: 12, alignItems: 'center' }}>
         <Avatar id={op.id} src={op.avatar_url} size={32} />
-        <span className="mono muted" style={{ fontSize: 10 }}>{op.id}</span>
-        <div style={{ minWidth: 0 }}>
+        <span className="admin-user-id mono muted" style={{ fontSize: 10 }}>{op.id}</span>
+        <div className="admin-user-info" style={{ minWidth: 0 }}>
           {editingCs ? (
             <div style={{ display:'flex', gap:4, alignItems:'center' }}>
               <input
@@ -133,61 +139,85 @@ function UserRow({ op, currentOp, onChange }: { op: Operator; currentOp: Operato
             </Link>
           )}
           {currentOp.role === 'superadmin' && !editingCs && (
-            <div style={{ display:'flex', gap:6, marginTop:4 }}>
-              <button onClick={() => setEditingCs(true)} className="sys" style={{ background:'none', border:'none', color:'var(--cyan)', cursor:'pointer', fontSize:9, letterSpacing:'.12em', padding:0 }}>◢ HÍVÓJEL ÁTÍRÁS</button>
-              <button onClick={() => setShowPw(s=>!s)} className="sys" style={{ background:'none', border:'none', color:'var(--amber)', cursor:'pointer', fontSize:9, letterSpacing:'.12em', padding:0 }}>◢ JELSZÓ RESET</button>
+            <div style={{ display:'flex', gap:6, marginTop:4, flexWrap:'wrap' }}>
+              <button onClick={() => setEditingCs(true)} className="sys" style={{ background:'none', border:'none', color:'var(--cyan)', cursor:'pointer', fontSize:9, letterSpacing:'.12em', padding:0 }}>{t('admin.callsign_edit')}</button>
+              <button onClick={() => setShowPw(s=>!s)} className="sys" style={{ background:'none', border:'none', color:'var(--amber)', cursor:'pointer', fontSize:9, letterSpacing:'.12em', padding:0 }}>{t('admin.password_reset')}</button>
             </div>
           )}
           {showPw && (
-            <div style={{ display:'flex', gap:4, alignItems:'center', marginTop:6 }}>
+            <div style={{ display:'flex', flexDirection:'column', gap:4, marginTop:6 }}>
               <input
                 className="input"
                 type="text"
-                placeholder="Új jelszó (min. 6)"
+                placeholder={t('admin.new_password_ph')}
                 value={pwValue}
                 onChange={e => setPwValue(e.target.value)}
-                onKeyDown={e => { if (e.key==='Enter') changePassword(); if (e.key==='Escape') { setShowPw(false); setPwValue('') } }}
                 style={{ fontSize:11, padding:'4px 6px', minHeight:0 }}
               />
-              <button className="btn btn-ghost btn-sm" disabled={pending || pwValue.length<6} onClick={changePassword} style={{ padding:'2px 6px', fontSize:10, minHeight:0, color:'var(--accent)' }}>MENTÉS</button>
-              <button className="btn btn-ghost btn-sm" disabled={pending} onClick={() => { setShowPw(false); setPwValue('') }} style={{ padding:'2px 6px', fontSize:10, minHeight:0 }}>MÉGSE</button>
+              <input
+                className="input"
+                type="password"
+                placeholder={t('admin.own_password_ph')}
+                value={adminPw}
+                onChange={e => setAdminPw(e.target.value)}
+                onKeyDown={e => { if (e.key==='Enter') changePassword(); if (e.key==='Escape') { setShowPw(false); setPwValue(''); setAdminPw('') } }}
+                style={{ fontSize:11, padding:'4px 6px', minHeight:0 }}
+              />
+              <div style={{ display:'flex', gap:4 }}>
+                <button className="btn btn-ghost btn-sm" disabled={pending || pwValue.length<6 || adminPw.length<6} onClick={changePassword} style={{ padding:'2px 6px', fontSize:10, minHeight:0, color:'var(--accent)' }}>{t('admin.save')}</button>
+                <button className="btn btn-ghost btn-sm" disabled={pending} onClick={() => { setShowPw(false); setPwValue(''); setAdminPw('') }} style={{ padding:'2px 6px', fontSize:10, minHeight:0 }}>{t('admin.cancel')}</button>
+              </div>
+            </div>
+          )}
+          {editingCs && (
+            <div style={{ marginTop:6 }}>
+              <input
+                className="input"
+                type="password"
+                placeholder={t('admin.own_password_ph')}
+                value={adminPw}
+                onChange={e => setAdminPw(e.target.value)}
+                style={{ fontSize:11, padding:'4px 6px', minHeight:0, width:'100%' }}
+              />
             </div>
           )}
         </div>
 
         {/* Role select */}
         <select
-          className="input"
+          className="admin-user-role input"
           disabled={pending || currentOp.role !== 'superadmin' || isSelf}
           value={op.role}
           onChange={e => changeRole(e.target.value as Role)}
           style={{ fontSize: 10, padding: '4px 6px', minWidth: 104, color: roleColor }}
         >
-          <option value="operator">TAG</option>
-          <option value="admin">ADMIN</option>
-          <option value="superadmin">SUPERADMIN</option>
+          <option value="operator">{t('admin.role_member')}</option>
+          <option value="admin">{t('admin.role_admin')}</option>
+          <option value="superadmin">{t('admin.role_super')}</option>
         </select>
 
         {/* Level controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div className="admin-user-level" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <button className="btn btn-ghost btn-sm" disabled={pending || op.level <= 1} onClick={() => changeLevel(-1)} style={{ padding: '2px 7px', minHeight: 0, fontSize: 11 }}>−</button>
           <Chip kind="accent" style={{ minWidth: 56, justifyContent: 'center', fontSize: 10 }}>LVL-{String(op.level).padStart(2, '0')}</Chip>
           <button className="btn btn-ghost btn-sm" disabled={pending || op.level >= 10} onClick={() => changeLevel(+1)} style={{ padding: '2px 7px', minHeight: 0, fontSize: 11 }}>+</button>
         </div>
 
         {/* Status */}
-        <Chip kind={op.auth_id ? 'accent' : 'dash'} dot={!!op.auth_id} style={{ fontSize: 9 }}>
-          {op.auth_id ? 'AKTÍV' : 'NINCS AUTH'}
-        </Chip>
+        <div className="admin-user-status">
+          <Chip kind={op.auth_id ? 'accent' : 'dash'} dot={!!op.auth_id} style={{ fontSize: 9 }}>
+            {op.auth_id ? t('admin.status_active') : t('admin.status_no_auth')}
+          </Chip>
+        </div>
 
         {/* Delete */}
         <button
-          className="btn btn-ghost btn-sm"
+          className="admin-user-delete btn btn-ghost btn-sm"
           disabled={pending || currentOp.role !== 'superadmin' || isSelf}
           onClick={handleDelete}
           style={{ padding: '4px 10px', color: 'var(--red)', borderColor: 'rgba(255,58,58,.3)', fontSize: 10 }}
         >
-          ◢ TÖRÖL
+          {t('admin.delete')}
         </button>
       </div>
       {error && <div style={{ marginTop: 6, padding: '4px 8px', background: 'rgba(255,58,58,.1)', color: 'var(--red)', fontSize: 10 }}>◢ {error}</div>}
@@ -198,15 +228,17 @@ function UserRow({ op, currentOp, onChange }: { op: Operator; currentOp: Operato
 
 /* ─── Post row ─── */
 function PostRow({ entry, onChange }: { entry: Entry; onChange: () => void }) {
+  const { t, lang } = useI18n()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
 
+  const localeMap: Record<string, string> = { hu:'hu-HU', en:'en-US', de:'de-DE', es:'es-ES', fr:'fr-FR', no:'no-NO', sv:'sv-SE', ua:'uk-UA', ru:'ru-RU' }
   const fmtDate = (iso: string) => {
-    try { return new Date(iso).toLocaleString('hu-HU', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) } catch { return '—' }
+    try { return new Date(iso).toLocaleString(localeMap[lang] ?? 'hu-HU', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) } catch { return '—' }
   }
 
   function handleDelete() {
-    if (!confirm(`Biztosan törlöd a posztot: "${entry.title}"?`)) return
+    if (!confirm(t('admin.delete_post_confirm', { TITLE: entry.title }))) return
     setError(null)
     startTransition(async () => {
       const res = await deleteEntry(entry.id)
@@ -217,7 +249,7 @@ function PostRow({ entry, onChange }: { entry: Entry; onChange: () => void }) {
 
   const isVideo = entry.kind === 'VIDEÓ' || entry.kind === 'ADÁS' || entry.media_type === 'youtube'
   const isImage = entry.media_type === 'image'
-  const kindLabel = isVideo ? 'VIDEÓ' : isImage ? 'KÉP' : 'SZÖVEG'
+  const kindLabel = isVideo ? t('post.video') : isImage ? t('post.image') : t('post.text')
 
   return (
     <div style={{ borderBottom: '1px solid var(--border-0)', padding: '12px 14px' }}>
@@ -226,7 +258,7 @@ function PostRow({ entry, onChange }: { entry: Entry; onChange: () => void }) {
         <Chip kind={isVideo ? 'mag' : isImage ? 'cyan' : 'dash'} style={{ fontSize: 9 }}>{kindLabel}</Chip>
         <span className="head" style={{ fontSize: 13, color: 'var(--ink-0)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {entry.title}
-          {entry.priority && <Chip kind="accent" dot style={{ marginLeft: 8, fontSize: 9 }}>KITŰZÖTT</Chip>}
+          {entry.priority && <Chip kind="accent" dot style={{ marginLeft: 8, fontSize: 9 }}>{t('card.featured')}</Chip>}
         </span>
         <span className="sys muted" style={{ fontSize: 10 }}>{entry.operator?.callsign ?? entry.operator_id}</span>
         <span className="mono muted" style={{ fontSize: 10 }}>{fmtDate(entry.created_at)}</span>
@@ -237,7 +269,7 @@ function PostRow({ entry, onChange }: { entry: Entry; onChange: () => void }) {
           onClick={handleDelete}
           style={{ padding: '4px 10px', color: 'var(--red)', borderColor: 'rgba(255,58,58,.3)', fontSize: 10 }}
         >
-          ◢ TÖRÖL
+          {t('admin.delete')}
         </button>
       </div>
       {error && <div style={{ marginTop: 6, padding: '4px 8px', background: 'rgba(255,58,58,.1)', color: 'var(--red)', fontSize: 10 }}>◢ {error}</div>}
@@ -252,6 +284,7 @@ interface AdminClientProps {
 }
 
 export function AdminClient({ operators, entries, currentOperator }: AdminClientProps) {
+  const { t, lang } = useI18n()
   const router = useRouter()
   const [tab, setTab] = useState<Tab>('OVERVIEW')
   const [opSearch, setOpSearch] = useState('')
@@ -265,13 +298,13 @@ export function AdminClient({ operators, entries, currentOperator }: AdminClient
   }
 
   async function handleCleanup() {
-    if (!confirm('Töröljünk minden auth-azonosító nélküli (seed/placeholder) felhasználót és tartalmaikat? Ez nem visszafordítható.')) return
+    if (!confirm(t('admin.cleanup_confirm'))) return
     setCleanupPending(true)
     setCleanupMsg(null)
     const res = await cleanupSeedOperators()
     setCleanupPending(false)
     if (res.error) setCleanupMsg(`HIBA: ${res.error}`)
-    else { setCleanupMsg(`◢ Törölve: ${res.deleted ?? 0} placeholder fiók.`); refresh() }
+    else { setCleanupMsg(t('admin.cleanup_done', { N: res.deleted ?? 0 })); refresh() }
   }
 
   const filteredOps = operators.filter(o =>
@@ -288,34 +321,36 @@ export function AdminClient({ operators, entries, currentOperator }: AdminClient
   const totalXP = operators.reduce((s, o) => s + (o.xp ?? 0), 0)
 
   /* ─── Build a real activity log from posts ─── */
+  const localeMap: Record<string, string> = { hu:'hu-HU', en:'en-US', de:'de-DE', es:'es-ES', fr:'fr-FR', no:'no-NO', sv:'sv-SE', ua:'uk-UA', ru:'ru-RU' }
   type LogEntry = { ts: string; level: string; actor: string; msg: string }
   const logEntries: LogEntry[] = entries
     .slice(0, 30)
     .map(e => ({
-      ts: new Date(e.created_at).toLocaleString('hu-HU', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
-      level: e.priority ? 'KITŰZÖTT' : 'INFO',
+      ts: new Date(e.created_at).toLocaleString(localeMap[lang] ?? 'hu-HU', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
+      level: e.priority ? t('admin.event_pinned') : t('admin.event_info'),
       actor: e.operator?.callsign ?? e.operator_id,
-      msg: `Poszt publikálva · ${e.id} · "${e.title.slice(0, 60)}${e.title.length > 60 ? '…' : ''}"`,
+      msg: t('admin.event_post_published', { ID: e.id, T: e.title.slice(0, 60) + (e.title.length > 60 ? '…' : '') }),
     }))
 
   return (
     <div className="shell admin-shell-pad" style={{ padding: '24px 56px' }}>
       <div className="superadmin-banner">
         <span className="dot dot-mag" />
-        ◢ MODERÁTORI FELÜLET · {currentOperator.callsign} · MINDEN MŰVELET NAPLÓZVA
+        ◢ {t('admin.banner', { NAME: currentOperator.callsign })}
       </div>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', padding: '24px 0 20px', borderBottom: '1px solid var(--border-1)' }}>
+      <div className="admin-head-row" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', padding: '24px 0 20px', borderBottom: '1px solid var(--border-1)', gap: 12, flexWrap: 'wrap' }}>
         <div>
-          <div className="sys muted" style={{ fontSize: 10, marginBottom: 6 }}>◢ IRÁNYÍTÁS · CTL-01</div>
-          <h1 className="head" style={{ margin: 0, fontSize: 32 }}>MODERÁTORI FELÜLET</h1>
+          <div className="sys muted" style={{ fontSize: 10, marginBottom: 6 }}>{t('admin.head_tag')}</div>
+          <h1 className="head" style={{ margin: 0, fontSize: 32 }}>{t('admin.head_title')}</h1>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Chip kind="accent" dot>RENDSZER · STABIL</Chip>
+        <div className="admin-head-actions" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <LangPicker align="right" size="sm"/>
+          <Chip kind="accent" dot>{t('admin.system_stable')}</Chip>
           {currentOperator.role === 'superadmin' && (
             <button className="btn btn-sm" disabled={cleanupPending} onClick={handleCleanup} style={{ color: 'var(--magenta)', borderColor: 'rgba(255,77,191,.4)' }}>
-              {cleanupPending ? '◢ TÖRLÉS…' : '◢ PLACEHOLDER TISZTÍTÁS'}
+              {cleanupPending ? t('admin.cleanup_progress') : t('admin.cleanup')}
             </button>
           )}
         </div>
@@ -328,10 +363,15 @@ export function AdminClient({ operators, entries, currentOperator }: AdminClient
 
       {/* Tabs */}
       <div className="tabs" style={{ marginTop: 18 }}>
-        {(['OVERVIEW', 'USERS', 'POSTS', 'LOG'] as Tab[]).map(t => {
-          const labels: Record<Tab, string> = { OVERVIEW: 'ÁTTEKINTÉS', USERS: 'FELHASZNÁLÓK', POSTS: 'POSZTOK', LOG: 'NAPLÓ' }
+        {(['OVERVIEW', 'USERS', 'POSTS', 'LOG'] as Tab[]).map(tabKey => {
+          const labelKeys: Record<Tab, string> = {
+            OVERVIEW: 'admin.tab_overview',
+            USERS: 'admin.tab_users',
+            POSTS: 'admin.tab_posts',
+            LOG: 'admin.tab_log',
+          }
           return (
-            <div key={t} className={`tab${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>{labels[t]}</div>
+            <div key={tabKey} className={`tab${tab === tabKey ? ' active' : ''}`} onClick={() => setTab(tabKey)}>{t(labelKeys[tabKey])}</div>
           )
         })}
         <div style={{ flex: 1, borderBottom: '1px solid var(--border-1)' }} />
@@ -340,41 +380,41 @@ export function AdminClient({ operators, entries, currentOperator }: AdminClient
       {tab === 'OVERVIEW' && (
         <>
           <div className="admin-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginTop: 22 }}>
-            <KPI k="POSZTOK · ÖSSZESEN" v={String(totalPosts)} hint="rendszerben" />
-            <KPI k="FELHASZNÁLÓK · VALÓS" v={`${realUsers} / ${totalUsers}`} hint={placeholders > 0 ? `${placeholders} placeholder` : 'tiszta'} kind="cyan" />
-            <KPI k="ÖSSZES XP" v={String(totalXP)} hint="rendszer aktivitás" kind="mag" />
-            <KPI k="SAJÁT JOG" v={currentOperator.role.toUpperCase()} hint={`LVL-0${currentOperator.level}`} />
+            <KPI k={t('admin.kpi_posts_total')} v={String(totalPosts)} hint={t('admin.kpi_posts_hint')} />
+            <KPI k={t('admin.kpi_users_real')} v={`${realUsers} / ${totalUsers}`} hint={placeholders > 0 ? t('admin.kpi_users_placeholder', { N: placeholders }) : t('admin.kpi_users_clean')} kind="cyan" />
+            <KPI k={t('admin.kpi_total_xp')} v={String(totalXP)} hint={t('admin.kpi_xp_hint')} kind="mag" />
+            <KPI k={t('admin.kpi_my_role')} v={currentOperator.role.toUpperCase()} hint={`LVL-0${currentOperator.level}`} />
           </div>
 
-          <Panel tag="◢ GYORS NÉZET" title="LEGÚJABB POSZTOK" style={{ marginTop: 22 }}>
+          <Panel tag={t('admin.quick_view')} title={t('admin.latest_posts')} style={{ marginTop: 22 }}>
             {entries.slice(0, 5).map(e => (
               <PostRow key={e.id} entry={e} onChange={refresh} />
             ))}
-            {entries.length === 0 && <div className="sys muted" style={{ padding: 14, fontSize: 11 }}>Nincs poszt.</div>}
+            {entries.length === 0 && <div className="sys muted" style={{ padding: 14, fontSize: 11 }}>{t('admin.no_posts')}</div>}
           </Panel>
         </>
       )}
 
       {tab === 'USERS' && (
         <div style={{ marginTop: 22 }}>
-          <Panel tag="◢ FELHASZNÁLÓK" title={`REGISZTER · ${operators.length}`}
+          <Panel tag={t('admin.users_panel')} title={t('admin.users_register', { N: operators.length })}
             chips={
               <input
                 className="input"
-                placeholder="⌕ Keresés…"
+                placeholder={t('admin.search')}
                 value={opSearch}
                 onChange={e => setOpSearch(e.target.value)}
                 style={{ fontSize: 11, padding: '4px 8px', width: 220 }}
               />
             }
           >
-            <div style={{ display: 'grid', gridTemplateColumns: '36px 90px 1fr 116px 130px 90px auto', gap: 12, padding: '8px 14px', borderBottom: '1px solid var(--border-1)', background: 'var(--bg-2)' }}>
-              {['', 'ID', 'FELHASZNÁLÓ', 'JOGOSULTSÁG', 'SZINT', 'STÁTUSZ', ''].map((h, i) => (
+            <div className="admin-table-header" style={{ display: 'grid', gridTemplateColumns: '36px 90px 1fr 116px 130px 90px auto', gap: 12, padding: '8px 14px', borderBottom: '1px solid var(--border-1)', background: 'var(--bg-2)' }}>
+              {['', t('admin.col_id'), t('admin.col_user'), t('admin.col_role'), t('admin.col_level'), t('admin.col_status'), ''].map((h, i) => (
                 <span key={i} className="sys muted" style={{ fontSize: 9 }}>{h}</span>
               ))}
             </div>
             {filteredOps.length === 0 ? (
-              <div className="sys muted" style={{ padding: 16, fontSize: 11 }}>Nincs találat.</div>
+              <div className="sys muted" style={{ padding: 16, fontSize: 11 }}>{t('admin.no_match')}</div>
             ) : filteredOps.map(op => (
               <UserRow key={op.id} op={op} currentOp={currentOperator} onChange={refresh} />
             ))}
@@ -384,24 +424,24 @@ export function AdminClient({ operators, entries, currentOperator }: AdminClient
 
       {tab === 'POSTS' && (
         <div style={{ marginTop: 22 }}>
-          <Panel tag="◢ POSZTOK" title={`KEZELÉS · ${entries.length}`}
+          <Panel tag={t('admin.posts_panel')} title={t('admin.posts_manage', { N: entries.length })}
             chips={
               <input
                 className="input"
-                placeholder="⌕ Cím vagy ID…"
+                placeholder={t('admin.search_post')}
                 value={postSearch}
                 onChange={e => setPostSearch(e.target.value)}
                 style={{ fontSize: 11, padding: '4px 8px', width: 220 }}
               />
             }
           >
-            <div style={{ display: 'grid', gridTemplateColumns: '120px 80px 1fr 100px 90px 70px auto', gap: 12, padding: '8px 14px', borderBottom: '1px solid var(--border-1)', background: 'var(--bg-2)' }}>
-              {['ID', 'TÍPUS', 'CÍM', 'SZERZŐ', 'IDŐPONT', 'OLV.', ''].map((h, i) => (
+            <div className="admin-table-header" style={{ display: 'grid', gridTemplateColumns: '120px 80px 1fr 100px 90px 70px auto', gap: 12, padding: '8px 14px', borderBottom: '1px solid var(--border-1)', background: 'var(--bg-2)' }}>
+              {[t('admin.col_id'), t('admin.col_type'), t('admin.col_title'), t('admin.col_author'), t('admin.col_time'), t('admin.col_reads'), ''].map((h, i) => (
                 <span key={i} className="sys muted" style={{ fontSize: 9 }}>{h}</span>
               ))}
             </div>
             {filteredEntries.length === 0 ? (
-              <div className="sys muted" style={{ padding: 16, fontSize: 11 }}>Nincs találat.</div>
+              <div className="sys muted" style={{ padding: 16, fontSize: 11 }}>{t('admin.no_match')}</div>
             ) : filteredEntries.map(e => (
               <PostRow key={e.id} entry={e} onChange={refresh} />
             ))}
@@ -411,23 +451,23 @@ export function AdminClient({ operators, entries, currentOperator }: AdminClient
 
       {tab === 'LOG' && (
         <div style={{ marginTop: 22 }}>
-          <Panel tag="◢ ESEMÉNYNAPLÓ" title="RENDSZER NAPLÓ · ÉLŐ">
-            <div style={{ display: 'grid', gridTemplateColumns: '110px 90px 110px 1fr', gap: 12, padding: '8px 14px', borderBottom: '1px solid var(--border-1)', background: 'var(--bg-2)' }}>
-              {['IDŐ', 'SZINT', 'SZEREPLŐ', 'ESEMÉNY'].map((h, i) => (
+          <Panel tag={t('admin.log_panel')} title={t('admin.log_live')}>
+            <div className="admin-table-header" style={{ display: 'grid', gridTemplateColumns: '110px 90px 110px 1fr', gap: 12, padding: '8px 14px', borderBottom: '1px solid var(--border-1)', background: 'var(--bg-2)' }}>
+              {[t('admin.col_log_time'), t('admin.col_log_level'), t('admin.col_log_actor'), t('admin.col_log_event')].map((h, i) => (
                 <span key={i} className="sys muted" style={{ fontSize: 9 }}>{h}</span>
               ))}
             </div>
             <div style={{ fontFamily: 'var(--f-mono)', fontSize: 11, lineHeight: 1.7 }}>
               {logEntries.length === 0 ? (
-                <div className="sys muted" style={{ padding: 16, fontSize: 11 }}>Nincs esemény.</div>
+                <div className="sys muted" style={{ padding: 16, fontSize: 11 }}>{t('admin.no_events')}</div>
               ) : logEntries.map((r, i, a) => {
-                const c = r.level === 'KITŰZÖTT' ? 'var(--magenta)' : 'var(--accent)'
+                const c = r.level === t('admin.event_pinned') ? 'var(--magenta)' : 'var(--accent)'
                 return (
-                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '110px 90px 110px 1fr', gap: 12, padding: '8px 14px', borderBottom: i < a.length - 1 ? '1px solid var(--border-0)' : 'none', alignItems: 'center' }}>
-                    <span style={{ color: 'var(--ink-3)' }}>{r.ts}</span>
-                    <span className="sys" style={{ color: c, fontSize: 9, letterSpacing: '.12em' }}>{r.level}</span>
-                    <span className="mono" style={{ color: 'var(--ink-1)' }}>{r.actor}</span>
-                    <span style={{ color: 'var(--ink-1)' }}>{r.msg}</span>
+                  <div key={i} className="admin-log-row" style={{ display: 'grid', gridTemplateColumns: '110px 90px 110px 1fr', gap: 12, padding: '8px 14px', borderBottom: i < a.length - 1 ? '1px solid var(--border-0)' : 'none', alignItems: 'center' }}>
+                    <span className="admin-log-cell-time" style={{ color: 'var(--ink-3)' }}>{r.ts}</span>
+                    <span className="admin-log-cell-level sys" style={{ color: c, fontSize: 9, letterSpacing: '.12em' }}>{r.level}</span>
+                    <span className="admin-log-cell-actor mono" style={{ color: 'var(--ink-1)' }}>{r.actor}</span>
+                    <span className="admin-log-cell-msg" style={{ color: 'var(--ink-1)' }}>{r.msg}</span>
                   </div>
                 )
               })}

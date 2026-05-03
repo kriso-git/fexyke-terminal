@@ -11,6 +11,14 @@ const ALLOWED = new Set([
   'audio/mpeg', 'audio/mp3', 'audio/ogg', 'audio/wav', 'audio/flac', 'audio/webm', 'audio/aac',
 ])
 
+const MIME_TO_EXT: Record<string, string> = {
+  'image/gif': 'gif', 'image/jpeg': 'jpg', 'image/png': 'png',
+  'image/webp': 'webp', 'image/avif': 'avif',
+  'audio/mpeg': 'mp3', 'audio/mp3': 'mp3', 'audio/ogg': 'ogg',
+  'audio/wav': 'wav', 'audio/flac': 'flac', 'audio/webm': 'webm',
+  'audio/aac': 'aac',
+}
+
 const MAX_DIM = 1920    // longest side
 const JPEG_QUALITY = 82
 
@@ -33,7 +41,7 @@ export async function POST(req: NextRequest) {
     const isAnimated = file.type === 'image/gif'
     let bytes: ArrayBuffer | Uint8Array = await file.arrayBuffer()
     let outType = file.type
-    let outExt = file.name.split('.').pop()?.toLowerCase() ?? 'bin'
+    let outExt = MIME_TO_EXT[file.type] ?? 'bin'
 
     // Resize/compress static images. Skip GIFs to preserve animation.
     if (isImage && !isAnimated) {

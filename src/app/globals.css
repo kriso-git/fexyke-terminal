@@ -489,7 +489,7 @@ textarea.input { resize:vertical; }
   /* Hero cube on phone: inline next to POSZTOK button, between lang picker and profile panel */
   .hero-cube-slot {
     position: static !important;
-    margin: 12px auto 0 0 !important;
+    margin: 12px auto 0 18px !important;
     align-self: center !important;
   }
   .hero-cube-slot .hero-cube-scene {
@@ -557,11 +557,41 @@ textarea.input { resize:vertical; }
 
   /* Admin panel responsive */
   .admin-shell-pad { padding: 16px 12px !important; }
-  /* User row → stack on mobile */
-  .admin-user-row { grid-template-columns: 36px 1fr !important; gap: 8px !important; }
-  .admin-user-row > .admin-controls { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  /* Hide table-style headers on mobile — rows render as cards instead */
+  .admin-table-header { display: none !important; }
+  /* User row → vertical card layout */
+  .admin-user-row {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+  .admin-user-row > :first-child { /* avatar */ align-self: flex-start; }
+  .admin-user-row .admin-user-id { font-size: 10px; }
+  .admin-user-row .admin-user-info { width: 100%; }
+  .admin-user-row .admin-user-role { width: 100%; min-width: 0 !important; }
+  .admin-user-row .admin-user-level { justify-content: flex-start; }
+  .admin-user-row .admin-user-status { width: 100%; display: flex; }
+  .admin-user-row .admin-user-delete { width: 100%; }
+
   /* Post row → stack */
   .admin-post-row { grid-template-columns: 1fr !important; gap: 6px !important; }
+  .admin-post-row > * { white-space: normal !important; }
+
+  /* Log row → stack as a card with labelled fields */
+  .admin-log-row {
+    grid-template-columns: 1fr !important;
+    gap: 4px !important;
+    padding: 10px 12px !important;
+  }
+  .admin-log-cell-time { font-size: 10px; }
+  .admin-log-cell-actor { font-size: 11px; font-weight: 600; }
+  .admin-log-cell-msg {
+    font-size: 11px;
+    word-break: break-word;
+    white-space: normal;
+  }
+
   /* KPI grid → 2 cols */
   .admin-kpi-grid { grid-template-columns: 1fr 1fr !important; }
   /* Tabs scroll */
@@ -570,9 +600,15 @@ textarea.input { resize:vertical; }
 
   /* Feed header: stack heading and filter chips */
   .feed-head-row { flex-direction: column !important; align-items: flex-start !important; }
-  .feed-filter-chips { width: 100%; overflow-x: auto; flex-wrap: nowrap !important; padding-bottom: 4px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  /* Filter chips: a compact strip, only as wide as needed (not full-row) */
+  .feed-filter-chips {
+    width: auto !important; max-width: 100%;
+    overflow-x: auto; flex-wrap: nowrap !important;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
   .feed-filter-chips::-webkit-scrollbar { display: none; }
-  .feed-filter-chips .chip { flex-shrink: 0; }
+  .feed-filter-chips .chip { flex-shrink: 0; padding: 4px 9px !important; font-size: 10px !important; }
 
   /* On mobile, drop the artificial profile margin and cube negative offset */
   .hero-profile-col { margin-top: 0 !important; }

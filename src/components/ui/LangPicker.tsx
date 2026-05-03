@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useI18n, type Lang } from '@/hooks/useI18n'
 
 interface LangPickerProps {
@@ -11,7 +11,33 @@ interface LangPickerProps {
 export function LangPicker({ align = 'right', size = 'md' }: LangPickerProps) {
   const { lang, setLang, LANGS, LANG_LABELS } = useI18n()
   const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState<{ top: number; left: number; minWidth: number } | null>(null)
   const ref = useRef<HTMLDivElement>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+
+  // Compute viewport-fixed coords from the button so the dropdown is never
+  // clipped by ancestor overflow:hidden / overflow-x:auto containers.
+  useLayoutEffect(() => {
+    if (!open || !btnRef.current) return
+    function place() {
+      const r = btnRef.current!.getBoundingClientRect()
+      const dropdownW = Math.max(r.width, 100)
+      const margin = 8
+      let left = align === 'right' ? r.right - dropdownW : r.left
+      // Clamp inside viewport with a small margin
+      const maxLeft = window.innerWidth - dropdownW - margin
+      if (left > maxLeft) left = maxLeft
+      if (left < margin) left = margin
+      setPos({ top: r.bottom + 4, left, minWidth: dropdownW })
+    }
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => {
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
+  }, [open, align])
 
   useEffect(() => {
     if (!open) return
@@ -32,6 +58,7 @@ export function LangPicker({ align = 'right', size = 'md' }: LangPickerProps) {
   return (
     <div ref={ref} style={{ position: 'relative', display: 'inline-block' }}>
       <button
+        ref={btnRef}
         onClick={() => setOpen(o => !o)}
         aria-expanded={open}
         aria-haspopup="listbox"
@@ -49,18 +76,22 @@ export function LangPicker({ align = 'right', size = 'md' }: LangPickerProps) {
         {LANG_LABELS[lang]}
         <span aria-hidden style={{ fontSize: fs, opacity: .7 }}>{open ? '▴' : '▾'}</span>
       </button>
-      {open && (
+      {open && pos && (
         <div
           role="listbox"
           style={{
-            position: 'absolute', top: '100%', marginTop: 4,
-            [align]: 0,
+            position: 'fixed',
+            top: pos.top,
+            left: pos.left,
+            minWidth: pos.minWidth,
             background: 'var(--bg-1)',
             border: '1px solid var(--accent)',
             boxShadow: '0 0 0 1px rgba(24,233,104,.15), 0 14px 36px -10px rgba(0,0,0,.85)',
             display: 'flex', flexDirection: 'column',
-            minWidth: 80, zIndex: 8500,
-          } as React.CSSProperties}
+            zIndex: 9500,
+            maxHeight: 'calc(100vh - 80px)',
+            overflowY: 'auto',
+          }}
         >
           {LANGS.map(l => (
             <button

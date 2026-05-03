@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback, memo } from 'react'
+import { useState, useRef, useCallback, useEffect, memo } from 'react'
 import Link from 'next/link'
 import { Chip } from '@/components/ui/Chip'
 import { Panel } from '@/components/ui/Panel'
@@ -16,6 +16,8 @@ import dynamic from 'next/dynamic'
 
 const PostModal = dynamic(() => import('@/components/ui/PostModal').then(m => m.PostModal), { ssr: false })
 import { createEntry, toggleReaction, fetchEntryById, deleteEntry, createSignal, getEntryComments, listMyDrafts, publishDraft, togglePin, toggleSignalReaction } from '@/app/actions'
+import { sanitizeHtml } from '@/lib/sanitize'
+import { ShareButton } from '@/components/ui/ShareButton'
 import { RolePresenceChip } from '@/components/ui/PresenceChip'
 import type { Entry, Operator, Signal } from '@/lib/types'
 
@@ -470,13 +472,6 @@ function PreviewModal({
   op: Operator;
   onClose: () => void;
 }) {
-  function sanitize(html: string) {
-    return html
-      .replace(/<script[\s\S]*?<\/script>/gi, '')
-      .replace(/<style[\s\S]*?<\/style>/gi, '')
-      .replace(/<iframe[\s\S]*?>/gi, '')
-      .replace(/\s(on\w+)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-  }
   const sigList = tags.split(',').map(s => s.trim()).filter(Boolean)
   const isVideo = kind === 'VIDEÓ'
   const isImage = kind === 'KÉP' && uploadedFile?.type.startsWith('image/')
@@ -518,7 +513,7 @@ function PreviewModal({
           )}
           {content && (
             <div style={{ fontSize:14, lineHeight:1.7, color:'var(--ink-0)' }}
-              dangerouslySetInnerHTML={{ __html: sanitize(content) }}/>
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(content) }}/>
           )}
           {!content && !youtubeUrl && !uploadedFile && (
             <div className="sys muted" style={{ fontSize:11, textAlign:'center', padding:'20px 0' }}>Még nincs tartalom hozzáadva.</div>
@@ -858,6 +853,7 @@ function PostCard({ e, i, currentOperator, onDelete, onOpen, onPinChange }: { e:
               <span className="sys muted" style={{ fontSize:10 }}>◢ {e.reads} {t('card.reads')}</span>
               {totalRx > 0 && <span className="sys muted" style={{ fontSize:10 }}>◢ {totalRx} {t('card.likes')}</span>}
               <button onClick={() => onOpen(e.id)} className="sys" style={{ fontSize:10, color:'var(--accent)', background:'none', border:'none', cursor:'pointer', fontFamily:'var(--f-sys)', letterSpacing:'.12em' }}>{t('card.open')}</button>
+              <ShareButton url={`/?post=${e.id}`} title={e.title} text={e.excerpt ?? e.title} size="sm"/>
               {canPin && (
                 <button onClick={handlePin} disabled={pinPending} className="sys"
                   style={{ background:'none', border:'none', color: e.priority ? 'var(--magenta)' : 'var(--cyan)', cursor:'pointer', fontFamily:'var(--f-sys)', fontSize:10, letterSpacing:'.12em' }}>
@@ -958,6 +954,17 @@ export function HomeClient({ entries: initialEntries, currentOperator, postCount
   const [entries, setEntries] = useState<Entry[]>(initialEntries)
   const [filter, setFilter]   = useState<'MIND'|'SZÖVEG'|'KÉP'|'VIDEÓ'>('MIND')
   const [openEntryId, setOpenEntryId] = useState<string | null>(null)
+
+  // Deep-link: open a post directly when URL has ?post=LOG-XYZ or #post=LOG-XYZ
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const fromQuery = params.get('post')
+    const fromHash = window.location.hash.startsWith('#post=')
+      ? window.location.hash.slice(6) : null
+    const id = (fromQuery ?? fromHash ?? '').trim()
+    if (id && /^LOG-[A-Z0-9]{1,20}$/.test(id)) setOpenEntryId(id)
+  }, [])
 
   async function handlePost(id: string) {
     const entry = await fetchEntryById(id)

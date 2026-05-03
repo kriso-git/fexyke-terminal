@@ -176,6 +176,96 @@ const DICT: Record<string, Record<string, string>> = {
 
   // Lang picker label
   'lang.label': { hu:'NYELV', en:'LANG', de:'SPRACHE', es:'IDIOMA', fr:'LANGUE', no:'SPRÅK', sv:'SPRÅK' },
+
+  // Share
+  'share.label': { hu:'MEGOSZTÁS', en:'SHARE', de:'TEILEN', es:'COMPARTIR', fr:'PARTAGER', no:'DEL', sv:'DELA', ua:'ПОДІЛИТИСЯ', ru:'ПОДЕЛИТЬСЯ' },
+  'share.copied': { hu:'LINK MÁSOLVA', en:'LINK COPIED', de:'LINK KOPIERT', es:'ENLACE COPIADO', fr:'LIEN COPIÉ', no:'LENKE KOPIERT', sv:'LÄNK KOPIERAD', ua:'ПОСИЛАННЯ СКОПІЙОВАНО', ru:'ССЫЛКА СКОПИРОВАНА' },
+
+  // Admin / Moderator panel
+  'admin.banner': { hu:'MODERÁTORI FELÜLET · {NAME} · MINDEN MŰVELET NAPLÓZVA', en:'MODERATOR PANEL · {NAME} · ALL ACTIONS LOGGED', de:'MODERATOR-PANEL · {NAME} · ALLE AKTIONEN PROTOKOLLIERT', es:'PANEL DE MODERADOR · {NAME} · ACCIONES REGISTRADAS', fr:'PANNEAU MODÉRATEUR · {NAME} · ACTIONS JOURNALISÉES', no:'MODERATORPANEL · {NAME} · ALLE HANDLINGER LOGGFØRES', sv:'MODERATORPANEL · {NAME} · ALLA ÅTGÄRDER LOGGAS', ua:'ПАНЕЛЬ МОДЕРАТОРА · {NAME} · ВСІ ДІЇ ЗАПИСУЮТЬСЯ', ru:'ПАНЕЛЬ МОДЕРАТОРА · {NAME} · ВСЕ ДЕЙСТВИЯ ЗАПИСЫВАЮТСЯ' },
+  'admin.head_tag': { hu:'◢ IRÁNYÍTÁS · CTL-01', en:'◢ CONTROL · CTL-01', de:'◢ STEUERUNG · CTL-01', es:'◢ CONTROL · CTL-01', fr:'◢ CONTRÔLE · CTL-01', no:'◢ KONTROLL · CTL-01', sv:'◢ KONTROLL · CTL-01', ua:'◢ УПРАВЛІННЯ · CTL-01', ru:'◢ УПРАВЛЕНИЕ · CTL-01' },
+  'admin.head_title': { hu:'MODERÁTORI FELÜLET', en:'MODERATOR PANEL', de:'MODERATOR-PANEL', es:'PANEL DE MODERADOR', fr:'PANNEAU MODÉRATEUR', no:'MODERATORPANEL', sv:'MODERATORPANEL', ua:'ПАНЕЛЬ МОДЕРАТОРА', ru:'ПАНЕЛЬ МОДЕРАТОРА' },
+  'admin.system_stable': { hu:'RENDSZER · STABIL', en:'SYSTEM · STABLE', de:'SYSTEM · STABIL', es:'SISTEMA · ESTABLE', fr:'SYSTÈME · STABLE', no:'SYSTEM · STABILT', sv:'SYSTEM · STABILT', ua:'СИСТЕМА · СТАБІЛЬНА', ru:'СИСТЕМА · СТАБИЛЬНА' },
+  'admin.cleanup': { hu:'◢ PLACEHOLDER TISZTÍTÁS', en:'◢ CLEAN PLACEHOLDERS', de:'◢ PLATZHALTER LÖSCHEN', es:'◢ LIMPIAR MARCADORES', fr:'◢ NETTOYER PLACEHOLDERS', no:'◢ FJERN PLACEHOLDERS', sv:'◢ RENSA PLATSHÅLLARE', ua:'◢ ОЧИСТИТИ ЗАГЛУШКИ', ru:'◢ ОЧИСТИТЬ ЗАГЛУШКИ' },
+  'admin.cleanup_progress': { hu:'◢ TÖRLÉS…', en:'◢ DELETING…', de:'◢ LÖSCHEN…', es:'◢ ELIMINANDO…', fr:'◢ SUPPRESSION…', no:'◢ SLETTER…', sv:'◢ TAR BORT…', ua:'◢ ВИДАЛЕННЯ…', ru:'◢ УДАЛЕНИЕ…' },
+  'admin.cleanup_confirm': { hu:'Töröljünk minden auth-azonosító nélküli (seed/placeholder) felhasználót és tartalmaikat? Ez nem visszafordítható.', en:'Delete all users without an auth ID (seed/placeholder accounts) and their content? This is irreversible.', de:'Alle Benutzer ohne Auth-ID (Seed/Platzhalter) und deren Inhalte löschen? Unumkehrbar.', es:'¿Eliminar todos los usuarios sin ID de auth (placeholder) y su contenido? Es irreversible.', fr:'Supprimer tous les utilisateurs sans ID d\'auth (placeholder) et leur contenu? Irréversible.', no:'Slett alle brukere uten auth-ID (placeholder) og deres innhold? Ugjenkallelig.', sv:'Ta bort alla användare utan auth-ID (platshållare) och deras innehåll? Oåterkalleligt.', ua:'Видалити всіх користувачів без auth ID та їх контент? Незворотно.', ru:'Удалить всех пользователей без auth ID и их контент? Необратимо.' },
+  'admin.cleanup_done': { hu:'◢ Törölve: {N} placeholder fiók.', en:'◢ Deleted: {N} placeholder accounts.', de:'◢ Gelöscht: {N} Platzhalter-Konten.', es:'◢ Eliminadas: {N} cuentas placeholder.', fr:'◢ Supprimés: {N} comptes placeholder.', no:'◢ Slettet: {N} placeholder-kontoer.', sv:'◢ Raderade: {N} platshållarkonton.', ua:'◢ Видалено: {N} облікових записів-заглушок.', ru:'◢ Удалено: {N} учётных записей-заглушек.' },
+
+  'admin.tab_overview': { hu:'ÁTTEKINTÉS', en:'OVERVIEW', de:'ÜBERSICHT', es:'RESUMEN', fr:'APERÇU', no:'OVERSIKT', sv:'ÖVERSIKT', ua:'ОГЛЯД', ru:'ОБЗОР' },
+  'admin.tab_users': { hu:'FELHASZNÁLÓK', en:'USERS', de:'BENUTZER', es:'USUARIOS', fr:'UTILISATEURS', no:'BRUKERE', sv:'ANVÄNDARE', ua:'КОРИСТУВАЧІ', ru:'ПОЛЬЗОВАТЕЛИ' },
+  'admin.tab_posts': { hu:'POSZTOK', en:'POSTS', de:'BEITRÄGE', es:'PUBLICACIONES', fr:'PUBLICATIONS', no:'INNLEGG', sv:'INLÄGG', ua:'ДОПИСИ', ru:'ПОСТЫ' },
+  'admin.tab_log': { hu:'NAPLÓ', en:'LOG', de:'PROTOKOLL', es:'REGISTRO', fr:'JOURNAL', no:'LOGG', sv:'LOGG', ua:'ЖУРНАЛ', ru:'ЖУРНАЛ' },
+
+  'admin.kpi_posts_total': { hu:'POSZTOK · ÖSSZESEN', en:'POSTS · TOTAL', de:'BEITRÄGE · GESAMT', es:'PUBLICACIONES · TOTAL', fr:'PUBLICATIONS · TOTAL', no:'INNLEGG · TOTAL', sv:'INLÄGG · TOTALT', ua:'ДОПИСИ · УСЬОГО', ru:'ПОСТЫ · ВСЕГО' },
+  'admin.kpi_posts_hint': { hu:'rendszerben', en:'in system', de:'im System', es:'en el sistema', fr:'dans le système', no:'i systemet', sv:'i systemet', ua:'у системі', ru:'в системе' },
+  'admin.kpi_users_real': { hu:'FELHASZNÁLÓK · VALÓS', en:'USERS · REAL', de:'BENUTZER · ECHT', es:'USUARIOS · REALES', fr:'UTILISATEURS · RÉELS', no:'BRUKERE · EKTE', sv:'ANVÄNDARE · RIKTIGA', ua:'КОРИСТУВАЧІ · СПРАВЖНІ', ru:'ПОЛЬЗОВАТЕЛИ · РЕАЛЬНЫЕ' },
+  'admin.kpi_users_clean': { hu:'tiszta', en:'clean', de:'sauber', es:'limpio', fr:'propre', no:'rent', sv:'rent', ua:'чисто', ru:'чисто' },
+  'admin.kpi_users_placeholder': { hu:'{N} placeholder', en:'{N} placeholder', de:'{N} Platzhalter', es:'{N} placeholder', fr:'{N} placeholder', no:'{N} placeholder', sv:'{N} platshållare', ua:'{N} заглушок', ru:'{N} заглушек' },
+  'admin.kpi_total_xp': { hu:'ÖSSZES XP', en:'TOTAL XP', de:'GESAMT-XP', es:'XP TOTAL', fr:'XP TOTAL', no:'TOTAL XP', sv:'TOTAL XP', ua:'ВСЬОГО XP', ru:'ВСЕГО XP' },
+  'admin.kpi_xp_hint': { hu:'rendszer aktivitás', en:'system activity', de:'Systemaktivität', es:'actividad del sistema', fr:'activité système', no:'systemaktivitet', sv:'systemaktivitet', ua:'активність системи', ru:'активность системы' },
+  'admin.kpi_my_role': { hu:'SAJÁT JOG', en:'MY ROLE', de:'MEINE ROLLE', es:'MI ROL', fr:'MON RÔLE', no:'MIN ROLLE', sv:'MIN ROLL', ua:'МОЯ РОЛЬ', ru:'МОЯ РОЛЬ' },
+
+  'admin.quick_view': { hu:'◢ GYORS NÉZET', en:'◢ QUICK VIEW', de:'◢ SCHNELLANSICHT', es:'◢ VISTA RÁPIDA', fr:'◢ VUE RAPIDE', no:'◢ HURTIGVISNING', sv:'◢ SNABBVY', ua:'◢ ШВИДКИЙ ОГЛЯД', ru:'◢ БЫСТРЫЙ ПРОСМОТР' },
+  'admin.latest_posts': { hu:'LEGÚJABB POSZTOK', en:'LATEST POSTS', de:'NEUESTE BEITRÄGE', es:'PUBLICACIONES RECIENTES', fr:'PUBLICATIONS RÉCENTES', no:'NYESTE INNLEGG', sv:'SENASTE INLÄGG', ua:'ОСТАННІ ДОПИСИ', ru:'ПОСЛЕДНИЕ ПОСТЫ' },
+  'admin.no_posts': { hu:'Nincs poszt.', en:'No posts.', de:'Keine Beiträge.', es:'Sin publicaciones.', fr:'Aucune publication.', no:'Ingen innlegg.', sv:'Inga inlägg.', ua:'Немає дописів.', ru:'Нет постов.' },
+
+  'admin.users_panel': { hu:'◢ FELHASZNÁLÓK', en:'◢ USERS', de:'◢ BENUTZER', es:'◢ USUARIOS', fr:'◢ UTILISATEURS', no:'◢ BRUKERE', sv:'◢ ANVÄNDARE', ua:'◢ КОРИСТУВАЧІ', ru:'◢ ПОЛЬЗОВАТЕЛИ' },
+  'admin.users_register': { hu:'REGISZTER · {N}', en:'REGISTER · {N}', de:'REGISTER · {N}', es:'REGISTRO · {N}', fr:'REGISTRE · {N}', no:'REGISTER · {N}', sv:'REGISTER · {N}', ua:'РЕЄСТР · {N}', ru:'РЕЕСТР · {N}' },
+  'admin.search': { hu:'⌕ Keresés…', en:'⌕ Search…', de:'⌕ Suche…', es:'⌕ Buscar…', fr:'⌕ Recherche…', no:'⌕ Søk…', sv:'⌕ Sök…', ua:'⌕ Пошук…', ru:'⌕ Поиск…' },
+  'admin.search_post': { hu:'⌕ Cím vagy ID…', en:'⌕ Title or ID…', de:'⌕ Titel oder ID…', es:'⌕ Título o ID…', fr:'⌕ Titre ou ID…', no:'⌕ Tittel eller ID…', sv:'⌕ Titel eller ID…', ua:'⌕ Назва або ID…', ru:'⌕ Название или ID…' },
+  'admin.no_match': { hu:'Nincs találat.', en:'No matches.', de:'Keine Treffer.', es:'Sin resultados.', fr:'Aucun résultat.', no:'Ingen treff.', sv:'Inga träffar.', ua:'Немає збігів.', ru:'Совпадений нет.' },
+  'admin.posts_panel': { hu:'◢ POSZTOK', en:'◢ POSTS', de:'◢ BEITRÄGE', es:'◢ PUBLICACIONES', fr:'◢ PUBLICATIONS', no:'◢ INNLEGG', sv:'◢ INLÄGG', ua:'◢ ДОПИСИ', ru:'◢ ПОСТЫ' },
+  'admin.posts_manage': { hu:'KEZELÉS · {N}', en:'MANAGE · {N}', de:'VERWALTEN · {N}', es:'GESTIONAR · {N}', fr:'GÉRER · {N}', no:'ADMIN · {N}', sv:'HANTERA · {N}', ua:'УПРАВЛІННЯ · {N}', ru:'УПРАВЛЕНИЕ · {N}' },
+  'admin.log_panel': { hu:'◢ ESEMÉNYNAPLÓ', en:'◢ EVENT LOG', de:'◢ EREIGNISLOG', es:'◢ REGISTRO DE EVENTOS', fr:'◢ JOURNAL', no:'◢ HENDELSESLOGG', sv:'◢ HÄNDELSELOGG', ua:'◢ ЖУРНАЛ ПОДІЙ', ru:'◢ ЖУРНАЛ СОБЫТИЙ' },
+  'admin.log_live': { hu:'RENDSZER NAPLÓ · ÉLŐ', en:'SYSTEM LOG · LIVE', de:'SYSTEMLOG · LIVE', es:'REGISTRO · EN VIVO', fr:'JOURNAL · DIRECT', no:'SYSTEMLOGG · LIVE', sv:'SYSTEMLOGG · LIVE', ua:'ЖУРНАЛ · НАЖИВО', ru:'ЖУРНАЛ · ЖИВОЙ' },
+  'admin.no_events': { hu:'Nincs esemény.', en:'No events.', de:'Keine Ereignisse.', es:'Sin eventos.', fr:'Aucun événement.', no:'Ingen hendelser.', sv:'Inga händelser.', ua:'Немає подій.', ru:'Нет событий.' },
+
+  'admin.col_id': { hu:'ID', en:'ID', de:'ID', es:'ID', fr:'ID', no:'ID', sv:'ID', ua:'ID', ru:'ID' },
+  'admin.col_user': { hu:'FELHASZNÁLÓ', en:'USER', de:'BENUTZER', es:'USUARIO', fr:'UTILISATEUR', no:'BRUKER', sv:'ANVÄNDARE', ua:'КОРИСТУВАЧ', ru:'ПОЛЬЗОВАТЕЛЬ' },
+  'admin.col_role': { hu:'JOGOSULTSÁG', en:'ROLE', de:'ROLLE', es:'ROL', fr:'RÔLE', no:'ROLLE', sv:'ROLL', ua:'РОЛЬ', ru:'РОЛЬ' },
+  'admin.col_level': { hu:'SZINT', en:'LEVEL', de:'STUFE', es:'NIVEL', fr:'NIVEAU', no:'NIVÅ', sv:'NIVÅ', ua:'РІВЕНЬ', ru:'УРОВЕНЬ' },
+  'admin.col_status': { hu:'STÁTUSZ', en:'STATUS', de:'STATUS', es:'ESTADO', fr:'STATUT', no:'STATUS', sv:'STATUS', ua:'СТАТУС', ru:'СТАТУС' },
+  'admin.col_type': { hu:'TÍPUS', en:'TYPE', de:'TYP', es:'TIPO', fr:'TYPE', no:'TYPE', sv:'TYP', ua:'ТИП', ru:'ТИП' },
+  'admin.col_title': { hu:'CÍM', en:'TITLE', de:'TITEL', es:'TÍTULO', fr:'TITRE', no:'TITTEL', sv:'TITEL', ua:'НАЗВА', ru:'НАЗВАНИЕ' },
+  'admin.col_author': { hu:'SZERZŐ', en:'AUTHOR', de:'AUTOR', es:'AUTOR', fr:'AUTEUR', no:'FORFATTER', sv:'FÖRFATTARE', ua:'АВТОР', ru:'АВТОР' },
+  'admin.col_time': { hu:'IDŐPONT', en:'TIME', de:'ZEIT', es:'HORA', fr:'HEURE', no:'TID', sv:'TID', ua:'ЧАС', ru:'ВРЕМЯ' },
+  'admin.col_reads': { hu:'OLV.', en:'RD.', de:'AUF.', es:'LEC.', fr:'LEC.', no:'LES.', sv:'LÄS.', ua:'ЧИТ.', ru:'ЧТ.' },
+  'admin.col_log_time': { hu:'IDŐ', en:'TIME', de:'ZEIT', es:'HORA', fr:'HEURE', no:'TID', sv:'TID', ua:'ЧАС', ru:'ВРЕМЯ' },
+  'admin.col_log_level': { hu:'SZINT', en:'LEVEL', de:'STUFE', es:'NIVEL', fr:'NIVEAU', no:'NIVÅ', sv:'NIVÅ', ua:'РІВЕНЬ', ru:'УРОВЕНЬ' },
+  'admin.col_log_actor': { hu:'SZEREPLŐ', en:'ACTOR', de:'AKTEUR', es:'ACTOR', fr:'ACTEUR', no:'AKTØR', sv:'AKTÖR', ua:'АКТОР', ru:'АКТОР' },
+  'admin.col_log_event': { hu:'ESEMÉNY', en:'EVENT', de:'EREIGNIS', es:'EVENTO', fr:'ÉVÉNEMENT', no:'HENDELSE', sv:'HÄNDELSE', ua:'ПОДІЯ', ru:'СОБЫТИЕ' },
+
+  'admin.role_member': { hu:'TAG', en:'MEMBER', de:'MITGLIED', es:'MIEMBRO', fr:'MEMBRE', no:'MEDLEM', sv:'MEDLEM', ua:'УЧАСНИК', ru:'УЧАСТНИК' },
+  'admin.role_admin': { hu:'ADMIN', en:'ADMIN', de:'ADMIN', es:'ADMIN', fr:'ADMIN', no:'ADMIN', sv:'ADMIN', ua:'АДМІН', ru:'АДМИН' },
+  'admin.role_super': { hu:'SUPERADMIN', en:'SUPERADMIN', de:'SUPERADMIN', es:'SUPERADMIN', fr:'SUPERADMIN', no:'SUPERADMIN', sv:'SUPERADMIN', ua:'СУПЕРАДМІН', ru:'СУПЕРАДМИН' },
+  'admin.status_active': { hu:'AKTÍV', en:'ACTIVE', de:'AKTIV', es:'ACTIVO', fr:'ACTIF', no:'AKTIV', sv:'AKTIV', ua:'АКТИВНИЙ', ru:'АКТИВЕН' },
+  'admin.status_no_auth': { hu:'NINCS AUTH', en:'NO AUTH', de:'KEIN AUTH', es:'SIN AUTH', fr:'PAS D\'AUTH', no:'INGEN AUTH', sv:'INGEN AUTH', ua:'НЕМАЄ AUTH', ru:'НЕТ AUTH' },
+
+  'admin.delete': { hu:'◢ TÖRÖL', en:'◢ DELETE', de:'◢ LÖSCHEN', es:'◢ ELIMINAR', fr:'◢ SUPPRIMER', no:'◢ SLETT', sv:'◢ RADERA', ua:'◢ ВИДАЛИТИ', ru:'◢ УДАЛИТЬ' },
+  'admin.delete_user_confirm': { hu:'Biztosan törlöd {NAME} fiókját? Ez minden posztját, kommentjét és reakcióját is törli.', en:'Really delete {NAME}\'s account? This deletes all their posts, comments and reactions too.', de:'{NAME}-Konto wirklich löschen? Dies löscht alle Beiträge, Kommentare und Reaktionen.', es:'¿Eliminar la cuenta de {NAME}? Esto borra publicaciones, comentarios y reacciones.', fr:'Supprimer le compte de {NAME}? Cela efface aussi posts, commentaires et réactions.', no:'Slett {NAME} konto? Dette fjerner også alle innlegg, kommentarer og reaksjoner.', sv:'Radera {NAME}s konto? Detta tar även bort inlägg, kommentarer och reaktioner.', ua:'Видалити обліковий запис {NAME}? Це також видалить дописи, коментарі та реакції.', ru:'Удалить учётную запись {NAME}? Это также удалит посты, комментарии и реакции.' },
+  'admin.delete_post_confirm': { hu:'Biztosan törlöd a posztot: "{TITLE}"?', en:'Really delete post: "{TITLE}"?', de:'Beitrag wirklich löschen: "{TITLE}"?', es:'¿Eliminar publicación: "{TITLE}"?', fr:'Supprimer la publication: "{TITLE}"?', no:'Slette innlegget: "{TITLE}"?', sv:'Radera inlägget: "{TITLE}"?', ua:'Видалити допис: "{TITLE}"?', ru:'Удалить пост: "{TITLE}"?' },
+  'admin.callsign_edit': { hu:'◢ HÍVÓJEL ÁTÍRÁS', en:'◢ EDIT CALLSIGN', de:'◢ RUFZEICHEN ÄNDERN', es:'◢ EDITAR CALLSIGN', fr:'◢ MODIFIER CALLSIGN', no:'◢ ENDRE CALLSIGN', sv:'◢ ÄNDRA CALLSIGN', ua:'◢ ЗМІНИТИ ПОЗИВНИЙ', ru:'◢ ИЗМЕНИТЬ ПОЗЫВНОЙ' },
+  'admin.password_reset': { hu:'◢ JELSZÓ RESET', en:'◢ RESET PASSWORD', de:'◢ PASSWORT ZURÜCKSETZEN', es:'◢ RESET CONTRASEÑA', fr:'◢ RESET MOT DE PASSE', no:'◢ TILBAKESTILL PASSORD', sv:'◢ ÅTERSTÄLL LÖSENORD', ua:'◢ СКИНУТИ ПАРОЛЬ', ru:'◢ СБРОСИТЬ ПАРОЛЬ' },
+  'admin.new_password_ph': { hu:'Új jelszó (min. 6)', en:'New password (min 6)', de:'Neues Passwort (min 6)', es:'Nueva contraseña (mín 6)', fr:'Nouveau mot de passe (6+)', no:'Nytt passord (min 6)', sv:'Nytt lösenord (min 6)', ua:'Новий пароль (мін 6)', ru:'Новый пароль (мин 6)' },
+  'admin.own_password_ph': { hu:'Saját jelszavad (megerősítés)', en:'Your own password (confirm)', de:'Eigenes Passwort (Bestätigung)', es:'Tu propia contraseña (confirmar)', fr:'Votre mot de passe (confirmer)', no:'Ditt eget passord (bekreft)', sv:'Ditt eget lösenord (bekräfta)', ua:'Ваш власний пароль (підтвердження)', ru:'Ваш собственный пароль (подтверждение)' },
+  'admin.save': { hu:'MENTÉS', en:'SAVE', de:'SPEICHERN', es:'GUARDAR', fr:'ENREGISTRER', no:'LAGRE', sv:'SPARA', ua:'ЗБЕРЕГТИ', ru:'СОХРАНИТЬ' },
+  'admin.cancel': { hu:'MÉGSE', en:'CANCEL', de:'ABBRECHEN', es:'CANCELAR', fr:'ANNULER', no:'AVBRYT', sv:'AVBRYT', ua:'СКАСУВАТИ', ru:'ОТМЕНА' },
+  'admin.password_set_confirm': { hu:'Beállítsuk {NAME} új jelszavát: "{PW}" ?', en:'Set new password for {NAME}: "{PW}" ?', de:'Neues Passwort für {NAME} setzen: "{PW}" ?', es:'¿Establecer nueva contraseña para {NAME}: "{PW}" ?', fr:'Définir le nouveau mot de passe de {NAME}: "{PW}" ?', no:'Sett nytt passord for {NAME}: "{PW}" ?', sv:'Sätt nytt lösenord för {NAME}: "{PW}" ?', ua:'Встановити новий пароль для {NAME}: "{PW}" ?', ru:'Установить новый пароль для {NAME}: "{PW}" ?' },
+  'admin.password_min': { hu:'A jelszó legalább 6 karakter.', en:'Password must be at least 6 characters.', de:'Passwort mindestens 6 Zeichen.', es:'Contraseña mínima 6 caracteres.', fr:'Mot de passe min 6 caractères.', no:'Passord minst 6 tegn.', sv:'Lösenord minst 6 tecken.', ua:'Пароль мінімум 6 символів.', ru:'Пароль минимум 6 символов.' },
+  'admin.confirm_own_password': { hu:'Add meg a saját jelszavadat a megerősítéshez.', en:'Enter your own password to confirm.', de:'Eigenes Passwort zur Bestätigung eingeben.', es:'Ingresa tu contraseña para confirmar.', fr:'Entrez votre propre mot de passe pour confirmer.', no:'Skriv inn ditt eget passord for å bekrefte.', sv:'Ange ditt eget lösenord för att bekräfta.', ua:'Введіть свій пароль для підтвердження.', ru:'Введите свой пароль для подтверждения.' },
+  'admin.callsign_updated': { hu:'Hívójel frissítve: {V}', en:'Callsign updated: {V}', de:'Rufzeichen aktualisiert: {V}', es:'Callsign actualizado: {V}', fr:'Callsign mis à jour: {V}', no:'Callsign oppdatert: {V}', sv:'Callsign uppdaterat: {V}', ua:'Позивний оновлено: {V}', ru:'Позывной обновлён: {V}' },
+  'admin.password_updated': { hu:'Jelszó frissítve.', en:'Password updated.', de:'Passwort aktualisiert.', es:'Contraseña actualizada.', fr:'Mot de passe mis à jour.', no:'Passord oppdatert.', sv:'Lösenord uppdaterat.', ua:'Пароль оновлено.', ru:'Пароль обновлён.' },
+  'admin.event_post_published': { hu:'Poszt publikálva · {ID} · "{T}"', en:'Post published · {ID} · "{T}"', de:'Beitrag veröffentlicht · {ID} · "{T}"', es:'Publicación publicada · {ID} · "{T}"', fr:'Publication publiée · {ID} · "{T}"', no:'Innlegg publisert · {ID} · "{T}"', sv:'Inlägg publicerat · {ID} · "{T}"', ua:'Допис опубліковано · {ID} · "{T}"', ru:'Пост опубликован · {ID} · "{T}"' },
+  'admin.event_pinned': { hu:'KITŰZÖTT', en:'PINNED', de:'ANGEHEFTET', es:'FIJADO', fr:'ÉPINGLÉ', no:'FESTET', sv:'FÄST', ua:'ЗАКРІПЛЕНО', ru:'ЗАКРЕПЛЕНО' },
+  'admin.event_info': { hu:'INFO', en:'INFO', de:'INFO', es:'INFO', fr:'INFO', no:'INFO', sv:'INFO', ua:'ІНФО', ru:'ИНФО' },
+}
+
+function format(template: string, vars: Record<string, string | number>): string {
+  let s = template
+  for (const [k, v] of Object.entries(vars)) {
+    s = s.replaceAll(`{${k}}`, String(v))
+  }
+  return s
 }
 
 export const LANGS = ['hu', 'en', 'es', 'de', 'fr', 'no', 'sv', 'ua', 'ru'] as const
@@ -209,10 +299,11 @@ export function useI18n() {
     return () => { listeners.delete(fn) }
   }, [])
 
-  const t = useCallback((key: string): string => {
+  const t = useCallback((key: string, vars?: Record<string, string | number>): string => {
     const entry = DICT[key]
     if (!entry) return key
-    return entry[lang] ?? entry['en'] ?? entry['hu'] ?? key
+    const tpl = entry[lang] ?? entry['en'] ?? entry['hu'] ?? key
+    return vars ? format(tpl, vars) : tpl
   }, [lang])
 
   return { t, lang, setLang, LANGS, LANG_LABELS }
