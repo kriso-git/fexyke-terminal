@@ -553,19 +553,27 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
               </div>
             )
           })()}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-            {[
-              [t('profile.posts'),         entries.length],
-              [t('profile.friend_count'),  friends.length],
-              [t('card.likes'),            stats.likes],
-              [t('profile.readers'),       stats.reads],
-              [t('profile.comments'),      stats.comments],
-            ].map(([k, v]) => (
-              <div key={String(k)} className="panel" style={{ padding:'8px 10px', background:'transparent' }}>
-                <div className="sys muted" style={{ fontSize:9 }}>{k}</div>
-                <div className="head" style={{ fontSize:22, color:'var(--accent)' }}>{v}</div>
-              </div>
-            ))}
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            {/* Wide hero tile: posts */}
+            <div className="panel" style={{ padding:'10px 14px', background:'transparent' }}>
+              <div className="sys muted" style={{ fontSize:9 }}>{t('profile.posts')}</div>
+              <div className="head" style={{ fontSize:32, color:'var(--accent)', lineHeight:1 }}>{entries.length}</div>
+            </div>
+
+            {/* 2×2 grid for remaining metrics — fills the card with no empty space */}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+              {[
+                [t('profile.friend_count'), friends.length],
+                [t('card.likes'),           stats.likes],
+                [t('profile.readers'),      stats.reads],
+                [t('profile.comments'),     stats.comments],
+              ].map(([k, v]) => (
+                <div key={String(k)} className="panel" style={{ padding:'8px 10px', background:'transparent' }}>
+                  <div className="sys muted" style={{ fontSize:9 }}>{k}</div>
+                  <div className="head" style={{ fontSize:22, color:'var(--accent)' }}>{v}</div>
+                </div>
+              ))}
+            </div>
           </div>
           <div style={{ borderTop:'1px solid var(--border-1)', marginTop:12, paddingTop:12 }}>
             <div className="sys muted" style={{ fontSize:9, marginBottom:6 }}>{t('profile.activity')}</div>

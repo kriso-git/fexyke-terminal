@@ -35,7 +35,7 @@ export function Nav({ role = null }: NavProps) {
         </Link>
       ))}
       <div className="spacer" />
-      <div className="item nav-lang" style={{ display:'flex', alignItems:'center', padding:'4px 12px' }}>
+      <div className="item nav-lang" style={{ display:'flex', alignItems:'center', padding:'4px 12px', marginRight: 96 }}>
         <LangPicker align="right" size="sm"/>
       </div>
     </div>

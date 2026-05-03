@@ -552,8 +552,8 @@ textarea.input { resize:vertical; }
   /* Modals: full-bleed on small phones */
   .post-modal { width: 100% !important; }
 
-  /* Lang switcher in nav: shrink */
-  .nav-lang { padding: 4px 8px !important; }
+  /* Lang switcher in nav: shrink + clear data-stream area on the right */
+  .nav-lang { padding: 4px 8px !important; margin-right: 0 !important; }
 
   /* Admin panel responsive */
   .admin-shell-pad { padding: 16px 12px !important; }
@@ -681,7 +681,7 @@ html.booting body { background: #000; }
   50%       { filter: drop-shadow(0 0 20px var(--accent)); transform: scale(1.06); }
 }
 @media (max-width: 768px) {
-  .tisza-egg { bottom: 70px !important; right: 12px !important; }
+  .tisza-egg { bottom: 12px !important; left: 12px !important; }
   .tisza-egg img { width: 48px !important; }
 }
 

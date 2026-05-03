@@ -42,7 +42,7 @@ export function TiszaEgg() {
       style={{
         position: 'fixed',
         bottom: 18,
-        right: 18,
+        left: 18,
         zIndex: 7000,
         padding: 0,
         background: 'none',
