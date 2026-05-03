@@ -346,6 +346,174 @@ export async function toggleReaction(entryId: string, emoji: string) {
   }
 }
 
+/* ─── Signal reactions (comment emoji + XP) ─── */
+
+export async function toggleSignalReaction(signalId: string, emoji: string) {
+  try {
+    const op = await getCurrentOperator()
+    if (!op) return { error: 'Be kell lépni a reakcióhoz.' }
+
+    const admin = createAdminClient()
+
+    // Per-user, per-signal rate limit: 1 reaction add per 5 seconds (anti-spam)
+    const { data: lastRx } = await admin
+      .from('signal_reactions')
+      .select('created_at')
+      .eq('operator_id', op.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (lastRx && Date.now() - new Date(lastRx.created_at).getTime() < 1500) {
+      return { error: 'Túl gyors. Várj egy pillanatot.' }
+    }
+
+    const { data: existing } = await admin
+      .from('signal_reactions')
+      .select('signal_id')
+      .eq('signal_id', signalId)
+      .eq('operator_id', op.id)
+      .eq('emoji', emoji)
+      .maybeSingle()
+
+    if (existing) {
+      await admin.from('signal_reactions').delete()
+        .eq('signal_id', signalId).eq('operator_id', op.id).eq('emoji', emoji)
+    } else {
+      const { error } = await admin.from('signal_reactions').insert({ signal_id: signalId, operator_id: op.id, emoji })
+      if (error) return { error: error.message }
+      // Award XP to the comment author (+1) — only on add, not on remove
+      const { data: sig } = await admin.from('signals').select('operator_id').eq('id', signalId).single()
+      if (sig?.operator_id && sig.operator_id !== op.id) {
+        try { await admin.rpc('award_xp', { op_id: sig.operator_id, amount: 1 }) } catch {}
+      }
+    }
+
+    const { data: all } = await admin.from('signal_reactions').select('emoji, operator_id').eq('signal_id', signalId)
+    const counts: Record<string, number> = {}
+    const userRx: string[] = []
+    for (const r of (all ?? []) as { emoji: string; operator_id: string }[]) {
+      counts[r.emoji] = (counts[r.emoji] ?? 0) + 1
+      if (r.operator_id === op.id) userRx.push(r.emoji)
+    }
+    revalidatePath('/')
+    return { success: true, reactions: counts, userReactions: userRx }
+  } catch (err) {
+    console.error('toggleSignalReaction error:', err)
+    return { error: 'Reakció rögzítése sikertelen.' }
+  }
+}
+
+/* ─── Profile signal reactions / pin / delete ─── */
+
+export async function toggleProfileSignalReaction(signalId: string, emoji: string) {
+  try {
+    const op = await getCurrentOperator()
+    if (!op) return { error: 'Be kell lépni.' }
+
+    const admin = createAdminClient()
+
+    const { data: lastRx } = await admin
+      .from('profile_signal_reactions')
+      .select('created_at')
+      .eq('operator_id', op.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (lastRx && Date.now() - new Date(lastRx.created_at).getTime() < 1500) {
+      return { error: 'Túl gyors.' }
+    }
+
+    const { data: existing } = await admin
+      .from('profile_signal_reactions')
+      .select('signal_id')
+      .eq('signal_id', signalId)
+      .eq('operator_id', op.id)
+      .eq('emoji', emoji)
+      .maybeSingle()
+
+    if (existing) {
+      await admin.from('profile_signal_reactions').delete()
+        .eq('signal_id', signalId).eq('operator_id', op.id).eq('emoji', emoji)
+    } else {
+      const { error } = await admin.from('profile_signal_reactions').insert({ signal_id: signalId, operator_id: op.id, emoji })
+      if (error) return { error: error.message }
+    }
+
+    const { data: all } = await admin.from('profile_signal_reactions').select('emoji, operator_id').eq('signal_id', signalId)
+    const counts: Record<string, number> = {}
+    const userRx: string[] = []
+    for (const r of (all ?? []) as { emoji: string; operator_id: string }[]) {
+      counts[r.emoji] = (counts[r.emoji] ?? 0) + 1
+      if (r.operator_id === op.id) userRx.push(r.emoji)
+    }
+    return { success: true, reactions: counts, userReactions: userRx }
+  } catch (err) {
+    console.error('toggleProfileSignalReaction error:', err)
+    return { error: 'Reakció hiba.' }
+  }
+}
+
+export async function deleteProfileSignal(signalId: string) {
+  try {
+    const op = await getCurrentOperator()
+    if (!op) return { error: 'Be kell lépni.' }
+    const admin = createAdminClient()
+    const { data: sig } = await admin.from('profile_signals').select('target_id, author_id').eq('id', signalId).single()
+    if (!sig) return { error: 'Üzenet nem található.' }
+    // Wall owner OR author OR superadmin can delete
+    if (sig.target_id !== op.id && sig.author_id !== op.id && op.role !== 'superadmin') {
+      return { error: 'Nincs jogosultság.' }
+    }
+    const { error } = await admin.from('profile_signals').delete().eq('id', signalId)
+    if (error) return { error: error.message }
+    return { success: true }
+  } catch (err) {
+    console.error('deleteProfileSignal error:', err)
+    return { error: 'Szerver hiba.' }
+  }
+}
+
+export async function toggleProfileSignalPin(signalId: string, pinned: boolean) {
+  try {
+    const op = await getCurrentOperator()
+    if (!op) return { error: 'Be kell lépni.' }
+    const admin = createAdminClient()
+    const { data: sig } = await admin.from('profile_signals').select('target_id').eq('id', signalId).single()
+    if (!sig) return { error: 'Üzenet nem található.' }
+    // Only the wall owner can pin / unpin
+    if (sig.target_id !== op.id) return { error: 'Csak a fal tulajdonosa tűzhet ki.' }
+    const { error } = await admin.from('profile_signals').update({ pinned }).eq('id', signalId)
+    if (error) return { error: error.message }
+    return { success: true, pinned }
+  } catch (err) {
+    console.error('toggleProfileSignalPin error:', err)
+    return { error: 'Szerver hiba.' }
+  }
+}
+
+/* ─── Operator interests ─── */
+
+export async function updateInterests(interests: string[]) {
+  try {
+    const op = await getCurrentOperator()
+    if (!op) return { error: 'Be kell lépni.' }
+    const cleaned = (interests ?? [])
+      .map(s => (s ?? '').trim())
+      .filter(Boolean)
+      .map(s => s.startsWith('#') ? s : `#${s}`)
+      .map(s => s.toLowerCase())
+      .slice(0, 12)
+    const admin = createAdminClient()
+    const { error } = await admin.from('operators').update({ interests: cleaned }).eq('id', op.id)
+    if (error) return { error: error.message }
+    revalidatePath(`/operators/${op.callsign}`)
+    return { success: true, interests: cleaned }
+  } catch (err) {
+    console.error('updateInterests error:', err)
+    return { error: 'Szerver hiba.' }
+  }
+}
+
 /* ─── Signals (jelzések bejegyzésre) ─── */
 
 export async function createSignal(formData: FormData) {
@@ -385,7 +553,20 @@ export async function getEntryComments(entryId: string) {
       .select('id, entry_id, operator_id, parent_id, text, image_url, sigs, verified, created_at, operator:operators!operator_id(*)')
       .eq('entry_id', entryId)
       .order('created_at', { ascending: true })
-    return { signals: data ?? [] }
+
+    type Sig = { id: string; reactions?: Record<string, number> }
+    const list = (data ?? []) as unknown as Sig[]
+    const sigIds = list.map(s => s.id)
+    if (sigIds.length > 0) {
+      const { data: srx } = await admin.from('signal_reactions').select('signal_id, emoji').in('signal_id', sigIds)
+      const byId: Record<string, Record<string, number>> = {}
+      for (const r of (srx ?? []) as { signal_id: string; emoji: string }[]) {
+        if (!byId[r.signal_id]) byId[r.signal_id] = {}
+        byId[r.signal_id][r.emoji] = (byId[r.signal_id][r.emoji] ?? 0) + 1
+      }
+      for (const s of list) s.reactions = byId[s.id] ?? {}
+    }
+    return { signals: list }
   } catch (err) {
     console.error('getEntryComments error:', err)
     return { signals: [] }
@@ -589,6 +770,67 @@ export async function updateOperatorLevel(operatorId: string, level: number) {
     return { success: true }
   } catch (err) {
     console.error('updateOperatorLevel error:', err)
+    return { error: 'Szerver hiba.' }
+  }
+}
+
+export async function updateOperatorPassword(operatorId: string, newPassword: string) {
+  try {
+    const op = await getCurrentOperator()
+    if (!op || op.role !== 'superadmin') return { error: 'Csak superadmin változtathat jelszót.' }
+    if (!newPassword || newPassword.length < 6) return { error: 'A jelszó legalább 6 karakter.' }
+
+    const admin = createAdminClient()
+    const { data: target } = await admin.from('operators').select('auth_id, callsign').eq('id', operatorId).single()
+    if (!target?.auth_id) return { error: 'A felhasználónak nincs auth fiókja.' }
+
+    const { error } = await admin.auth.admin.updateUserById(target.auth_id, { password: newPassword })
+    if (error) return { error: error.message }
+
+    revalidatePath('/control')
+    return { success: true }
+  } catch (err) {
+    console.error('updateOperatorPassword error:', err)
+    return { error: 'Szerver hiba.' }
+  }
+}
+
+export async function updateOperatorCallsign(operatorId: string, newCallsign: string) {
+  try {
+    const op = await getCurrentOperator()
+    if (!op || op.role !== 'superadmin') return { error: 'Csak superadmin változtathat hívójelet.' }
+
+    const clean = (newCallsign ?? '').trim().toUpperCase()
+    if (!clean || clean.length < 3) return { error: 'A hívójel legalább 3 karakter.' }
+    if (!/^[A-Z0-9]+$/.test(clean)) return { error: 'A hívójel csak betűket és számokat tartalmazhat.' }
+
+    const admin = createAdminClient()
+
+    // Uniqueness check
+    const { data: existing } = await admin.from('operators').select('id').eq('callsign', clean).maybeSingle()
+    if (existing && existing.id !== operatorId) return { error: 'Ez a hívójel már foglalt.' }
+
+    const { data: target } = await admin.from('operators').select('auth_id').eq('id', operatorId).single()
+    if (!target) return { error: 'Operátor nem található.' }
+
+    // Update operators row
+    const { error: opErr } = await admin.from('operators').update({ callsign: clean }).eq('id', operatorId)
+    if (opErr) return { error: opErr.message }
+
+    // Sync auth email + metadata so login still works (email follows the callsign)
+    if (target.auth_id) {
+      const newEmail = `${clean}@f3xykee.net`
+      await admin.auth.admin.updateUserById(target.auth_id, {
+        email: newEmail,
+        email_confirm: true,
+        user_metadata: { callsign: clean },
+      }).catch(() => {})
+    }
+
+    revalidatePath('/control')
+    return { success: true, callsign: clean }
+  } catch (err) {
+    console.error('updateOperatorCallsign error:', err)
     return { error: 'Szerver hiba.' }
   }
 }

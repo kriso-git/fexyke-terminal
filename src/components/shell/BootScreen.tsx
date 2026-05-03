@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 const BOOT_LINES: { t: string; c: 'ok' | 'warn' | 'err' | 'dim' | '' }[] = [
   { t: 'F3XYKEE_TERMINAL v0.4.7 — booting...', c: 'ok' },
@@ -24,17 +24,29 @@ const BOOT_LINES: { t: string; c: 'ok' | 'warn' | 'err' | 'dim' | '' }[] = [
 const STORAGE_KEY = 'f3x_boot_seen'
 
 export function BootScreen() {
-  const [mounted, setMounted] = useState(false)
+  // Run synchronously before first paint so we don't see the page flash through.
+  const [mounted, setMounted] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    return !sessionStorage.getItem(STORAGE_KEY)
+  })
   const [shown, setShown]     = useState<number>(0)
   const [fading, setFading]   = useState(false)
-  const [done, setDone]       = useState(false)
+  const [done, setDone]       = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    return !!sessionStorage.getItem(STORAGE_KEY)
+  })
   const finishedRef           = useRef(false)
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    if (sessionStorage.getItem(STORAGE_KEY)) { setDone(true); return }
-    setMounted(true)
-  }, [])
+  useLayoutEffect(() => {
+    if (typeof document === 'undefined') return
+    if (mounted && !done) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+      document.documentElement.classList.remove('booting')
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [mounted, done])
 
   useEffect(() => {
     if (!mounted || done) return
@@ -51,6 +63,8 @@ export function BootScreen() {
   function finish() {
     if (finishedRef.current) return
     finishedRef.current = true
+    // Reveal page underneath as the boot fades out
+    if (typeof document !== 'undefined') document.documentElement.classList.remove('booting')
     setFading(true)
     setTimeout(() => {
       sessionStorage.setItem(STORAGE_KEY, '1')
@@ -58,18 +72,13 @@ export function BootScreen() {
     }, 500)
   }
 
-  // Skip on click or keypress
-  useEffect(() => {
-    if (!mounted || done) return
-    const skip = () => finish()
-    window.addEventListener('keydown', skip, { once: true })
-    return () => window.removeEventListener('keydown', skip)
-  }, [mounted, done])
+  // Click-only skip — handled on the overlay onClick below
 
   if (!mounted || done) return null
 
   return (
     <div
+      className="boot-screen-overlay"
       onClick={finish}
       role="presentation"
       style={{
@@ -124,7 +133,7 @@ export function BootScreen() {
         position: 'absolute', bottom: 16, right: 20,
         fontSize: 10, color: 'var(--ink-3)', letterSpacing: '.18em',
       }}>
-        ▸ KATTINTÁS · BILLENTYŰ · KIHAGYÁS
+        ▸ KATTINTÁS A KIHAGYÁSHOZ
       </div>
 
       <style>{`

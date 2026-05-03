@@ -9,6 +9,8 @@ import { Avatar } from '@/components/ui/Avatar'
 import {
   updateOperatorRole,
   updateOperatorLevel,
+  updateOperatorPassword,
+  updateOperatorCallsign,
   deleteOperator,
   cleanupSeedOperators,
   deleteEntry,
@@ -33,7 +35,36 @@ function KPI({ k, v, hint, kind = 'accent' }: { k: string; v: string; hint?: str
 function UserRow({ op, currentOp, onChange }: { op: Operator; currentOp: Operator; onChange: () => void }) {
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const [info, setInfo] = useState<string | null>(null)
+  const [editingCs, setEditingCs] = useState(false)
+  const [csValue, setCsValue] = useState(op.callsign)
+  const [showPw, setShowPw] = useState(false)
+  const [pwValue, setPwValue] = useState('')
   const isSelf = op.id === currentOp.id
+
+  function changeCallsign() {
+    if (currentOp.role !== 'superadmin') return
+    const v = csValue.trim().toUpperCase()
+    if (v === op.callsign) { setEditingCs(false); return }
+    setError(null); setInfo(null)
+    startTransition(async () => {
+      const res = await updateOperatorCallsign(op.id, v)
+      if (res.error) setError(res.error)
+      else { setInfo(`Hívójel frissítve: ${res.callsign}`); setEditingCs(false); onChange() }
+    })
+  }
+
+  function changePassword() {
+    if (currentOp.role !== 'superadmin') return
+    if (pwValue.length < 6) { setError('A jelszó legalább 6 karakter.'); return }
+    if (!confirm(`Beállítsuk ${op.callsign} új jelszavát: "${pwValue}" ?`)) return
+    setError(null); setInfo(null)
+    startTransition(async () => {
+      const res = await updateOperatorPassword(op.id, pwValue)
+      if (res.error) setError(res.error)
+      else { setInfo(`Jelszó frissítve.`); setPwValue(''); setShowPw(false) }
+    })
+  }
 
   const fmtDate = (iso: string) => {
     if (!iso) return '—'
@@ -81,10 +112,48 @@ function UserRow({ op, currentOp, onChange }: { op: Operator; currentOp: Operato
       <div style={{ display: 'grid', gridTemplateColumns: '36px 90px 1fr auto auto auto auto', gap: 12, alignItems: 'center' }}>
         <Avatar id={op.id} src={op.avatar_url} size={32} />
         <span className="mono muted" style={{ fontSize: 10 }}>{op.id}</span>
-        <Link href={`/operators/${op.callsign}`} style={{ textDecoration: 'none' }}>
-          <div className="head" style={{ fontSize: 14, color: 'var(--ink-0)' }}>{op.callsign}</div>
-          <div className="sys muted" style={{ fontSize: 10 }}>{fmtDate(op.created_at)} · {xp} XP</div>
-        </Link>
+        <div style={{ minWidth: 0 }}>
+          {editingCs ? (
+            <div style={{ display:'flex', gap:4, alignItems:'center' }}>
+              <input
+                className="input"
+                value={csValue}
+                onChange={e => setCsValue(e.target.value.toUpperCase())}
+                onKeyDown={e => { if (e.key==='Enter') changeCallsign(); if (e.key==='Escape') { setEditingCs(false); setCsValue(op.callsign) } }}
+                autoFocus
+                style={{ fontSize:13, padding:'4px 6px', minHeight:0, textTransform:'uppercase' }}
+              />
+              <button className="btn btn-ghost btn-sm" disabled={pending} onClick={changeCallsign} style={{ padding:'2px 6px', fontSize:10, minHeight:0, color:'var(--accent)' }}>✓</button>
+              <button className="btn btn-ghost btn-sm" disabled={pending} onClick={() => { setEditingCs(false); setCsValue(op.callsign) }} style={{ padding:'2px 6px', fontSize:10, minHeight:0 }}>✕</button>
+            </div>
+          ) : (
+            <Link href={`/operators/${op.callsign}`} style={{ textDecoration: 'none' }}>
+              <div className="head" style={{ fontSize: 14, color: 'var(--ink-0)' }}>{op.callsign}</div>
+              <div className="sys muted" style={{ fontSize: 10 }}>{fmtDate(op.created_at)} · {xp} XP</div>
+            </Link>
+          )}
+          {currentOp.role === 'superadmin' && !editingCs && (
+            <div style={{ display:'flex', gap:6, marginTop:4 }}>
+              <button onClick={() => setEditingCs(true)} className="sys" style={{ background:'none', border:'none', color:'var(--cyan)', cursor:'pointer', fontSize:9, letterSpacing:'.12em', padding:0 }}>◢ HÍVÓJEL ÁTÍRÁS</button>
+              <button onClick={() => setShowPw(s=>!s)} className="sys" style={{ background:'none', border:'none', color:'var(--amber)', cursor:'pointer', fontSize:9, letterSpacing:'.12em', padding:0 }}>◢ JELSZÓ RESET</button>
+            </div>
+          )}
+          {showPw && (
+            <div style={{ display:'flex', gap:4, alignItems:'center', marginTop:6 }}>
+              <input
+                className="input"
+                type="text"
+                placeholder="Új jelszó (min. 6)"
+                value={pwValue}
+                onChange={e => setPwValue(e.target.value)}
+                onKeyDown={e => { if (e.key==='Enter') changePassword(); if (e.key==='Escape') { setShowPw(false); setPwValue('') } }}
+                style={{ fontSize:11, padding:'4px 6px', minHeight:0 }}
+              />
+              <button className="btn btn-ghost btn-sm" disabled={pending || pwValue.length<6} onClick={changePassword} style={{ padding:'2px 6px', fontSize:10, minHeight:0, color:'var(--accent)' }}>MENTÉS</button>
+              <button className="btn btn-ghost btn-sm" disabled={pending} onClick={() => { setShowPw(false); setPwValue('') }} style={{ padding:'2px 6px', fontSize:10, minHeight:0 }}>MÉGSE</button>
+            </div>
+          )}
+        </div>
 
         {/* Role select */}
         <select
@@ -122,6 +191,7 @@ function UserRow({ op, currentOp, onChange }: { op: Operator; currentOp: Operato
         </button>
       </div>
       {error && <div style={{ marginTop: 6, padding: '4px 8px', background: 'rgba(255,58,58,.1)', color: 'var(--red)', fontSize: 10 }}>◢ {error}</div>}
+      {info && <div style={{ marginTop: 6, padding: '4px 8px', background: 'rgba(24,233,104,.1)', color: 'var(--accent)', fontSize: 10 }}>◢ {info}</div>}
     </div>
   )
 }

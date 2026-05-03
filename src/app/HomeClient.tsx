@@ -15,7 +15,7 @@ import { YouTubePlayer, YouTubeThumbnail, extractYouTubeId } from '@/components/
 import dynamic from 'next/dynamic'
 
 const PostModal = dynamic(() => import('@/components/ui/PostModal').then(m => m.PostModal), { ssr: false })
-import { createEntry, toggleReaction, fetchEntryById, deleteEntry, createSignal, getEntryComments, listMyDrafts, publishDraft, togglePin } from '@/app/actions'
+import { createEntry, toggleReaction, fetchEntryById, deleteEntry, createSignal, getEntryComments, listMyDrafts, publishDraft, togglePin, toggleSignalReaction } from '@/app/actions'
 import { RolePresenceChip } from '@/components/ui/PresenceChip'
 import type { Entry, Operator, Signal } from '@/lib/types'
 
@@ -75,9 +75,47 @@ function Hero({ currentOperator, postCount, totalLikes }: { currentOperator: Ope
           F3XYKEE /<br/>
           <span style={{ color:'var(--accent)', textShadow:'0 0 12px rgba(24,233,104,.35)' }}>BLOG</span>
         </h1>
-        <p className="muted" style={{ marginTop:18, fontSize:13, lineHeight:1.6, maxWidth:420 }}>
-          {t('hero.sub')}
-        </p>
+        <div className="hero-socials" style={{ marginTop:18, display:'flex', gap:8, flexWrap:'wrap', maxWidth:480 }}>
+          <a href="https://www.instagram.com/hlsz.alex1337" target="_blank" rel="noopener noreferrer"
+            className="btn"
+            style={{ display:'inline-flex', gap:8, alignItems:'center', padding:'8px 14px', textDecoration:'none', fontSize:11 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <rect x="3" y="3" width="18" height="18" rx="5"/>
+              <circle cx="12" cy="12" r="4"/>
+              <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+            </svg>
+            INSTAGRAM
+          </a>
+          <a href="https://www.twitch.tv/f3xykeewt" target="_blank" rel="noopener noreferrer"
+            className="btn"
+            style={{ display:'inline-flex', gap:8, alignItems:'center', padding:'8px 14px', textDecoration:'none', fontSize:11 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M21 2H3v16h5v4l4-4h5l4-4V2z"/>
+              <line x1="11" y1="7" x2="11" y2="13"/>
+              <line x1="16" y1="7" x2="16" y2="13"/>
+            </svg>
+            TWITCH
+          </a>
+          <a href="https://steamcommunity.com/id/F3xykee/" target="_blank" rel="noopener noreferrer"
+            className="btn"
+            style={{ display:'inline-flex', gap:8, alignItems:'center', padding:'8px 14px', textDecoration:'none', fontSize:11 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <circle cx="12" cy="12" r="10"/>
+              <circle cx="9.5" cy="13.5" r="3"/>
+              <circle cx="16" cy="8" r="2"/>
+              <line x1="6.5" y1="11" x2="9.5" y2="13.5"/>
+            </svg>
+            STEAM
+          </a>
+          <a href="https://discord.gg/HhCWjnrBW3" target="_blank" rel="noopener noreferrer"
+            className="btn"
+            style={{ display:'inline-flex', gap:8, alignItems:'center', padding:'8px 14px', textDecoration:'none', fontSize:11 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+              <path d="M19.5 5.5A17 17 0 0 0 15.4 4l-.2.4a14 14 0 0 0-6.4 0L8.6 4a17 17 0 0 0-4.1 1.5C2 9.5 1.4 13.4 1.7 17.2a17 17 0 0 0 5.2 2.6l.4-.6a11 11 0 0 1-1.7-.8l.4-.3a12 12 0 0 0 11 0l.4.3a11 11 0 0 1-1.7.8l.4.6a17 17 0 0 0 5.2-2.6c.4-4.5-.5-8.4-2.8-11.7zM8.5 14.6c-1 0-1.9-1-1.9-2.1s.8-2.2 1.9-2.2c1 0 1.9 1 1.9 2.2 0 1.2-.9 2.1-1.9 2.1zm7 0c-1 0-1.9-1-1.9-2.1s.8-2.2 1.9-2.2c1 0 1.9 1 1.9 2.2 0 1.2-.9 2.1-1.9 2.1z"/>
+            </svg>
+            DISCORD
+          </a>
+        </div>
         <div style={{ marginTop:14, marginBottom:20 }}>
           <LangPicker/>
         </div>
@@ -86,7 +124,7 @@ function Hero({ currentOperator, postCount, totalLikes }: { currentOperator: Ope
             <Link href="/gate" className="btn btn-primary">{t('hero.enter')}</Link>
           )}
           <Link href="#feed" className="btn">{t('hero.posts')}</Link>
-          <div className="hero-cube-slot" aria-hidden style={{ display:'flex', alignItems:'center', marginLeft:400, marginTop:-90 }}>
+          <div className="hero-cube-slot" aria-hidden style={{ display:'flex', alignItems:'center', marginLeft:330, marginTop:-90 }}>
             <HeroCube/>
           </div>
         </div>
@@ -377,12 +415,13 @@ function PostPanel({ op, onPost }: { op: Operator | null; onPost: (id: string) =
               {savedDraft && <div style={{ padding:'8px 12px', background:'rgba(77,240,255,.1)', border:'1px solid var(--cyan)', color:'var(--cyan)', fontFamily:'var(--f-sys)', fontSize:11 }}>◢ Vázlat mentve!</div>}
             </div>
 
-            {/* Right sidebar */}
-            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            {/* Right sidebar — meta on top, publish controls at the bottom */}
+            <div style={{ display:'flex', flexDirection:'column', gap:10, height:'100%', minHeight:'100%' }}>
               <div className="sys muted" style={{ fontSize:10 }}>{t('post.meta')}</div>
               <Meta k={t('post.kind_label')} v={kind}/>
               <Meta k={t('post.author')} v={op.callsign}/>
               {kind==='VIDEÓ' && ytId && <Meta k={t('post.video_id')} v={ytId}/>}
+              <div style={{ flex:1 }}/>
               <div style={{ borderTop:'1px solid var(--border-1)', paddingTop:10, marginTop:4, display:'flex', flexDirection:'column', gap:6 }}>
                 <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer' }}>
                   <input type="checkbox" name="priority" checked={priority} onChange={ev=>setPriority(ev.target.checked)} style={{ accentColor:'var(--accent)' }}/>
@@ -497,6 +536,75 @@ function PreviewModal({
   )
 }
 
+/* ─── Single comment row with reactions ─── */
+function CommentRow({ s, currentOperator, last }: { s: Signal; currentOperator: Operator | null; last: boolean }) {
+  const { t, lang } = useI18n()
+  const localeMap: Record<string, string> = { hu:'hu-HU', en:'en-US', de:'de-DE', es:'es-ES', fr:'fr-FR', no:'no-NO', sv:'sv-SE', ua:'uk-UA', ru:'ru-RU' }
+  const fmt = (iso: string) => { try { return new Date(iso).toLocaleString(localeMap[lang] ?? 'hu-HU', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) } catch { return '' } }
+
+  const [rx, setRx] = useState<Record<string,number>>(s.reactions ?? {})
+  const [userRx, setUserRx] = useState<string[]>([])
+  const [pending, setPending] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const RX_EMOJI = ['👍','🔥','💀','😂']
+
+  async function react(em: string) {
+    if (!currentOperator || pending) return
+    setPending(em); setError(null)
+    const res = await toggleSignalReaction(s.id, em)
+    if (res?.error) setError(res.error)
+    if (res?.reactions) setRx(res.reactions)
+    if (res?.userReactions) setUserRx(res.userReactions)
+    setPending(null)
+  }
+
+  const total = Object.values(rx).reduce((a,b) => a + b, 0)
+
+  return (
+    <div style={{ display:'grid', gridTemplateColumns:'32px 1fr', gap:10, padding:'10px 14px', borderBottom: last ? 'none' : '1px solid var(--border-0)' }}>
+      <Link href={s.operator?.callsign ? `/operators/${s.operator.callsign}` : '#'} style={{ textDecoration:'none' }}>
+        <Avatar id={s.operator_id} src={s.operator?.avatar_url} lastSeen={s.operator?.last_seen} size={32}/>
+      </Link>
+      <div style={{ minWidth:0 }}>
+        <div style={{ display:'flex', gap:8, alignItems:'baseline', marginBottom:3, flexWrap:'wrap' }}>
+          <Link href={s.operator?.callsign ? `/operators/${s.operator.callsign}` : '#'} className="head" style={{ fontSize:12, color: s.operator?.chat_color || 'var(--ink-0)', textDecoration:'none' }}>
+            {s.operator?.callsign ?? s.operator_id}
+          </Link>
+          <RolePresenceChip role={s.operator?.role} lastSeen={s.operator?.last_seen} fontSize={8}/>
+          <span className="sys muted" style={{ fontSize:9 }}>{fmt(s.created_at)}</span>
+        </div>
+        {s.text && <div style={{ fontSize:12.5, lineHeight:1.55, color:'var(--ink-0)', wordBreak:'break-word', whiteSpace:'pre-wrap' }}>{s.text}</div>}
+        {s.image_url && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={s.image_url} alt="" loading="lazy" decoding="async" style={{ marginTop:6, maxWidth:'100%', maxHeight:280, objectFit:'contain', display:'block', background:'var(--bg-2)', border:'1px solid var(--border-1)' }}/>
+        )}
+        <div style={{ display:'flex', gap:4, marginTop:6, flexWrap:'wrap', alignItems:'center' }}>
+          {RX_EMOJI.map(em => {
+            const count = rx[em] ?? 0
+            const active = userRx.includes(em)
+            return (
+              <button key={em} onClick={() => react(em)} disabled={!currentOperator || pending !== null}
+                style={{
+                  display:'inline-flex', alignItems:'center', gap:3,
+                  padding:'2px 7px', fontSize:12,
+                  border:`1px solid ${active ? 'var(--accent)' : 'var(--border-0)'}`,
+                  background: active ? 'var(--accent-soft)' : 'transparent',
+                  color: active ? 'var(--accent)' : 'var(--ink-2)',
+                  cursor: currentOperator ? 'pointer' : 'default',
+                }}
+              >
+                {em}{count > 0 && <span style={{ fontSize:10, fontFamily:'var(--f-sys)' }}>{count}</span>}
+              </button>
+            )
+          })}
+          {total > 0 && <span className="sys muted" style={{ fontSize:9 }}>· {total}</span>}
+        </div>
+        {error && <div style={{ fontSize:9, color:'var(--red)', marginTop:3 }}>◢ {error}</div>}
+      </div>
+    </div>
+  )
+}
+
 /* ─── Inline comment thread (composer + list + collapse) ─── */
 function CommentThread({
   entryId, currentOperator, initialComments, initialCount,
@@ -597,25 +705,7 @@ function CommentThread({
       {visible.length > 0 && (
         <div style={{ display:'flex', flexDirection:'column' }}>
           {visible.map((s, idx) => (
-            <div key={s.id} style={{ display:'grid', gridTemplateColumns:'32px 1fr', gap:10, padding:'10px 14px', borderBottom: idx < visible.length - 1 ? '1px solid var(--border-0)' : 'none' }}>
-              <Link href={s.operator?.callsign ? `/operators/${s.operator.callsign}` : '#'} style={{ textDecoration:'none' }}>
-                <Avatar id={s.operator_id} src={s.operator?.avatar_url} lastSeen={s.operator?.last_seen} size={32}/>
-              </Link>
-              <div style={{ minWidth:0 }}>
-                <div style={{ display:'flex', gap:8, alignItems:'baseline', marginBottom:3, flexWrap:'wrap' }}>
-                  <Link href={s.operator?.callsign ? `/operators/${s.operator.callsign}` : '#'} className="head" style={{ fontSize:12, color: s.operator?.chat_color || 'var(--ink-0)', textDecoration:'none' }}>
-                    {s.operator?.callsign ?? s.operator_id}
-                  </Link>
-                  <RolePresenceChip role={s.operator?.role} lastSeen={s.operator?.last_seen} fontSize={8}/>
-                  <span className="sys muted" style={{ fontSize:9 }}>{fmt(s.created_at)}</span>
-                </div>
-                {s.text && <div style={{ fontSize:12.5, lineHeight:1.55, color:'var(--ink-0)', wordBreak:'break-word', whiteSpace:'pre-wrap' }}>{s.text}</div>}
-                {s.image_url && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={s.image_url} alt="" loading="lazy" decoding="async" style={{ marginTop:6, maxWidth:'100%', maxHeight:280, objectFit:'contain', display:'block', background:'var(--bg-2)', border:'1px solid var(--border-1)' }}/>
-                )}
-              </div>
-            </div>
+            <CommentRow key={s.id} s={s} currentOperator={currentOperator} last={idx === visible.length - 1}/>
           ))}
         </div>
       )}
@@ -717,10 +807,11 @@ function PostCard({ e, i, currentOperator, onDelete, onOpen, onPinChange }: { e:
             <div style={{ flex:1 }}/>
             <div style={{ display:'flex', flexDirection:'column', gap:4, alignItems:'flex-start' }}>
               <div className="sys muted" style={{ fontSize:9 }}>{t('card.author')}</div>
-              <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+              <Link href={e.operator?.callsign ? `/operators/${e.operator.callsign}` : '#'}
+                style={{ display:'flex', gap:6, alignItems:'center', textDecoration:'none', color:'inherit' }}>
                 <Avatar id={e.operator_id} src={e.operator?.avatar_url} lastSeen={e.operator?.last_seen} size={24}/>
                 <span className="sys" style={{ fontSize:10 }}>{e.operator?.callsign ?? '—'}</span>
-              </div>
+              </Link>
             </div>
           </div>
 
@@ -877,7 +968,13 @@ export function HomeClient({ entries: initialEntries, currentOperator, postCount
 
   async function handlePost(id: string) {
     const entry = await fetchEntryById(id)
-    if (entry) setEntries(prev => [{ ...(entry as Entry), reactions: {} }, ...prev])
+    if (entry) setEntries(prev => {
+      const next = [{ ...(entry as Entry), reactions: {} }, ...prev]
+      return next.sort((a, b) => {
+        if (a.priority !== b.priority) return a.priority ? -1 : 1
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      })
+    })
   }
 
   function handleDelete(id: string) {

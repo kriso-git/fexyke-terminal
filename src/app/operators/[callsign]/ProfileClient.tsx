@@ -7,7 +7,8 @@ import { Panel } from '@/components/ui/Panel'
 import { Meta } from '@/components/ui/Meta'
 import { Avatar } from '@/components/ui/Avatar'
 import { LiveTicks } from '@/components/ui/LiveTicks'
-import { createProfileSignal, updateProfile, sendFriendRequest, acceptFriendRequest, removeFriend } from '@/app/actions'
+import { createProfileSignal, updateProfile, sendFriendRequest, acceptFriendRequest, removeFriend, deleteProfileSignal, toggleProfileSignalPin, toggleProfileSignalReaction, updateInterests } from '@/app/actions'
+import { useRouter } from 'next/navigation'
 import { useI18n } from '@/hooks/useI18n'
 import { RolePresenceChip } from '@/components/ui/PresenceChip'
 import type { Operator, Entry, ProfileSignal } from '@/lib/types'
@@ -76,6 +77,116 @@ function FriendBtn({ targetId, friendship }: { targetId: string; friendship: Fri
   )
 }
 
+/* ─── Profile signal row ─── */
+function ProfileSignalRow({ s, isWallOwner, currentOperator, fmtDate, onDelete, onPinToggle }: {
+  s: ProfileSignal
+  isWallOwner: boolean
+  currentOperator: Operator | null
+  fmtDate: (iso: string) => string
+  onDelete: (id: string) => void
+  onPinToggle: (id: string, pinned: boolean) => void
+}) {
+  const [rx, setRx] = useState<Record<string,number>>(s.reactions ?? {})
+  const [userRx, setUserRx] = useState<string[]>([])
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const RX = ['👍','🔥','💀','😂','❤️']
+
+  const canDelete = isWallOwner || currentOperator?.id === s.author_id || currentOperator?.role === 'superadmin'
+
+  async function react(em: string) {
+    if (!currentOperator || pending) return
+    setPending(true); setError(null)
+    const res = await toggleProfileSignalReaction(s.id, em)
+    if (res?.error) setError(res.error)
+    if (res?.reactions) setRx(res.reactions)
+    if (res?.userReactions) setUserRx(res.userReactions)
+    setPending(false)
+  }
+
+  async function del() {
+    if (!confirm('Törlöd ezt az üzenetet?')) return
+    setPending(true)
+    const res = await deleteProfileSignal(s.id)
+    setPending(false)
+    if (res?.error) { setError(res.error); return }
+    onDelete(s.id)
+  }
+
+  async function pin() {
+    setPending(true)
+    const res = await toggleProfileSignalPin(s.id, !s.pinned)
+    setPending(false)
+    if (res?.error) { setError(res.error); return }
+    onPinToggle(s.id, !!res.pinned)
+  }
+
+  return (
+    <div className="panel" style={{
+      padding: 14, display:'grid', gridTemplateColumns:'40px 1fr', gap:12,
+      borderColor: s.pinned ? 'var(--accent)' : 'var(--border-1)',
+      boxShadow: s.pinned ? '0 0 0 1px rgba(24,233,104,.15)' : undefined,
+    }}>
+      <Link href={s.author?.callsign ? `/operators/${s.author.callsign}` : '#'} style={{ textDecoration:'none' }}>
+        <Avatar id={s.author?.id ?? s.author_id} src={s.author?.avatar_url} lastSeen={s.author?.last_seen} size={40}/>
+      </Link>
+      <div>
+        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8, flexWrap:'wrap' }}>
+          <Link href={s.author?.callsign ? `/operators/${s.author.callsign}` : '#'} className="head" style={{ fontSize:15, color: s.author?.chat_color || 'var(--ink-0)', textDecoration:'none' }}>{s.author?.callsign ?? '—'}</Link>
+          {s.pinned && <Chip kind="accent" dot style={{ fontSize:9 }}>KITŰZÖTT</Chip>}
+          <span style={{ flex:1 }}/>
+          <RolePresenceChip role={s.author?.role} lastSeen={s.author?.last_seen} fontSize={9}/>
+          <span className="sys muted" style={{ fontSize:10 }}>{fmtDate(s.created_at)}</span>
+        </div>
+        {s.text && <div style={{ color:'var(--ink-0)', fontSize:14, lineHeight:1.6, wordBreak:'break-word' }}>{s.text}</div>}
+        {s.image_url && (
+          <div style={{ marginTop:8 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={s.image_url} alt="" loading="lazy" decoding="async" style={{ maxWidth:'100%', maxHeight:360, objectFit:'contain', display:'block', background:'var(--bg-2)', border:'1px solid var(--border-1)' }}/>
+          </div>
+        )}
+        {/* Reactions */}
+        <div style={{ display:'flex', gap:5, marginTop:8, flexWrap:'wrap', alignItems:'center' }}>
+          {RX.map(em => {
+            const count = rx[em] ?? 0
+            const active = userRx.includes(em)
+            return (
+              <button key={em} onClick={() => react(em)} disabled={!currentOperator || pending}
+                style={{
+                  display:'inline-flex', alignItems:'center', gap:3, padding:'3px 8px', fontSize:13,
+                  border:`1px solid ${active ? 'var(--accent)' : 'var(--border-0)'}`,
+                  background: active ? 'var(--accent-soft)' : 'transparent',
+                  color: active ? 'var(--accent)' : 'var(--ink-2)',
+                  cursor: currentOperator ? 'pointer' : 'default',
+                }}
+              >
+                {em}{count > 0 && <span style={{ fontSize:11, fontFamily:'var(--f-sys)' }}>{count}</span>}
+              </button>
+            )
+          })}
+        </div>
+        <div style={{ display:'flex', gap:12, marginTop:8, paddingTop:8, borderTop:'1px dashed var(--border-1)', alignItems:'center', flexWrap:'wrap' }}>
+          {isWallOwner && (
+            <button onClick={pin} disabled={pending} className="sys"
+              style={{ background:'none', border:'none', color: s.pinned ? 'var(--magenta)' : 'var(--cyan)', cursor:'pointer', fontSize:10, letterSpacing:'.12em', padding:0 }}>
+              {s.pinned ? '◢ LEVESZ' : '◢ KITŰZ'}
+            </button>
+          )}
+          {canDelete && (
+            <button onClick={del} disabled={pending} className="sys"
+              style={{ background:'none', border:'none', color:'var(--red)', cursor:'pointer', fontSize:10, letterSpacing:'.12em', padding:0 }}>
+              ◢ TÖRÖL
+            </button>
+          )}
+          <span style={{ flex:1 }}/>
+          <span className="sys dim" style={{ fontSize:10 }}>MSG-{s.id.slice(-4).toUpperCase()}</span>
+        </div>
+        {error && <div style={{ marginTop:6, fontSize:10, color:'var(--red)' }}>◢ {error}</div>}
+      </div>
+    </div>
+  )
+}
+
 /* ─── PendingRow ─── */
 function PendingRow({ friendshipId, requester }: { friendshipId: string; requester: Operator }) {
   const [pending, setPending] = useState(false)
@@ -135,7 +246,7 @@ function UserSearch({ operators }: { operators: Operator[] }) {
         <div className="user-search-list">
           {results.map(o => (
             <Link key={o.id} href={`/operators/${o.callsign}`} className="user-search-item">
-              <Avatar id={o.id} size={24}/>
+              <Avatar id={o.id} src={o.avatar_url} lastSeen={o.last_seen} size={24}/>
               <span className="head" style={{ fontSize:13 }}>{o.callsign}</span>
               <span className="sys muted" style={{ fontSize:9, marginLeft:'auto' }}>LVL-0{o.level}</span>
               <span className="dot" style={{ width:6, height:6 }}/>
@@ -161,7 +272,9 @@ interface ProfileClientProps {
 }
 
 export function ProfileClient({ operator, entries, profileSignals, currentOperator, friends, pendingIn, friendship, allOperators, stats }: ProfileClientProps) {
+  const router = useRouter()
   const { t, lang } = useI18n()
+  const [signalList, setSignalList] = useState<ProfileSignal[]>(profileSignals)
   const [psError, setPsError]     = useState<string | null>(null)
   const [psPending, setPsPending] = useState(false)
   const [psDone, setPsDone]       = useState(false)
@@ -172,6 +285,8 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
 
   const [isEditing, setIsEditing]   = useState(false)
   const [bioEdit, setBioEdit]       = useState('')
+  const [interestsEdit, setInterestsEdit] = useState<string[]>([])
+  const [interestInput, setInterestInput] = useState('')
   const [editPending, setEditPending] = useState(false)
   const [editError, setEditError]   = useState<string | null>(null)
   const [editDone, setEditDone]     = useState(false)
@@ -181,7 +296,11 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
   if (!operator) return <div className="shell" style={{ padding:'80px 20px', textAlign:'center' }}><div className="sys muted">Felhasználó nem található.</div></div>
 
   const op    = operator
-  const sigs  = profileSignals
+  const sortedSigs = [...signalList].sort((a, b) => {
+    if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  })
+  const sigs  = sortedSigs
   const isSelf = currentOperator?.id === op.id
   const roleLabel = op.role === 'superadmin' ? t('profile.role_super') : op.role === 'admin' ? t('profile.role_admin') : t('profile.role_user')
 
@@ -233,9 +352,13 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
     setEditPending(true); setEditError(null)
     const fd = new FormData()
     fd.set('bio', bioEdit)
-    const res = await updateProfile(fd)
-    if (res?.error) { setEditError(res.error); setEditPending(false) }
-    else { setEditDone(true); setEditPending(false); setIsEditing(false); setTimeout(() => setEditDone(false), 2000) }
+    const profileRes = await updateProfile(fd)
+    if (profileRes?.error) { setEditError(profileRes.error); setEditPending(false); return }
+    const intRes = await updateInterests(interestsEdit)
+    if (intRes?.error) { setEditError(intRes.error); setEditPending(false); return }
+    setEditDone(true); setEditPending(false); setIsEditing(false)
+    setTimeout(() => setEditDone(false), 2000)
+    router.refresh()
   }
 
   async function handleAvatarUpload(ev: React.ChangeEvent<HTMLInputElement>) {
@@ -325,7 +448,7 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
           <div style={{ display:'flex', gap:8, marginTop:18, flexWrap:'wrap', alignItems:'center' }}>
             <FriendBtn targetId={op.id} friendship={friendship}/>
             {isSelf && !isEditing && (
-              <button className="btn" onClick={() => { setBioEdit(op.bio ?? ''); setIsEditing(true) }}>
+              <button className="btn" onClick={() => { setBioEdit(op.bio ?? ''); setInterestsEdit(op.interests ?? []); setIsEditing(true) }}>
                 {t('profile.edit')}
               </button>
             )}
@@ -339,6 +462,57 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
                 rows={4}
                 placeholder={t('profile.bio_ph')}
               />
+
+              {/* Interests editor */}
+              <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                <span className="sys muted" style={{ fontSize:10 }}>◢ {t('profile.topics')} (max 12)</span>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                  {interestsEdit.length === 0 && (
+                    <span className="sys muted" style={{ fontSize:11 }}>Még nincs címke. Adj hozzá lentebb.</span>
+                  )}
+                  {interestsEdit.map(tag => (
+                    <span key={tag} className="chip chip-cyan" style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'4px 8px' }}>
+                      {tag}
+                      <button type="button" onClick={() => setInterestsEdit(prev => prev.filter(x => x !== tag))}
+                        style={{ background:'none', border:'none', color:'var(--red)', cursor:'pointer', fontSize:12, padding:0, marginLeft:2 }}
+                        aria-label={`${tag} törlés`}
+                      >✕</button>
+                    </span>
+                  ))}
+                </div>
+                <div style={{ display:'flex', gap:6 }}>
+                  <input
+                    className="input"
+                    placeholder="#új címke"
+                    value={interestInput}
+                    onChange={e => setInterestInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ',') {
+                        e.preventDefault()
+                        const v = interestInput.trim().replace(/^#+/, '').toLowerCase()
+                        if (!v) return
+                        const tag = `#${v}`
+                        if (interestsEdit.length >= 12) return
+                        if (!interestsEdit.includes(tag)) setInterestsEdit(prev => [...prev, tag])
+                        setInterestInput('')
+                      }
+                    }}
+                    style={{ flex:1, fontSize:12 }}
+                  />
+                  <button type="button" className="btn btn-ghost btn-sm"
+                    disabled={!interestInput.trim() || interestsEdit.length >= 12}
+                    onClick={() => {
+                      const v = interestInput.trim().replace(/^#+/, '').toLowerCase()
+                      if (!v) return
+                      const tag = `#${v}`
+                      if (interestsEdit.length >= 12) return
+                      if (!interestsEdit.includes(tag)) setInterestsEdit(prev => [...prev, tag])
+                      setInterestInput('')
+                    }}
+                  >+ HOZZÁAD</button>
+                </div>
+              </div>
+
               {editError && <div style={{ padding:'6px 10px', background:'rgba(255,58,58,.1)', border:'1px solid var(--red)', color:'var(--red)', fontFamily:'var(--f-sys)', fontSize:11 }}>◢ {editError}</div>}
               {editDone  && <div style={{ padding:'6px 10px', background:'rgba(24,233,104,.1)', border:'1px solid var(--accent)', color:'var(--accent)', fontFamily:'var(--f-sys)', fontSize:11 }}>{t('profile.saved')}</div>}
               <div style={{ display:'flex', gap:8 }}>
@@ -407,9 +581,10 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
 
           <Panel tag="◢ TÉMÁK" title={t('profile.topics')}>
             <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
-              {['#protokoll','#memória','#rács','#ops','#archívum'].map(s => (
-                <Chip key={s} kind="cyan">{s}</Chip>
-              ))}
+              {(op.interests && op.interests.length > 0)
+                ? op.interests.map(s => <Chip key={s} kind="cyan">{s}</Chip>)
+                : <span className="sys muted" style={{ fontSize:11 }}>Még nincs megadva.</span>
+              }
             </div>
           </Panel>
 
@@ -502,30 +677,15 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
                 <div className="sys muted" style={{ fontSize:12 }}>Még nincsenek üzenetek a falon.</div>
               </div>
             ) : sigs.map(s => (
-              <div key={s.id} className="panel" style={{ padding:14, display:'grid', gridTemplateColumns:'40px 1fr', gap:12 }}>
-                <Link href={s.author?.callsign ? `/operators/${s.author.callsign}` : '#'} style={{ textDecoration:'none' }}>
-                  <Avatar id={s.author?.id ?? s.author_id} src={s.author?.avatar_url} lastSeen={s.author?.last_seen} size={40}/>
-                </Link>
-                <div>
-                  <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8, flexWrap:'wrap' }}>
-                    <Link href={s.author?.callsign ? `/operators/${s.author.callsign}` : '#'} className="head" style={{ fontSize:15, color: s.author?.chat_color || 'var(--ink-0)', textDecoration:'none' }}>{s.author?.callsign ?? '—'}</Link>
-                    <span style={{ flex:1 }}/>
-                    <RolePresenceChip role={s.author?.role} lastSeen={s.author?.last_seen} fontSize={9}/>
-                    <span className="sys muted" style={{ fontSize:10 }}>{fmtDate(s.created_at)}</span>
-                  </div>
-                  {s.text && <div style={{ color:'var(--ink-0)', fontSize:14, lineHeight:1.6, wordBreak:'break-word' }}>{s.text}</div>}
-                  {s.image_url && (
-                    <div style={{ marginTop:8 }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={s.image_url} alt="" loading="lazy" decoding="async" style={{ maxWidth:'100%', maxHeight:360, objectFit:'contain', display:'block', background:'var(--bg-2)', border:'1px solid var(--border-1)' }}/>
-                    </div>
-                  )}
-                  <div style={{ display:'flex', gap:12, marginTop:8, paddingTop:8, borderTop:'1px dashed var(--border-1)' }}>
-                    <span style={{ flex:1 }}/>
-                    <span className="sys dim" style={{ fontSize:10 }}>MSG-{s.id.slice(-4).toUpperCase()}</span>
-                  </div>
-                </div>
-              </div>
+              <ProfileSignalRow
+                key={s.id}
+                s={s}
+                isWallOwner={isSelf}
+                currentOperator={currentOperator}
+                fmtDate={fmtDate}
+                onDelete={(id) => setSignalList(prev => prev.filter(x => x.id !== id))}
+                onPinToggle={(id, pinned) => setSignalList(prev => prev.map(x => x.id === id ? { ...x, pinned } : x))}
+              />
             ))}
           </div>
         </div>

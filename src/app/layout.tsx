@@ -20,6 +20,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="hu">
       <body>
+        <script dangerouslySetInnerHTML={{ __html: `
+          try {
+            if (!sessionStorage.getItem('f3x_boot_seen')) {
+              document.documentElement.classList.add('booting');
+            }
+          } catch(e) {}
+        ` }}/>
         <BootScreen/>
         {children}
         <ChatWidgetMount/>

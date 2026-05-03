@@ -36,7 +36,21 @@ async function getData() {
       if (!reactionsByEntry[r.entry_id]) reactionsByEntry[r.entry_id] = {}
       reactionsByEntry[r.entry_id][r.emoji] = (reactionsByEntry[r.entry_id][r.emoji] ?? 0) + 1
     }
-    for (const s of (sigRes.data ?? []) as unknown as Signal[]) {
+
+    const sigList = (sigRes.data ?? []) as unknown as Signal[]
+    // Fetch comment reactions for all loaded signals at once
+    const sigIds = sigList.map(s => s.id)
+    const sigRxByComment: Record<string, Record<string, number>> = {}
+    if (sigIds.length > 0) {
+      const { data: srxData } = await admin.from('signal_reactions').select('signal_id, emoji').in('signal_id', sigIds)
+      for (const r of (srxData ?? []) as { signal_id: string; emoji: string }[]) {
+        if (!sigRxByComment[r.signal_id]) sigRxByComment[r.signal_id] = {}
+        sigRxByComment[r.signal_id][r.emoji] = (sigRxByComment[r.signal_id][r.emoji] ?? 0) + 1
+      }
+    }
+
+    for (const s of sigList) {
+      s.reactions = sigRxByComment[s.id] ?? {}
       const eid = s.entry_id as string
       if (!commentsByEntry[eid]) commentsByEntry[eid] = []
       commentsByEntry[eid].push(s)

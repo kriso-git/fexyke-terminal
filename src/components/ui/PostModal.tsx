@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { Chip } from '@/components/ui/Chip'
 import { Avatar } from '@/components/ui/Avatar'
 import { YouTubePlayer } from '@/components/ui/YouTubePlayer'
@@ -162,13 +163,14 @@ export function PostModal({ entryId, currentOperator, onClose }: PostModalProps)
             <h2 className="head" style={{ margin: 0, fontSize: 32, lineHeight: 1.1, color: 'var(--ink-0)' }}>{entry.title}</h2>
 
             {/* Author */}
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 14, marginBottom: 18 }}>
+            <Link href={entry.operator?.callsign ? `/operators/${entry.operator.callsign}` : '#'}
+              style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 14, marginBottom: 18, textDecoration: 'none', color: 'inherit' }}>
               <Avatar id={entry.operator_id} src={entry.operator?.avatar_url} lastSeen={entry.operator?.last_seen} size={32}/>
               <div>
                 <div className="head" style={{ fontSize: 13 }}>{entry.operator?.callsign ?? entry.operator_id}</div>
                 <div className="sys muted" style={{ fontSize: 10 }}>LVL-0{entry.operator?.level ?? 1} · {entry.reads ?? 0} olvasás</div>
               </div>
-            </div>
+            </Link>
 
             {/* Media */}
             {isVideo && entry.media_url && (
@@ -250,10 +252,12 @@ export function PostModal({ entryId, currentOperator, onClose }: PostModalProps)
                   <div className="sys muted" style={{ fontSize: 11, padding: '12px 0' }}>Még nincsenek kommentek.</div>
                 ) : signals.map(s => (
                   <div key={s.id} className="panel" style={{ padding: '10px 12px', display: 'grid', gridTemplateColumns: '32px 1fr', gap: 10 }}>
-                    <Avatar id={s.operator_id} src={s.operator?.avatar_url} lastSeen={s.operator?.last_seen} size={32}/>
+                    <Link href={s.operator?.callsign ? `/operators/${s.operator.callsign}` : '#'} style={{ textDecoration:'none' }}>
+                      <Avatar id={s.operator_id} src={s.operator?.avatar_url} lastSeen={s.operator?.last_seen} size={32}/>
+                    </Link>
                     <div>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4, flexWrap: 'wrap' }}>
-                        <span className="head" style={{ fontSize: 12 }}>{s.operator?.callsign ?? s.operator_id}</span>
+                        <Link href={s.operator?.callsign ? `/operators/${s.operator.callsign}` : '#'} className="head" style={{ fontSize: 12, color:'var(--ink-0)', textDecoration:'none' }}>{s.operator?.callsign ?? s.operator_id}</Link>
                         <RolePresenceChip role={s.operator?.role} lastSeen={s.operator?.last_seen} fontSize={9}/>
                         <span style={{ flex: 1 }}/>
                         <span className="sys muted" style={{ fontSize: 9 }}>

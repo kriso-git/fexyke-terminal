@@ -4,26 +4,26 @@ import { useState, useEffect, useCallback } from 'react'
 
 const DICT: Record<string, Record<string, string>> = {
   // Nav
-  'nav.idx': { hu:'FŐOLDAL', en:'HOME', de:'STARTSEITE', es:'INICIO', fr:'ACCUEIL', no:'HJEM', sv:'HEM' },
-  'nav.prf': { hu:'PROFIL', en:'PROFILE', de:'PROFIL', es:'PERFIL', fr:'PROFIL', no:'PROFIL', sv:'PROFIL' },
-  'nav.ctl': { hu:'ADMIN', en:'ADMIN', de:'ADMIN', es:'ADMIN', fr:'ADMIN', no:'ADMIN', sv:'ADMIN' },
-  'nav.search': { hu:'⌕ KERESÉS', en:'⌕ SEARCH', de:'⌕ SUCHE', es:'⌕ BUSCAR', fr:'⌕ RECHERCHE', no:'⌕ SØK', sv:'⌕ SÖK' },
+  'nav.idx': { hu:'FŐOLDAL', en:'HOME', de:'STARTSEITE', es:'INICIO', fr:'ACCUEIL', no:'HJEM', sv:'HEM', ua:'ГОЛОВНА', ru:'ГЛАВНАЯ' },
+  'nav.prf': { hu:'PROFIL', en:'PROFILE', de:'PROFIL', es:'PERFIL', fr:'PROFIL', no:'PROFIL', sv:'PROFIL', ua:'ПРОФІЛЬ', ru:'ПРОФИЛЬ' },
+  'nav.ctl': { hu:'ADMIN', en:'ADMIN', de:'ADMIN', es:'ADMIN', fr:'ADMIN', no:'ADMIN', sv:'ADMIN', ua:'АДМІН', ru:'АДМИН' },
+  'nav.search': { hu:'⌕ KERESÉS', en:'⌕ SEARCH', de:'⌕ SUCHE', es:'⌕ BUSCAR', fr:'⌕ RECHERCHE', no:'⌕ SØK', sv:'⌕ SÖK', ua:'⌕ ПОШУК', ru:'⌕ ПОИСК' },
 
   // TopBar / Footer
   'top.live': { hu:'◢ ÉLŐ BLOG FELÜLET · V0.1', en:'◢ LIVE BLOG · V0.1', de:'◢ LIVE BLOG · V0.1', es:'◢ BLOG EN VIVO · V0.1', fr:'◢ BLOG EN DIRECT · V0.1', no:'◢ LIVE BLOGG · V0.1', sv:'◢ LIVE BLOGG · V0.1' },
   'top.server': { hu:'SZERVER · BUD-01', en:'SERVER · BUD-01', de:'SERVER · BUD-01', es:'SERVIDOR · BUD-01', fr:'SERVEUR · BUD-01', no:'SERVER · BUD-01', sv:'SERVER · BUD-01' },
-  'top.guest': { hu:'◯ VENDÉG', en:'◯ GUEST', de:'◯ GAST', es:'◯ INVITADO', fr:'◯ INVITÉ', no:'◯ GJEST', sv:'◯ GÄST' },
-  'top.logout': { hu:'KILÉPÉS', en:'LOGOUT', de:'ABMELDEN', es:'CERRAR SESIÓN', fr:'DÉCONNEXION', no:'LOGG UT', sv:'LOGGA UT' },
+  'top.guest': { hu:'◯ VENDÉG', en:'◯ GUEST', de:'◯ GAST', es:'◯ INVITADO', fr:'◯ INVITÉ', no:'◯ GJEST', sv:'◯ GÄST', ua:'◯ ГІСТЬ', ru:'◯ ГОСТЬ' },
+  'top.logout': { hu:'KILÉPÉS', en:'LOGOUT', de:'ABMELDEN', es:'CERRAR SESIÓN', fr:'DÉCONNEXION', no:'LOGG UT', sv:'LOGGA UT', ua:'ВИЙТИ', ru:'ВЫЙТИ' },
   'top.week': { hu:'HÉT', en:'WK', de:'KW', es:'SEM', fr:'SEM', no:'UKE', sv:'V' },
-  'top.online': { hu:'ONLINE', en:'ONLINE', de:'ONLINE', es:'EN LÍNEA', fr:'EN LIGNE', no:'PÅLOGGET', sv:'ANSLUTEN' },
+  'top.online': { hu:'ONLINE', en:'ONLINE', de:'ONLINE', es:'EN LÍNEA', fr:'EN LIGNE', no:'PÅLOGGET', sv:'ANSLUTEN', ua:'ОНЛАЙН', ru:'ОНЛАЙН' },
 
   // Hero
   'hero.live': { hu:'◢ ADÁSBAN', en:'◢ LIVE', de:'◢ LIVE', es:'◢ EN VIVO', fr:'◢ EN DIRECT', no:'◢ LIVE', sv:'◢ LIVE' },
   'hero.link': { hu:'KAPCSOLAT · STABIL', en:'LINK · STABLE', de:'VERBINDUNG · STABIL', es:'CONEXIÓN · ESTABLE', fr:'LIAISON · STABLE', no:'TILKOBLING · STABIL', sv:'ANSLUTNING · STABIL' },
   'hero.platform': { hu:'F3XYKEE / BLOG FELÜLET', en:'F3XYKEE / BLOG PLATFORM', de:'F3XYKEE / BLOG-PLATTFORM', es:'F3XYKEE / PLATAFORMA BLOG', fr:'F3XYKEE / PLATEFORME BLOG', no:'F3XYKEE / BLOGGPLATTFORM', sv:'F3XYKEE / BLOGGPLATTFORM' },
   'hero.sub': { hu:'Élő blog felület — posztok, videók, kommentek.', en:'Live blog — posts, videos, comments.', de:'Live-Blog — Beiträge, Videos, Kommentare.', es:'Blog en vivo — publicaciones, videos, comentarios.', fr:'Blog en direct — publications, vidéos, commentaires.', no:'Live blogg — innlegg, videoer, kommentarer.', sv:'Live blogg — inlägg, videor, kommentarer.' },
-  'hero.enter': { hu:'◢ BELÉPÉS', en:'◢ ENTER', de:'◢ EINTRETEN', es:'◢ ENTRAR', fr:'◢ ENTRER', no:'◢ GÅ INN', sv:'◢ GÅ IN' },
-  'hero.posts': { hu:'⌕ POSZTOK', en:'⌕ POSTS', de:'⌕ BEITRÄGE', es:'⌕ PUBLICACIONES', fr:'⌕ PUBLICATIONS', no:'⌕ INNLEGG', sv:'⌕ INLÄGG' },
+  'hero.enter': { hu:'◢ BELÉPÉS', en:'◢ ENTER', de:'◢ EINTRETEN', es:'◢ ENTRAR', fr:'◢ ENTRER', no:'◢ GÅ INN', sv:'◢ GÅ IN', ua:'◢ УВІЙТИ', ru:'◢ ВОЙТИ' },
+  'hero.posts': { hu:'⌕ POSZTOK', en:'⌕ POSTS', de:'⌕ BEITRÄGE', es:'⌕ PUBLICACIONES', fr:'⌕ PUBLICATIONS', no:'⌕ INNLEGG', sv:'⌕ INLÄGG', ua:'⌕ ДОПИСИ', ru:'⌕ ПОСТЫ' },
   'hero.profile': { hu:'AKTÍV FELHASZNÁLÓ', en:'ACTIVE USER', de:'AKTIVER NUTZER', es:'USUARIO ACTIVO', fr:'UTILISATEUR ACTIF', no:'AKTIV BRUKER', sv:'AKTIV ANVÄNDARE' },
   'hero.notlogged': { hu:'NEM BEJELENTKEZETT', en:'NOT LOGGED IN', de:'NICHT ANGEMELDET', es:'NO CONECTADO', fr:'NON CONNECTÉ', no:'IKKE PÅLOGGET', sv:'INTE INLOGGAD' },
 
@@ -152,9 +152,9 @@ const DICT: Record<string, Record<string, string>> = {
   'friend.remove': { hu:'ELTÁVOLÍT', en:'REMOVE', de:'ENTFERNEN', es:'ELIMINAR', fr:'RETIRER', no:'FJERN', sv:'TA BORT' },
 
   // Auth
-  'auth.login': { hu:'BELÉPÉS', en:'LOGIN', de:'ANMELDEN', es:'INICIAR SESIÓN', fr:'CONNEXION', no:'LOGG INN', sv:'LOGGA IN' },
-  'auth.register': { hu:'REGISZTRÁCIÓ', en:'REGISTER', de:'REGISTRIEREN', es:'REGISTRARSE', fr:'INSCRIPTION', no:'REGISTRER', sv:'REGISTRERA' },
-  'auth.recovery': { hu:'JELSZÓ VISSZAÁLLÍTÁS', en:'PASSWORD RECOVERY', de:'PASSWORT WIEDERHERSTELLEN', es:'RECUPERAR CONTRASEÑA', fr:'RÉCUP. MOT DE PASSE', no:'GLEMT PASSORD', sv:'ÅTERSTÄLL LÖSENORD' },
+  'auth.login': { hu:'BELÉPÉS', en:'LOGIN', de:'ANMELDEN', es:'INICIAR SESIÓN', fr:'CONNEXION', no:'LOGG INN', sv:'LOGGA IN', ua:'УВІЙТИ', ru:'ВХОД' },
+  'auth.register': { hu:'REGISZTRÁCIÓ', en:'REGISTER', de:'REGISTRIEREN', es:'REGISTRARSE', fr:'INSCRIPTION', no:'REGISTRER', sv:'REGISTRERA', ua:'РЕЄСТРАЦІЯ', ru:'РЕГИСТРАЦИЯ' },
+  'auth.recovery': { hu:'JELSZÓ VISSZAÁLLÍTÁS', en:'PASSWORD RECOVERY', de:'PASSWORT WIEDERHERSTELLEN', es:'RECUPERAR CONTRASEÑA', fr:'RÉCUP. MOT DE PASSE', no:'GLEMT PASSORD', sv:'ÅTERSTÄLL LÖSENORD', ua:'ВІДНОВИТИ ПАРОЛЬ', ru:'ВОССТАНОВИТЬ ПАРОЛЬ' },
   'auth.username': { hu:'◢ FELHASZNÁLÓNÉV', en:'◢ USERNAME', de:'◢ BENUTZERNAME', es:'◢ NOMBRE', fr:'◢ NOM D\'UTILISATEUR', no:'◢ BRUKERNAVN', sv:'◢ ANVÄNDARNAMN' },
   'auth.password': { hu:'◢ JELSZÓ', en:'◢ PASSWORD', de:'◢ PASSWORT', es:'◢ CONTRASEÑA', fr:'◢ MOT DE PASSE', no:'◢ PASSORD', sv:'◢ LÖSENORD' },
   'auth.password_confirm': { hu:'◢ JELSZÓ MEGERŐSÍTÉSE', en:'◢ CONFIRM PASSWORD', de:'◢ PASSWORT BESTÄTIGEN', es:'◢ CONFIRMAR CONTRASEÑA', fr:'◢ CONFIRMER MOT DE PASSE', no:'◢ BEKREFT PASSORD', sv:'◢ BEKRÄFTA LÖSENORD' },
@@ -178,10 +178,10 @@ const DICT: Record<string, Record<string, string>> = {
   'lang.label': { hu:'NYELV', en:'LANG', de:'SPRACHE', es:'IDIOMA', fr:'LANGUE', no:'SPRÅK', sv:'SPRÅK' },
 }
 
-export const LANGS = ['hu', 'en', 'de', 'es', 'fr', 'no', 'sv'] as const
+export const LANGS = ['hu', 'en', 'de', 'es', 'fr', 'no', 'sv', 'ua', 'ru'] as const
 export type Lang = typeof LANGS[number]
 
-const LANG_LABELS: Record<Lang, string> = { hu: 'HU', en: 'EN', de: 'DE', es: 'ES', fr: 'FR', no: 'NO', sv: 'SV' }
+const LANG_LABELS: Record<Lang, string> = { hu: 'HU', en: 'EN', de: 'DE', es: 'ES', fr: 'FR', no: 'NO', sv: 'SV', ua: 'UA', ru: 'RU' }
 
 let globalLang: Lang = 'hu'
 const listeners = new Set<() => void>()
@@ -210,7 +210,9 @@ export function useI18n() {
   }, [])
 
   const t = useCallback((key: string): string => {
-    return DICT[key]?.[lang] ?? DICT[key]?.['hu'] ?? key
+    const entry = DICT[key]
+    if (!entry) return key
+    return entry[lang] ?? entry['en'] ?? entry['hu'] ?? key
   }, [lang])
 
   return { t, lang, setLang, LANGS, LANG_LABELS }

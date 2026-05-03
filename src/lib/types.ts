@@ -14,6 +14,7 @@ export interface Operator {
   xp?: number
   last_seen?: string | null
   chat_color?: string | null
+  interests?: string[]
   created_at: string
 }
 
@@ -80,6 +81,7 @@ export interface Signal {
   created_at: string
   operator?: Operator
   children?: Signal[]
+  reactions?: Record<string, number>
 }
 
 export interface Thread {
@@ -96,8 +98,10 @@ export interface ProfileSignal {
   text: string | null
   image_url?: string | null
   verified: boolean
+  pinned?: boolean
   created_at: string
   author?: Operator
+  reactions?: Record<string, number>
 }
 
 export type Database = {

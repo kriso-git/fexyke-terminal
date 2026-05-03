@@ -6,8 +6,8 @@ export function LangBar() {
   const { lang, setLang, LANGS } = useI18n()
   return (
     <div style={{
-      display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 4,
-      padding: '8px 24px',
+      display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 4, flexWrap: 'wrap',
+      padding: '8px 96px 8px 24px',
       borderBottom: '1px solid var(--border-1)',
       background: 'var(--bg-1)',
     }}>

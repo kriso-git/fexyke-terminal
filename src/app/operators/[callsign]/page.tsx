@@ -21,7 +21,7 @@ async function getData(callsign: string) {
   const admin = createAdminClient()
   const [entriesRes, signalsRes, friendsRes, pendingInRes, allOpsRes] = await Promise.all([
     admin.from('entries').select('*').eq('operator_id', opId).order('created_at', { ascending: false }).limit(20),
-    admin.from('profile_signals').select('*, author:operators!author_id(*)').eq('target_id', opId).order('created_at', { ascending: false }),
+    admin.from('profile_signals').select('*, author:operators!author_id(*)').eq('target_id', opId).order('pinned', { ascending: false }).order('created_at', { ascending: false }),
     admin.from('friendships')
       .select('id, requester_id, addressee_id, status, requester:operators!requester_id(*), addressee:operators!addressee_id(*)')
       .or(`requester_id.eq.${opId},addressee_id.eq.${opId}`)
@@ -56,10 +56,22 @@ async function getData(callsign: string) {
     id: p.id, requester: p.requester,
   }))
 
+  const profileSignals = (signalsRes.data ?? []) as ProfileSignal[]
+  const psIds = profileSignals.map(s => s.id)
+  if (psIds.length > 0) {
+    const { data: psrx } = await admin.from('profile_signal_reactions').select('signal_id, emoji').in('signal_id', psIds)
+    const byId: Record<string, Record<string, number>> = {}
+    for (const r of (psrx ?? []) as { signal_id: string; emoji: string }[]) {
+      if (!byId[r.signal_id]) byId[r.signal_id] = {}
+      byId[r.signal_id][r.emoji] = (byId[r.signal_id][r.emoji] ?? 0) + 1
+    }
+    for (const s of profileSignals) s.reactions = byId[s.id] ?? {}
+  }
+
   return {
     operator: op as Operator,
     entries: (entriesRes.data ?? []) as Entry[],
-    profileSignals: (signalsRes.data ?? []) as ProfileSignal[],
+    profileSignals,
     friends,
     pendingIn,
     allOperators: (allOpsRes.data ?? []) as Operator[],

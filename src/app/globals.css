@@ -289,7 +289,8 @@ textarea.input { resize:vertical; }
 .gate-tile::before { content:''; position:absolute; top:-1px; left:-1px; width:14px; height:14px; border-top:1px solid var(--accent); border-left:1px solid var(--accent); pointer-events:none; }
 .gate-tile::after  { content:''; position:absolute; bottom:-1px; right:-1px; width:14px; height:14px; border-bottom:1px solid var(--accent); border-right:1px solid var(--accent); pointer-events:none; }
 .gate-tile-stack { display:flex; flex-direction:column; gap:14px; }
-.r-form    { display:grid; grid-template-columns:1fr 220px; gap:16px; }
+.r-form    { display:grid; grid-template-columns:1fr 220px; gap:16px; align-items:stretch; }
+.r-form > * { min-height:0; }
 .r-detail  { display:grid; grid-template-columns:1fr 340px; gap:28px; padding:28px 0; border-bottom:1px solid var(--border-1); }
 .r-detail-header { display:grid; grid-template-columns:1fr 340px; gap:24px; padding:36px 0 28px; border-bottom:1px solid var(--border-1); }
 .r-4col    { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
@@ -485,30 +486,26 @@ textarea.input { resize:vertical; }
   .admin-row-posts     { grid-template-columns: 1fr !important; }
   .control-tabs-row    { overflow-x: auto; }
 
-  /* Hero cube on phone: small floating top-right corner, doesn't block */
+  /* Hero cube on phone: inline next to POSZTOK button, between lang picker and profile panel */
   .hero-cube-slot {
-    position: fixed !important;
-    top: 88px !important;
-    right: 10px !important;
-    margin: 0 !important;
-    z-index: 7000;
-    pointer-events: none;
+    position: static !important;
+    margin: 0 0 0 auto !important;
+    align-self: center !important;
   }
   .hero-cube-slot .hero-cube-scene {
-    width: 64px !important;
-    height: 64px !important;
-    perspective: 240px !important;
-    pointer-events: auto;
-    opacity: .75;
+    width: 70px !important;
+    height: 70px !important;
+    perspective: 260px !important;
+    opacity: .9;
   }
   .hero-cube-slot .hero-cube,
-  .hero-cube-slot .hero-cube-face { width: 64px !important; height: 64px !important; }
-  .hero-cube-slot .hero-cube-face.front  { transform: translateZ(32px) !important; }
-  .hero-cube-slot .hero-cube-face.back   { transform: translateZ(-32px) rotateY(180deg) !important; }
-  .hero-cube-slot .hero-cube-face.right  { transform: rotateY(90deg) translateZ(32px) !important; }
-  .hero-cube-slot .hero-cube-face.left   { transform: rotateY(-90deg) translateZ(32px) !important; }
-  .hero-cube-slot .hero-cube-face.top    { transform: rotateX(90deg) translateZ(32px) !important; }
-  .hero-cube-slot .hero-cube-face.bottom { transform: rotateX(-90deg) translateZ(32px) !important; }
+  .hero-cube-slot .hero-cube-face { width: 70px !important; height: 70px !important; }
+  .hero-cube-slot .hero-cube-face.front  { transform: translateZ(35px) !important; }
+  .hero-cube-slot .hero-cube-face.back   { transform: translateZ(-35px) rotateY(180deg) !important; }
+  .hero-cube-slot .hero-cube-face.right  { transform: rotateY(90deg) translateZ(35px) !important; }
+  .hero-cube-slot .hero-cube-face.left   { transform: rotateY(-90deg) translateZ(35px) !important; }
+  .hero-cube-slot .hero-cube-face.top    { transform: rotateX(90deg) translateZ(35px) !important; }
+  .hero-cube-slot .hero-cube-face.bottom { transform: rotateX(-90deg) translateZ(35px) !important; }
 
   /* Modal padding */
   .post-modal-backdrop { padding: 12px 6px !important; align-items: flex-start !important; }
@@ -592,6 +589,10 @@ textarea.input { resize:vertical; }
 
 /* Cross-browser tap highlight */
 * { -webkit-tap-highlight-color: transparent; }
+
+/* Hide page during BootScreen so there is no flash before the overlay paints */
+html.booting body > :not(script):not(.boot-screen-overlay) { visibility: hidden; }
+html.booting body { background: #000; }
 
 /* Smoother iOS momentum scroll on overflow containers */
 .shell, .nav, .tabs, .chat-panel, .post-modal { -webkit-overflow-scrolling: touch; }
