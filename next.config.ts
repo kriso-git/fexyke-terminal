@@ -2,20 +2,15 @@ import type { NextConfig } from 'next'
 
 const SUPABASE_ORIGIN = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '')
 
-// SHA256 of the boot-state inline script in src/app/layout.tsx — kept here so we
-// can drop 'unsafe-inline' if/when Next.js stops emitting other inline scripts.
-const BOOT_SCRIPT_HASH = "'sha256-L0uH8EjeV7w4WGj8TYejYA1qDEuqKxlQ7gcLio2iXqU='"
-
-// Next.js 16 (Turbopack-built bundles, Vercel runtime injects, RSC payload
-// hydration) needs 'unsafe-eval' AND 'unsafe-inline' to actually run.
-// Removing either breaks the app on first load. The boot-script hash is kept
-// as a future stepping stone toward a strict CSP once Next ships a
-// non-eval/non-inline pipeline. https://github.com/vercel/next.js/discussions
+// IMPORTANT: do NOT add a SHA256 hash or nonce here. Per the CSP spec, when a
+// hash or nonce is present, 'unsafe-inline' is IGNORED. Next.js 16 injects
+// many different inline scripts (RSC payloads, hydration, route prefetch, …)
+// each with different content — only an 'unsafe-inline' allow-all keeps the
+// app working. This is the same posture every Next.js + Vercel deploy uses.
 const scriptSrc = [
   "'self'",
   "'unsafe-inline'",
   "'unsafe-eval'",
-  BOOT_SCRIPT_HASH,
   // Vercel platform scripts (analytics, speed insights). Harmless if unused.
   'https://vercel.live',
   'https://va.vercel-scripts.com',
