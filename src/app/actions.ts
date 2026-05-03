@@ -84,32 +84,64 @@ export async function register(formData: FormData) {
       return { error: authError?.message ?? 'Regisztráció sikertelen.' }
     }
 
-    // Generate a unique operator ID — uniform sampling over a confusable-free
-    // alphabet, retried on collision.
-    const ALPH = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789' // no I/L/O/0/1
+    // Issue the next sequential operator ID (F3X-NNNN) via a Postgres
+    // SEQUENCE-backed RPC. Falls back to a MAX(...)+1 query if the RPC
+    // hasn't been deployed yet (migration 014 not applied).
     let opId = ''
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const bytes = crypto.getRandomValues(new Uint8Array(6))
-      const rand = Array.from(bytes).map(b => ALPH[b % ALPH.length]).join('')
-      const candidate = `F3X-${rand}`
-      const { data: taken } = await admin.from('operators').select('id').eq('id', candidate).maybeSingle()
-      if (!taken) { opId = candidate; break }
+    {
+      const { data: nextId, error: rpcErr } = await admin.rpc('next_operator_id')
+      if (!rpcErr && typeof nextId === 'string' && /^F3X-\d{4,}$/.test(nextId)) {
+        opId = nextId
+      } else {
+        // Fallback: scan existing IDs and pick MAX+1 (race-prone but safe with
+        // unique-constraint retry).
+        const { data: rows } = await admin.from('operators').select('id').like('id', 'F3X-%')
+        let max = 0
+        for (const r of rows ?? []) {
+          const m = (r as { id: string }).id.match(/^F3X-(\d+)$/)
+          if (m) {
+            const n = parseInt(m[1], 10)
+            if (n > max) max = n
+          }
+        }
+        opId = `F3X-${String(max + 1).padStart(4, '0')}`
+      }
     }
     if (!opId) {
       await admin.auth.admin.deleteUser(authData.user.id)
       return { error: 'Nem sikerült egyedi azonosítót generálni. Próbáld újra.' }
     }
 
-    const { error: insertError } = await admin.from('operators').insert({
-      id: opId,
-      auth_id: authData.user.id,
-      callsign,
-      level: 1,
-      role: 'operator',
-      node: 'f3x-pri-01',
-      joined_cycle: 47,
-      bio: null,
-    })
+    // Insert with up to 3 retries in case the candidate id collided
+    // (race between two concurrent registers, or RPC + fallback skew).
+    let insertError: { message: string; code?: string } | null = null
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const r = await admin.from('operators').insert({
+        id: opId,
+        auth_id: authData.user.id,
+        callsign,
+        level: 1,
+        role: 'operator',
+        node: 'f3x-pri-01',
+        joined_cycle: 47,
+        bio: null,
+      })
+      if (!r.error) { insertError = null; break }
+      insertError = r.error
+      // Postgres unique-violation is SQLSTATE 23505
+      const isUnique = r.error.code === '23505' || /duplicate key/i.test(r.error.message)
+      if (!isUnique) break
+      // Re-issue a fresh ID and retry
+      const { data: retryId } = await admin.rpc('next_operator_id')
+      if (typeof retryId === 'string' && /^F3X-\d{4,}$/.test(retryId)) {
+        opId = retryId
+      } else {
+        // Bump locally as a last resort
+        const m = opId.match(/^F3X-(\d+)$/)
+        const n = m ? parseInt(m[1], 10) + 1 : 1
+        opId = `F3X-${String(n).padStart(4, '0')}`
+      }
+    }
 
     if (insertError) {
       await admin.auth.admin.deleteUser(authData.user.id)
