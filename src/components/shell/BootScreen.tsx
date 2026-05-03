@@ -127,6 +127,22 @@ export function BootScreen() {
         )}
       </div>
 
+      {/* Courage the Cowardly Dog dancing — bottom-right mascot */}
+      <div aria-hidden style={{
+        position: 'absolute', bottom: 44, right: 20,
+        width: 140, height: 140,
+        pointerEvents: 'none',
+        opacity: .92,
+        filter: 'drop-shadow(0 0 10px rgba(24,233,104,.25))',
+      }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/assets/courage-dance.gif"
+          alt=""
+          style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+        />
+      </div>
+
       <div aria-hidden style={{
         position: 'absolute', bottom: 16, right: 20,
         fontSize: 10, color: 'var(--ink-3)', letterSpacing: '.18em',

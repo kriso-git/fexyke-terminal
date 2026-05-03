@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Avatar } from '@/components/ui/Avatar'
 import {
   sendMessage, getConversation, getMyFriends, getUnreadCount, updateChatColor,
+  listShareableEntries, getEntryPreview,
 } from '@/app/actions'
 import type { Message, Operator } from '@/lib/types'
 
@@ -47,6 +48,9 @@ export function ChatWidget({ currentOperator }: ChatWidgetProps) {
   const [uploading, setUploading] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [myColor, setMyColor]     = useState<string | null>(currentOperator?.chat_color ?? null)
+  const [showPostPicker, setShowPostPicker] = useState(false)
+  const [shareEntries, setShareEntries] = useState<{ id: string; title: string; kind: string; media_type: string | null }[]>([])
+  const [shareLoading, setShareLoading] = useState(false)
   const scrollRef                 = useRef<HTMLDivElement>(null)
   const fileInputRef              = useRef<HTMLInputElement>(null)
   const inputRef                  = useRef<HTMLInputElement>(null)
@@ -126,6 +130,31 @@ export function ChatWidget({ currentOperator }: ChatWidgetProps) {
     }
     setSending(false)
     inputRef.current?.focus()
+  }
+
+  async function openPostPicker() {
+    setShowPostPicker(s => !s)
+    if (shareEntries.length > 0) return
+    setShareLoading(true)
+    try {
+      const res = await listShareableEntries()
+      setShareEntries(res.entries)
+    } finally {
+      setShareLoading(false)
+    }
+  }
+
+  async function sharePost(entryId: string, title: string) {
+    if (!activeId) return
+    setShowPostPicker(false)
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    const text = `${title}\n${origin}/?post=${entryId}`
+    setSending(true)
+    setError(null)
+    const res = await sendMessage(activeId, text, null)
+    if (res.error) setError(res.error)
+    else if (res.message) setMessages(prev => [...prev, res.message as Message])
+    setSending(false)
   }
 
   async function handleImageUpload(file: File) {
@@ -322,7 +351,7 @@ export function ChatWidget({ currentOperator }: ChatWidgetProps) {
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={m.image_url} alt="kép" style={{ maxWidth: '100%', maxHeight: 220, display: 'block' }} loading="lazy"/>
                     )}
-                    {m.text && <div style={{ padding: m.image_url ? '6px 4px 0' : 0, whiteSpace: 'pre-wrap' }}>{m.text}</div>}
+                    {m.text && <MessageBody text={m.text} hasImage={!!m.image_url}/>}
                     <div style={{
                       fontSize: 11, marginTop: 4,
                       padding: m.image_url ? '0 4px 4px' : 0,
@@ -361,6 +390,33 @@ export function ChatWidget({ currentOperator }: ChatWidgetProps) {
             </div>
           )}
 
+          {/* Post picker */}
+          {showPostPicker && (
+            <div style={{ borderTop: '1px solid var(--border-1)', background: 'var(--bg-2)', padding: 6, maxHeight: 200, overflow: 'auto' }}>
+              <div className="sys muted" style={{ fontSize: 9, padding: '4px 6px', letterSpacing: '.12em' }}>◢ POSZT KIVÁLASZTÁSA</div>
+              {shareLoading && <div className="sys muted" style={{ fontSize: 11, padding: 8 }}>Betöltés…</div>}
+              {!shareLoading && shareEntries.length === 0 && (
+                <div className="sys muted" style={{ fontSize: 11, padding: 8 }}>Nincs megosztható poszt.</div>
+              )}
+              {shareEntries.map(en => (
+                <button key={en.id} type="button" onClick={() => sharePost(en.id, en.title)}
+                  style={{
+                    display: 'block', width: '100%', textAlign: 'left',
+                    padding: '6px 8px', marginBottom: 2,
+                    background: 'transparent', border: '1px solid var(--border-0)',
+                    color: 'var(--ink-1)', cursor: 'pointer',
+                    fontFamily: 'var(--f-body)', fontSize: 12,
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-1)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                >
+                  <div className="mono muted" style={{ fontSize: 9 }}>{en.id}</div>
+                  <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{en.title}</div>
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Composer */}
           <form onSubmit={(e) => send(e)} style={{
             display: 'flex', gap: 6, padding: '8px 10px',
@@ -379,6 +435,11 @@ export function ChatWidget({ currentOperator }: ChatWidgetProps) {
             <button type="button" onClick={() => setShowEmoji(s => !s)}
               className="btn btn-ghost btn-sm" title="Emoji"
               style={{ padding: '4px 8px', minHeight: 0, fontSize: 14 }}>😀</button>
+
+            <button type="button" onClick={openPostPicker}
+              className="btn btn-ghost btn-sm" title="Poszt küldése"
+              disabled={sending}
+              style={{ padding: '4px 8px', minHeight: 0, fontSize: 14 }}>📌</button>
 
             <input
               ref={inputRef}
@@ -400,5 +461,98 @@ export function ChatWidget({ currentOperator }: ChatWidgetProps) {
         </>
       )}
     </div>
+  )
+}
+
+/* ─── Message body with post-link preview ─── */
+
+const POST_URL_RE = /\/\?post=(LOG-[A-Z0-9]{1,20})/
+
+function MessageBody({ text, hasImage }: { text: string; hasImage: boolean }) {
+  const m = text.match(POST_URL_RE)
+  const padding = hasImage ? '6px 4px 0' : 0
+  if (!m) {
+    return <div style={{ padding, whiteSpace: 'pre-wrap' }}>{text}</div>
+  }
+  const entryId = m[1]
+  // Strip the URL from the visible text — render the surrounding text + a preview card
+  const without = text.replace(m[0], '').trim()
+  return (
+    <div style={{ padding }}>
+      {without && <div style={{ whiteSpace: 'pre-wrap', marginBottom: 6 }}>{without}</div>}
+      <PostLinkPreview entryId={entryId}/>
+    </div>
+  )
+}
+
+function PostLinkPreview({ entryId }: { entryId: string }) {
+  const [preview, setPreview] = useState<{ title: string; excerpt: string | null; author: string } | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      const { entry } = await getEntryPreview(entryId)
+      if (cancelled) return
+      if (entry) {
+        // operator can be array or single object depending on join shape
+        const opRaw = (entry as { operator: { callsign?: string } | { callsign?: string }[] | null }).operator
+        const op = Array.isArray(opRaw) ? opRaw[0] : opRaw
+        setPreview({
+          title: (entry as { title: string }).title,
+          excerpt: ((entry as { excerpt: string | null }).excerpt) ?? null,
+          author: op?.callsign ?? '—',
+        })
+      }
+      setLoading(false)
+    }
+    load()
+    return () => { cancelled = true }
+  }, [entryId])
+
+  function open() {
+    if (typeof window === 'undefined') return
+    window.location.href = `/?post=${entryId}`
+  }
+
+  if (loading) {
+    return (
+      <div className="sys muted" style={{
+        padding: '8px 10px', border: '1px solid var(--border-1)',
+        background: 'var(--bg-1)', fontSize: 10,
+      }}>◢ POSZT BETÖLTÉSE…</div>
+    )
+  }
+  if (!preview) {
+    return (
+      <a href={`/?post=${entryId}`} className="sys" style={{
+        display: 'block', padding: '8px 10px', border: '1px solid var(--border-1)',
+        background: 'var(--bg-1)', fontSize: 10, color: 'var(--accent)',
+        textDecoration: 'none', wordBreak: 'break-all',
+      }}>↗ /?post={entryId}</a>
+    )
+  }
+  return (
+    <button type="button" onClick={open} style={{
+      display: 'block', width: '100%', textAlign: 'left',
+      padding: '8px 10px',
+      border: '1px solid var(--accent)',
+      background: 'var(--accent-soft)',
+      color: 'var(--ink-0)', cursor: 'pointer',
+      fontFamily: 'var(--f-body)',
+    }}>
+      <div className="sys" style={{ fontSize: 9, color: 'var(--accent)', letterSpacing: '.12em', marginBottom: 4 }}>
+        ◢ POSZT · {entryId}
+      </div>
+      <div className="head" style={{ fontSize: 13, lineHeight: 1.3, marginBottom: 4 }}>{preview.title}</div>
+      {preview.excerpt && (
+        <div style={{ fontSize: 11, color: 'var(--ink-2)', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const }}>
+          {preview.excerpt}
+        </div>
+      )}
+      <div className="sys muted" style={{ fontSize: 9, marginTop: 4, letterSpacing: '.1em' }}>
+        ◢ {preview.author} · MEGNYITÁS ↗
+      </div>
+    </button>
   )
 }

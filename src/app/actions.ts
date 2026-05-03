@@ -820,6 +820,41 @@ export async function getUnreadCount() {
   }
 }
 
+/* ─── Post-share preview helpers (used by DM composer) ─── */
+
+export async function listShareableEntries() {
+  try {
+    const op = await getCurrentOperator()
+    if (!op) return { entries: [] }
+    const admin = createAdminClient()
+    const { data } = await admin
+      .from('entries')
+      .select('id, title, kind, media_type')
+      .neq('status', 'draft')
+      .order('created_at', { ascending: false })
+      .limit(30)
+    return { entries: (data ?? []) as { id: string; title: string; kind: string; media_type: string | null }[] }
+  } catch {
+    return { entries: [] }
+  }
+}
+
+export async function getEntryPreview(entryId: string) {
+  try {
+    try { assertEntryId(entryId) } catch { return { entry: null } }
+    const admin = createAdminClient()
+    const { data } = await admin
+      .from('entries')
+      .select('id, title, excerpt, kind, media_type, media_url, media_label, operator_id, operator:operators!operator_id(id, callsign, avatar_url)')
+      .eq('id', entryId)
+      .neq('status', 'draft')
+      .maybeSingle()
+    return { entry: data ?? null }
+  } catch {
+    return { entry: null }
+  }
+}
+
 /* ─── Reads counter ─── */
 
 export async function incrementReads(entryId: string) {

@@ -528,7 +528,7 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
         </div>
 
         {/* Stats */}
-        <Panel tag={t('profile.stats')} title={t('profile.metrics')} className="panel-raised">
+        <Panel tag={t('profile.stats')} title={t('profile.stats_title')} className="panel-raised">
           {(() => {
             const xp = op.xp ?? 0
             const lvl = Math.min(10, Math.max(1, 1 + Math.floor(xp / 100)))
@@ -554,7 +554,13 @@ export function ProfileClient({ operator, entries, profileSignals, currentOperat
             )
           })()}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-            {[[t('profile.posts'), entries.length], [t('profile.friend_count'), friends.length], [t('card.likes'), stats.likes], [t('profile.readers'), stats.reads], [t('profile.comments'), stats.comments], [t('profile.month'), op.joined_cycle ?? 0]].map(([k,v]) => (
+            {[
+              [t('profile.posts'),         entries.length],
+              [t('profile.friend_count'),  friends.length],
+              [t('card.likes'),            stats.likes],
+              [t('profile.readers'),       stats.reads],
+              [t('profile.comments'),      stats.comments],
+            ].map(([k, v]) => (
               <div key={String(k)} className="panel" style={{ padding:'8px 10px', background:'transparent' }}>
                 <div className="sys muted" style={{ fontSize:9 }}>{k}</div>
                 <div className="head" style={{ fontSize:22, color:'var(--accent)' }}>{v}</div>

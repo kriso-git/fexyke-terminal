@@ -673,6 +673,18 @@ html.booting body { background: #000; }
 /* Smoother iOS momentum scroll on overflow containers */
 .shell, .nav, .tabs, .chat-panel, .post-modal { -webkit-overflow-scrolling: touch; }
 
+/* Tisza easter-egg button (bottom-right on home page) */
+.tisza-egg:hover { opacity: .9 !important; transform: scale(1.08); }
+.tisza-egg-playing { animation: tiszaPulse 1.4s ease-in-out infinite; }
+@keyframes tiszaPulse {
+  0%, 100% { filter: drop-shadow(0 0 8px var(--accent)); transform: scale(1); }
+  50%       { filter: drop-shadow(0 0 20px var(--accent)); transform: scale(1.06); }
+}
+@media (max-width: 768px) {
+  .tisza-egg { bottom: 70px !important; right: 12px !important; }
+  .tisza-egg img { width: 48px !important; }
+}
+
 @media (max-width: 480px) {
   .shell { padding: 0 12px; }
   .r-4col    { grid-template-columns: 1fr 1fr; }

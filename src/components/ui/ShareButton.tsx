@@ -4,14 +4,14 @@ import { useState } from 'react'
 import { useI18n } from '@/hooks/useI18n'
 
 interface ShareButtonProps {
-  url: string          // absolute or relative; absolutized at click time
-  title?: string
-  text?: string
+  url: string                    // absolute or relative; absolutized at click time
+  title?: string                 // unused now — kept for API compatibility with existing callers
+  text?: string                  // unused now — kept for API compatibility
   size?: 'sm' | 'md'
   variant?: 'icon' | 'button'
 }
 
-export function ShareButton({ url, title, text, size = 'sm', variant = 'icon' }: ShareButtonProps) {
+export function ShareButton({ url, size = 'sm', variant = 'icon' }: ShareButtonProps) {
   const { t } = useI18n()
   const [copied, setCopied] = useState(false)
 
@@ -19,18 +19,10 @@ export function ShareButton({ url, title, text, size = 'sm', variant = 'icon' }:
     const absolute = url.startsWith('http')
       ? url
       : (typeof window !== 'undefined' ? window.location.origin + url : url)
-    try {
-      if (typeof navigator !== 'undefined' && (navigator as Navigator & { share?: (data: ShareData) => Promise<void> }).share) {
-        await (navigator as Navigator & { share: (data: ShareData) => Promise<void> }).share({ url: absolute, title, text })
-        return
-      }
-    } catch { /* user cancelled or unsupported — fall through to clipboard */ }
+    // Clipboard-only — no native share dialog
     try {
       await navigator.clipboard.writeText(absolute)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1800)
     } catch {
-      // Last-resort: legacy execCommand
       const ta = document.createElement('textarea')
       ta.value = absolute
       ta.style.position = 'fixed'
@@ -39,9 +31,9 @@ export function ShareButton({ url, title, text, size = 'sm', variant = 'icon' }:
       ta.select()
       try { document.execCommand('copy') } catch {}
       document.body.removeChild(ta)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1800)
     }
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1800)
   }
 
   const fs = size === 'sm' ? 10 : 11

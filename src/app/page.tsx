@@ -4,6 +4,7 @@ import { Nav } from '@/components/shell/Nav'
 import { Footer } from '@/components/shell/Footer'
 import { DataStream } from '@/components/shell/DataStream'
 import { HomeClient } from './HomeClient'
+import { TiszaEgg } from '@/components/ui/TiszaEgg'
 import type { Entry, Operator, Signal, Thread } from '@/lib/types'
 import { createAdminClient } from '@/lib/supabase-admin'
 
@@ -103,6 +104,7 @@ export default async function HomePage() {
       <Nav role={currentOperator?.role ?? null} />
       <HomeClient {...data} currentOperator={currentOperator} postCount={postCount} totalLikes={totalLikes} />
       <Footer index="001 / 005" />
+      <TiszaEgg />
     </div>
   )
 }
