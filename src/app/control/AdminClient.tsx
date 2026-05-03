@@ -226,7 +226,7 @@ function PostRow({ entry, onChange }: { entry: Entry; onChange: () => void }) {
         <Chip kind={isVideo ? 'mag' : isImage ? 'cyan' : 'dash'} style={{ fontSize: 9 }}>{kindLabel}</Chip>
         <span className="head" style={{ fontSize: 13, color: 'var(--ink-0)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {entry.title}
-          {entry.priority && <Chip kind="accent" dot style={{ marginLeft: 8, fontSize: 9 }}>KIEMELT</Chip>}
+          {entry.priority && <Chip kind="accent" dot style={{ marginLeft: 8, fontSize: 9 }}>KITŰZÖTT</Chip>}
         </span>
         <span className="sys muted" style={{ fontSize: 10 }}>{entry.operator?.callsign ?? entry.operator_id}</span>
         <span className="mono muted" style={{ fontSize: 10 }}>{fmtDate(entry.created_at)}</span>
@@ -293,7 +293,7 @@ export function AdminClient({ operators, entries, currentOperator }: AdminClient
     .slice(0, 30)
     .map(e => ({
       ts: new Date(e.created_at).toLocaleString('hu-HU', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
-      level: e.priority ? 'KIEMELT' : 'INFO',
+      level: e.priority ? 'KITŰZÖTT' : 'INFO',
       actor: e.operator?.callsign ?? e.operator_id,
       msg: `Poszt publikálva · ${e.id} · "${e.title.slice(0, 60)}${e.title.length > 60 ? '…' : ''}"`,
     }))
@@ -421,7 +421,7 @@ export function AdminClient({ operators, entries, currentOperator }: AdminClient
               {logEntries.length === 0 ? (
                 <div className="sys muted" style={{ padding: 16, fontSize: 11 }}>Nincs esemény.</div>
               ) : logEntries.map((r, i, a) => {
-                const c = r.level === 'KIEMELT' ? 'var(--magenta)' : 'var(--accent)'
+                const c = r.level === 'KITŰZÖTT' ? 'var(--magenta)' : 'var(--accent)'
                 return (
                   <div key={i} style={{ display: 'grid', gridTemplateColumns: '110px 90px 110px 1fr', gap: 12, padding: '8px 14px', borderBottom: i < a.length - 1 ? '1px solid var(--border-0)' : 'none', alignItems: 'center' }}>
                     <span style={{ color: 'var(--ink-3)' }}>{r.ts}</span>
