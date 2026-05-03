@@ -45,8 +45,8 @@ export function TiszaEgg() {
         // Past the 48px-wide DataStream sidebar on the left
         left: 64,
         zIndex: 7000,
-        width: 88,
-        height: 88,
+        width: 68,
+        height: 68,
         padding: 0,
         background: 'none',
         border: 'none',
