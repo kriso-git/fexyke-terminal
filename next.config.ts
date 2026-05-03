@@ -4,7 +4,7 @@ const SUPABASE_ORIGIN = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/
 
 // SHA256 of the boot-state inline script in src/app/layout.tsx — kept here so we
 // can drop 'unsafe-inline' if/when Next.js stops emitting other inline scripts.
-const BOOT_SCRIPT_HASH = "'sha256-Y5cgrWiP79tTqpyu2vo0M5E6VSotQ/G9/YZzJFrE5CU='"
+const BOOT_SCRIPT_HASH = "'sha256-L0uH8EjeV7w4WGj8TYejYA1qDEuqKxlQ7gcLio2iXqU='"
 
 // Next.js 16 (Turbopack-built bundles, Vercel runtime injects, RSC payload
 // hydration) needs 'unsafe-eval' AND 'unsafe-inline' to actually run.

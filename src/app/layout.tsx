@@ -24,6 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           try {
             if (!sessionStorage.getItem('f3x_boot_seen')) {
               document.documentElement.classList.add('booting');
+              setTimeout(function(){ document.documentElement.classList.remove('booting'); }, 5000);
             }
           } catch(e) {}
         ` }}/>
