@@ -14,7 +14,6 @@ import {
   updateOperatorPassword,
   updateOperatorCallsign,
   deleteOperator,
-  cleanupSeedOperators,
   deleteEntry,
 } from '@/app/actions'
 import type { Operator, Entry } from '@/lib/types'
@@ -289,22 +288,9 @@ export function AdminClient({ operators, entries, currentOperator }: AdminClient
   const [tab, setTab] = useState<Tab>('OVERVIEW')
   const [opSearch, setOpSearch] = useState('')
   const [postSearch, setPostSearch] = useState('')
-  const [cleanupPending, setCleanupPending] = useState(false)
-  const [cleanupMsg, setCleanupMsg] = useState<string | null>(null)
-
   function refresh() {
     // Re-fetch server data without remounting the client tree (preserves tab + scroll)
     router.refresh()
-  }
-
-  async function handleCleanup() {
-    if (!confirm(t('admin.cleanup_confirm'))) return
-    setCleanupPending(true)
-    setCleanupMsg(null)
-    const res = await cleanupSeedOperators()
-    setCleanupPending(false)
-    if (res.error) setCleanupMsg(`HIBA: ${res.error}`)
-    else { setCleanupMsg(t('admin.cleanup_done', { N: res.deleted ?? 0 })); refresh() }
   }
 
   const filteredOps = operators.filter(o =>
@@ -348,18 +334,8 @@ export function AdminClient({ operators, entries, currentOperator }: AdminClient
         <div className="admin-head-actions" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <LangPicker align="right" size="sm"/>
           <Chip kind="accent" dot>{t('admin.system_stable')}</Chip>
-          {currentOperator.role === 'superadmin' && (
-            <button className="btn btn-sm" disabled={cleanupPending} onClick={handleCleanup} style={{ color: 'var(--magenta)', borderColor: 'rgba(255,77,191,.4)' }}>
-              {cleanupPending ? t('admin.cleanup_progress') : t('admin.cleanup')}
-            </button>
-          )}
         </div>
       </div>
-      {cleanupMsg && (
-        <div style={{ marginTop: 10, padding: '8px 12px', background: cleanupMsg.startsWith('HIBA') ? 'rgba(255,58,58,.1)' : 'rgba(24,233,104,.1)', border: `1px solid ${cleanupMsg.startsWith('HIBA') ? 'var(--red)' : 'var(--accent)'}`, color: cleanupMsg.startsWith('HIBA') ? 'var(--red)' : 'var(--accent)', fontFamily: 'var(--f-sys)', fontSize: 11 }}>
-          {cleanupMsg}
-        </div>
-      )}
 
       {/* Tabs */}
       <div className="tabs" style={{ marginTop: 18 }}>

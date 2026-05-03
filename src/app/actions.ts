@@ -1060,39 +1060,6 @@ export async function deleteOperator(operatorId: string) {
   }
 }
 
-export async function cleanupSeedOperators() {
-  try {
-    const op = await getCurrentOperator()
-    if (!op || op.role !== 'superadmin') return { error: 'Csak superadmin végezhet tisztítást.' }
-
-    const admin = createAdminClient()
-    // Delete all operators without an auth_id (seed/placeholder rows)
-    const { data: seedOps } = await admin.from('operators').select('id').is('auth_id', null)
-    const ids = (seedOps ?? []).map((r: { id: string }) => r.id)
-
-    if (ids.length === 0) return { success: true, deleted: 0 }
-
-    // Cascade-clean dependent rows first
-    await admin.from('entries').delete().in('operator_id', ids)
-    await admin.from('signals').delete().in('operator_id', ids)
-    await admin.from('entry_reactions').delete().in('operator_id', ids)
-    await admin.from('profile_signals').delete().in('author_id', ids)
-    await admin.from('profile_signals').delete().in('target_id', ids)
-    await admin.from('friendships').delete().in('requester_id', ids)
-    await admin.from('friendships').delete().in('addressee_id', ids)
-
-    const { error } = await admin.from('operators').delete().in('id', ids)
-    if (error) return { error: dbErr(error, 'cleanupSeedOperators') }
-
-    revalidatePath('/control')
-    revalidatePath('/')
-    return { success: true, deleted: ids.length }
-  } catch (err) {
-    console.error('cleanupSeedOperators error:', err)
-    return { error: 'Szerver hiba.' }
-  }
-}
-
 /* ─── Friendships ─── */
 
 export async function sendFriendRequest(targetId: string) {
