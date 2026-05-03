@@ -24,8 +24,21 @@ DROP POLICY IF EXISTS "operators read all"       ON public.operators;
 CREATE POLICY "operators read all"       ON public.operators       FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "entries read published"   ON public.entries;
-CREATE POLICY "entries read published"   ON public.entries
-  FOR SELECT USING (status IS NULL OR status <> 'draft');
+DROP POLICY IF EXISTS "entries read all"         ON public.entries;
+DO $$
+BEGIN
+  -- If migration 009 (entry_drafts → adds `status` column) was applied,
+  -- only public-readable rows should be the published ones. Otherwise
+  -- fall back to read-all so existing data still surfaces.
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'entries' AND column_name = 'status'
+  ) THEN
+    EXECUTE 'CREATE POLICY "entries read published" ON public.entries FOR SELECT USING (status IS NULL OR status <> ''draft'')';
+  ELSE
+    EXECUTE 'CREATE POLICY "entries read all" ON public.entries FOR SELECT USING (true)';
+  END IF;
+END $$;
 
 DROP POLICY IF EXISTS "signals read all"         ON public.signals;
 CREATE POLICY "signals read all"         ON public.signals         FOR SELECT USING (true);

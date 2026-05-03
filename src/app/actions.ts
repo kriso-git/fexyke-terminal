@@ -9,7 +9,7 @@ import { getCurrentOperator } from '@/lib/session'
 import { dbErr } from '@/lib/serverError'
 import { assertOpId, assertUuid, assertEntryId } from '@/lib/validate'
 import { sanitizeHtml } from '@/lib/sanitize'
-import { PUBLIC_OPERATOR_COLS, OPERATOR_JOIN } from '@/lib/operatorFields'
+import { OPERATOR_JOIN } from '@/lib/operatorFields'
 import type { Entry, EntryKind } from '@/lib/types'
 
 /* ─── Auth ─── */
