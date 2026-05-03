@@ -514,9 +514,25 @@ textarea.input { resize:vertical; }
   /* Bigger tap targets on inputs */
   .input { min-height: 40px; font-size: 16px; }
 
-  /* Profile header on mobile: avatar + info stack, with avatar smaller */
-  .profile-header-grid > div:first-child > div:first-child { width: 140px !important; height: 140px !important; }
-  .profile-header-grid > div:first-child .btn { width: 140px !important; }
+  /* Profile header on mobile: avatar + info stack, centered, no overflow */
+  .profile-header-grid > div:first-child {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    width: 100% !important;
+  }
+  .profile-header-grid > div:first-child > div:first-child {
+    width: 160px !important;
+    height: 160px !important;
+  }
+  /* Force the inner Avatar (which uses inline 200x200 from `size` prop)
+     to honor its 160-wide frame on mobile so it doesn't overflow */
+  .profile-header-grid > div:first-child > div:first-child .avatar,
+  .profile-header-grid > div:first-child > div:first-child .avatar > img {
+    width: 100% !important;
+    height: 100% !important;
+  }
+  .profile-header-grid > div:first-child .btn { width: 160px !important; }
 
   /* Display headline on profile shrinks */
   .profile-header-grid h1.display { font-size: clamp(40px, 12vw, 72px) !important; }

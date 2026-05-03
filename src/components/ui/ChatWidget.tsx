@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Avatar } from '@/components/ui/Avatar'
 import {
   sendMessage, getConversation, getMyFriends, getUnreadCount, updateChatColor,
-  listShareableEntries, getEntryPreview,
+  listShareableEntries, getEntryPreview, getOperatorPreview,
 } from '@/app/actions'
 import type { Message, Operator } from '@/lib/types'
 
@@ -466,23 +466,35 @@ export function ChatWidget({ currentOperator }: ChatWidgetProps) {
 
 /* ─── Message body with post-link preview ─── */
 
-const POST_URL_RE = /\/\?post=(LOG-[A-Z0-9]{1,20})/i
+const POST_URL_RE    = /\/\?post=(LOG-[A-Z0-9]{1,20})/i
+const PROFILE_URL_RE = /\/operators\/([A-Z0-9]{3,32})\b/i
 
 function MessageBody({ text, hasImage }: { text: string; hasImage: boolean }) {
-  const m = text.match(POST_URL_RE)
   const padding = hasImage ? '6px 4px 0' : 0
-  if (!m) {
-    return <div style={{ padding, whiteSpace: 'pre-wrap' }}>{text}</div>
+  // Profile link wins over post link if both are somehow present
+  const profMatch = text.match(PROFILE_URL_RE)
+  if (profMatch) {
+    const callsign = profMatch[1].toUpperCase()
+    const without = text.replace(profMatch[0], '').trim()
+    return (
+      <div style={{ padding }}>
+        {without && <div style={{ whiteSpace: 'pre-wrap', marginBottom: 6 }}>{without}</div>}
+        <ProfileLinkPreview callsign={callsign}/>
+      </div>
+    )
   }
-  const entryId = m[1].toUpperCase()
-  // Strip the URL from the visible text — render the surrounding text + a preview card
-  const without = text.replace(m[0], '').trim()
-  return (
-    <div style={{ padding }}>
-      {without && <div style={{ whiteSpace: 'pre-wrap', marginBottom: 6 }}>{without}</div>}
-      <PostLinkPreview entryId={entryId}/>
-    </div>
-  )
+  const postMatch = text.match(POST_URL_RE)
+  if (postMatch) {
+    const entryId = postMatch[1].toUpperCase()
+    const without = text.replace(postMatch[0], '').trim()
+    return (
+      <div style={{ padding }}>
+        {without && <div style={{ whiteSpace: 'pre-wrap', marginBottom: 6 }}>{without}</div>}
+        <PostLinkPreview entryId={entryId}/>
+      </div>
+    )
+  }
+  return <div style={{ padding, whiteSpace: 'pre-wrap' }}>{text}</div>
 }
 
 function PostLinkPreview({ entryId }: { entryId: string }) {
@@ -552,6 +564,81 @@ function PostLinkPreview({ entryId }: { entryId: string }) {
       )}
       <div className="sys muted" style={{ fontSize: 9, marginTop: 4, letterSpacing: '.1em' }}>
         ◢ {preview.author} · MEGNYITÁS ↗
+      </div>
+    </button>
+  )
+}
+
+function ProfileLinkPreview({ callsign }: { callsign: string }) {
+  const [op, setOp] = useState<{ id: string; callsign: string; level: number; role: string; avatar_url: string | null; bio: string | null } | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      const { operator } = await getOperatorPreview(callsign)
+      if (cancelled) return
+      setOp(operator as typeof op)
+      setLoading(false)
+    }
+    load()
+    return () => { cancelled = true }
+  }, [callsign])
+
+  function open() {
+    if (typeof window === 'undefined') return
+    window.location.href = `/operators/${callsign}`
+  }
+
+  if (loading) {
+    return (
+      <div className="sys muted" style={{
+        padding: '8px 10px', border: '1px solid var(--border-1)',
+        background: 'var(--bg-1)', fontSize: 10,
+      }}>◢ PROFIL BETÖLTÉSE…</div>
+    )
+  }
+  if (!op) {
+    return (
+      <a href={`/operators/${callsign}`} className="sys" style={{
+        display: 'block', padding: '8px 10px', border: '1px solid var(--border-1)',
+        background: 'var(--bg-1)', fontSize: 10, color: 'var(--accent)',
+        textDecoration: 'none', wordBreak: 'break-all',
+      }}>↗ /operators/{callsign}</a>
+    )
+  }
+  const initials = op.callsign.slice(0, 2)
+  return (
+    <button type="button" onClick={open} style={{
+      display: 'flex', gap: 10, width: '100%', textAlign: 'left',
+      padding: '8px 10px',
+      border: '1px solid var(--accent)',
+      background: 'var(--accent-soft)',
+      color: 'var(--ink-0)', cursor: 'pointer',
+      fontFamily: 'var(--f-body)',
+      alignItems: 'center',
+    }}>
+      <div style={{
+        width: 44, height: 44, flexShrink: 0,
+        border: '1px solid var(--accent)',
+        background: 'var(--bg-1)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        overflow: 'hidden',
+        fontFamily: 'var(--f-mono)', color: 'var(--accent)', fontSize: 14,
+      }}>
+        {op.avatar_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={op.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
+        ) : initials}
+      </div>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div className="sys" style={{ fontSize: 9, color: 'var(--accent)', letterSpacing: '.12em', marginBottom: 2 }}>
+          ◢ PROFIL
+        </div>
+        <div className="head" style={{ fontSize: 14, lineHeight: 1.2 }}>{op.callsign}</div>
+        <div className="sys muted" style={{ fontSize: 9, marginTop: 2, letterSpacing: '.1em' }}>
+          LVL-0{op.level} · {op.role.toUpperCase()} · MEGNYITÁS ↗
+        </div>
       </div>
     </button>
   )

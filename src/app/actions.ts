@@ -861,6 +861,22 @@ export async function listShareableEntries() {
   }
 }
 
+export async function getOperatorPreview(callsign: string) {
+  try {
+    const clean = (callsign ?? '').trim().toUpperCase()
+    if (!/^[A-Z0-9]{3,32}$/.test(clean)) return { operator: null }
+    const admin = createAdminClient()
+    const { data } = await admin
+      .from('operators')
+      .select('id, callsign, level, role, avatar_url, last_seen, bio')
+      .eq('callsign', clean)
+      .maybeSingle()
+    return { operator: data ?? null }
+  } catch {
+    return { operator: null }
+  }
+}
+
 export async function getEntryPreview(entryId: string) {
   try {
     try { assertEntryId(entryId) } catch { return { entry: null } }
