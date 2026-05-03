@@ -109,7 +109,7 @@ function UserRow({ op, currentOp, onChange }: { op: Operator; currentOp: Operato
 
   return (
     <div style={{ borderBottom: '1px solid var(--border-0)', padding: '12px 14px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '36px 90px 1fr auto auto auto auto', gap: 12, alignItems: 'center' }}>
+      <div className="admin-user-row" style={{ display: 'grid', gridTemplateColumns: '36px 90px 1fr auto auto auto auto', gap: 12, alignItems: 'center' }}>
         <Avatar id={op.id} src={op.avatar_url} size={32} />
         <span className="mono muted" style={{ fontSize: 10 }}>{op.id}</span>
         <div style={{ minWidth: 0 }}>
@@ -221,7 +221,7 @@ function PostRow({ entry, onChange }: { entry: Entry; onChange: () => void }) {
 
   return (
     <div style={{ borderBottom: '1px solid var(--border-0)', padding: '12px 14px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '120px 80px 1fr 100px 90px 70px auto', gap: 12, alignItems: 'center' }}>
+      <div className="admin-post-row" style={{ display: 'grid', gridTemplateColumns: '120px 80px 1fr 100px 90px 70px auto', gap: 12, alignItems: 'center' }}>
         <span className="mono muted" style={{ fontSize: 10 }}>{entry.id}</span>
         <Chip kind={isVideo ? 'mag' : isImage ? 'cyan' : 'dash'} style={{ fontSize: 9 }}>{kindLabel}</Chip>
         <span className="head" style={{ fontSize: 13, color: 'var(--ink-0)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -299,7 +299,7 @@ export function AdminClient({ operators, entries, currentOperator }: AdminClient
     }))
 
   return (
-    <div className="shell" style={{ padding: '24px 56px' }}>
+    <div className="shell admin-shell-pad" style={{ padding: '24px 56px' }}>
       <div className="superadmin-banner">
         <span className="dot dot-mag" />
         ◢ MODERÁTORI FELÜLET · {currentOperator.callsign} · MINDEN MŰVELET NAPLÓZVA
@@ -339,7 +339,7 @@ export function AdminClient({ operators, entries, currentOperator }: AdminClient
 
       {tab === 'OVERVIEW' && (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginTop: 22 }}>
+          <div className="admin-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginTop: 22 }}>
             <KPI k="POSZTOK · ÖSSZESEN" v={String(totalPosts)} hint="rendszerben" />
             <KPI k="FELHASZNÁLÓK · VALÓS" v={`${realUsers} / ${totalUsers}`} hint={placeholders > 0 ? `${placeholders} placeholder` : 'tiszta'} kind="cyan" />
             <KPI k="ÖSSZES XP" v={String(totalXP)} hint="rendszer aktivitás" kind="mag" />

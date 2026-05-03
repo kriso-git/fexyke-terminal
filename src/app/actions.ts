@@ -505,7 +505,14 @@ export async function updateInterests(interests: string[]) {
       .slice(0, 12)
     const admin = createAdminClient()
     const { error } = await admin.from('operators').update({ interests: cleaned }).eq('id', op.id)
-    if (error) return { error: error.message }
+    if (error) {
+      // If the column doesn't exist yet (migration 010 not applied), don't fail the
+      // whole save — just skip silently so the bio update still succeeds.
+      if (/interests/i.test(error.message) || /column/i.test(error.message) || /schema cache/i.test(error.message)) {
+        return { success: true, skipped: true, interests: cleaned }
+      }
+      return { error: error.message }
+    }
     revalidatePath(`/operators/${op.callsign}`)
     return { success: true, interests: cleaned }
   } catch (err) {

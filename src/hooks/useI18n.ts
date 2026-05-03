@@ -178,10 +178,10 @@ const DICT: Record<string, Record<string, string>> = {
   'lang.label': { hu:'NYELV', en:'LANG', de:'SPRACHE', es:'IDIOMA', fr:'LANGUE', no:'SPRÅK', sv:'SPRÅK' },
 }
 
-export const LANGS = ['hu', 'en', 'de', 'es', 'fr', 'no', 'sv', 'ua', 'ru'] as const
+export const LANGS = ['hu', 'en', 'es', 'de', 'fr', 'no', 'sv', 'ua', 'ru'] as const
 export type Lang = typeof LANGS[number]
 
-const LANG_LABELS: Record<Lang, string> = { hu: 'HU', en: 'EN', de: 'DE', es: 'ES', fr: 'FR', no: 'NO', sv: 'SV', ua: 'UA', ru: 'RU' }
+const LANG_LABELS: Record<Lang, string> = { hu: 'HU', en: 'EN', es: 'ES', de: 'DE', fr: 'FR', no: 'NO', sv: 'SV', ua: 'UA', ru: 'RU' }
 
 let globalLang: Lang = 'hu'
 const listeners = new Set<() => void>()

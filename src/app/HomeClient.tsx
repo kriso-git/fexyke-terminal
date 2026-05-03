@@ -77,41 +77,34 @@ function Hero({ currentOperator, postCount, totalLikes }: { currentOperator: Ope
         </h1>
         <div className="hero-socials" style={{ marginTop:18, display:'flex', gap:8, flexWrap:'wrap', maxWidth:480 }}>
           <a href="https://www.instagram.com/hlsz.alex1337" target="_blank" rel="noopener noreferrer"
-            className="btn"
+            className="btn social-btn instagram"
             style={{ display:'inline-flex', gap:8, alignItems:'center', padding:'8px 14px', textDecoration:'none', fontSize:11 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <rect x="3" y="3" width="18" height="18" rx="5"/>
-              <circle cx="12" cy="12" r="4"/>
-              <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+              <path d="M12 2.163c3.204 0 3.584.012 4.85.07 1.366.062 2.633.336 3.608 1.311.975.975 1.249 2.242 1.311 3.608.058 1.266.069 1.646.069 4.85s-.011 3.584-.069 4.85c-.062 1.366-.336 2.633-1.311 3.608-.975.975-2.242 1.249-3.608 1.311-1.266.058-1.646.069-4.85.069s-3.584-.011-4.85-.069c-1.366-.062-2.633-.336-3.608-1.311C2.567 19.485 2.293 18.218 2.231 16.852 2.173 15.586 2.163 15.206 2.163 12s.01-3.584.068-4.85C2.293 5.784 2.567 4.517 3.542 3.542 4.517 2.567 5.784 2.293 7.15 2.231 8.416 2.173 8.796 2.163 12 2.163Zm0 1.802c-3.149 0-3.498.012-4.732.068-1.073.049-1.65.222-2.034.371-.512.199-.879.437-1.265.823-.386.386-.624.753-.823 1.265-.149.384-.322.961-.371 2.034-.056 1.234-.068 1.583-.068 4.732s.012 3.498.068 4.732c.049 1.073.222 1.65.371 2.034.199.512.437.879.823 1.265.386.386.753.624 1.265.823.384.149.961.322 2.034.371 1.234.056 1.583.068 4.732.068s3.498-.012 4.732-.068c1.073-.049 1.65-.222 2.034-.371.512-.199.879-.437 1.265-.823.386-.386.624-.753.823-1.265.149-.384.322-.961.371-2.034.056-1.234.068-1.583.068-4.732s-.012-3.498-.068-4.732c-.049-1.073-.222-1.65-.371-2.034a3.405 3.405 0 0 0-.823-1.265 3.405 3.405 0 0 0-1.265-.823c-.384-.149-.961-.322-2.034-.371-1.234-.056-1.583-.068-4.732-.068Zm0 3.063A5.135 5.135 0 1 1 12 17.27a5.135 5.135 0 0 1 0-10.242Zm0 8.468a3.333 3.333 0 1 0 0-6.666 3.333 3.333 0 0 0 0 6.666Zm5.338-9.87a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4Z"/>
             </svg>
             INSTAGRAM
           </a>
           <a href="https://www.twitch.tv/f3xykeewt" target="_blank" rel="noopener noreferrer"
-            className="btn"
+            className="btn social-btn twitch"
             style={{ display:'inline-flex', gap:8, alignItems:'center', padding:'8px 14px', textDecoration:'none', fontSize:11 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M21 2H3v16h5v4l4-4h5l4-4V2z"/>
-              <line x1="11" y1="7" x2="11" y2="13"/>
-              <line x1="16" y1="7" x2="16" y2="13"/>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+              <path d="M2.149 0 .537 4.119v16.836h5.731V24h3.224l3.045-3.045h4.657l6.269-6.269V0H2.149Zm2.149 2.149h17.554v11.612l-3.582 3.582h-5.731l-3.045 3.045v-3.045H4.298V2.149Zm5.731 11.075h2.149V6.717H10.029v6.507Zm5.731 0h2.149V6.717H15.76v6.507Z"/>
             </svg>
             TWITCH
           </a>
           <a href="https://steamcommunity.com/id/F3xykee/" target="_blank" rel="noopener noreferrer"
-            className="btn"
+            className="btn social-btn steam"
             style={{ display:'inline-flex', gap:8, alignItems:'center', padding:'8px 14px', textDecoration:'none', fontSize:11 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <circle cx="12" cy="12" r="10"/>
-              <circle cx="9.5" cy="13.5" r="3"/>
-              <circle cx="16" cy="8" r="2"/>
-              <line x1="6.5" y1="11" x2="9.5" y2="13.5"/>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+              <path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658a3.394 3.394 0 0 1 1.913-.59c.058 0 .117.002.175.005l2.882-4.176v-.059c0-2.504 2.038-4.541 4.543-4.541s4.542 2.041 4.542 4.548a4.55 4.55 0 0 1-4.555 4.541h-.107l-4.116 2.943c0 .049.004.094.004.143a3.408 3.408 0 0 1-3.408 3.408c-1.672 0-3.072-1.213-3.351-2.803L.342 15.231C1.752 20.232 6.435 24 11.979 24c6.624 0 11.99-5.367 11.99-12 0-6.629-5.366-12-11.99-12zm-3.793 18.112-1.475-.611c.262.541.71.99 1.299 1.236 1.273.531 2.737-.075 3.27-1.348a2.51 2.51 0 0 0 .002-1.92 2.476 2.476 0 0 0-1.346-1.348 2.517 2.517 0 0 0-1.92.005l1.526.633a1.84 1.84 0 0 1 .988 2.408 1.834 1.834 0 0 1-2.408.988m9.77-9.405a3.022 3.022 0 0 0-3.024-3.026 3.024 3.024 0 0 0-3.022 3.026 3.025 3.025 0 0 0 3.022 3.026 3.022 3.022 0 0 0 3.024-3.026M14.18 7.181a2.27 2.27 0 0 1 2.27-2.262 2.27 2.27 0 0 1 2.272 2.262 2.27 2.27 0 0 1-2.272 2.272A2.27 2.27 0 0 1 14.18 7.18"/>
             </svg>
             STEAM
           </a>
           <a href="https://discord.gg/HhCWjnrBW3" target="_blank" rel="noopener noreferrer"
-            className="btn"
+            className="btn social-btn discord"
             style={{ display:'inline-flex', gap:8, alignItems:'center', padding:'8px 14px', textDecoration:'none', fontSize:11 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-              <path d="M19.5 5.5A17 17 0 0 0 15.4 4l-.2.4a14 14 0 0 0-6.4 0L8.6 4a17 17 0 0 0-4.1 1.5C2 9.5 1.4 13.4 1.7 17.2a17 17 0 0 0 5.2 2.6l.4-.6a11 11 0 0 1-1.7-.8l.4-.3a12 12 0 0 0 11 0l.4.3a11 11 0 0 1-1.7.8l.4.6a17 17 0 0 0 5.2-2.6c.4-4.5-.5-8.4-2.8-11.7zM8.5 14.6c-1 0-1.9-1-1.9-2.1s.8-2.2 1.9-2.2c1 0 1.9 1 1.9 2.2 0 1.2-.9 2.1-1.9 2.1zm7 0c-1 0-1.9-1-1.9-2.1s.8-2.2 1.9-2.2c1 0 1.9 1 1.9 2.2 0 1.2-.9 2.1-1.9 2.1z"/>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+              <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.099.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.331c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
             </svg>
             DISCORD
           </a>
@@ -124,7 +117,7 @@ function Hero({ currentOperator, postCount, totalLikes }: { currentOperator: Ope
             <Link href="/gate" className="btn btn-primary">{t('hero.enter')}</Link>
           )}
           <Link href="#feed" className="btn">{t('hero.posts')}</Link>
-          <div className="hero-cube-slot" aria-hidden style={{ display:'flex', alignItems:'center', marginLeft:330, marginTop:-90 }}>
+          <div className="hero-cube-slot" aria-hidden style={{ display:'flex', alignItems:'center', marginLeft:450, marginTop:-90 }}>
             <HeroCube/>
           </div>
         </div>

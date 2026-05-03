@@ -489,7 +489,7 @@ textarea.input { resize:vertical; }
   /* Hero cube on phone: inline next to POSZTOK button, between lang picker and profile panel */
   .hero-cube-slot {
     position: static !important;
-    margin: 0 0 0 auto !important;
+    margin: 12px auto 0 0 !important;
     align-self: center !important;
   }
   .hero-cube-slot .hero-cube-scene {
@@ -552,9 +552,21 @@ textarea.input { resize:vertical; }
   /* Modals: full-bleed on small phones */
   .post-modal { width: 100% !important; }
 
-  /* Lang switcher in nav: shrink + scroll if needed */
-  .nav-lang { padding: 4px 8px !important; gap: 2px !important; }
-  .nav-lang button { padding: 2px 5px !important; font-size: 9px !important; }
+  /* Lang switcher in nav: shrink */
+  .nav-lang { padding: 4px 8px !important; }
+
+  /* Admin panel responsive */
+  .admin-shell-pad { padding: 16px 12px !important; }
+  /* User row → stack on mobile */
+  .admin-user-row { grid-template-columns: 36px 1fr !important; gap: 8px !important; }
+  .admin-user-row > .admin-controls { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  /* Post row → stack */
+  .admin-post-row { grid-template-columns: 1fr !important; gap: 6px !important; }
+  /* KPI grid → 2 cols */
+  .admin-kpi-grid { grid-template-columns: 1fr 1fr !important; }
+  /* Tabs scroll */
+  .tabs { overflow-x: auto; flex-wrap: nowrap !important; }
+  .tabs .tab { flex-shrink: 0; }
 
   /* Feed header: stack heading and filter chips */
   .feed-head-row { flex-direction: column !important; align-items: flex-start !important; }
@@ -589,6 +601,34 @@ textarea.input { resize:vertical; }
 
 /* Cross-browser tap highlight */
 * { -webkit-tap-highlight-color: transparent; }
+
+/* ─── Social brand hover ─── */
+.social-btn { transition: color .18s, border-color .18s, background .18s, box-shadow .18s; }
+
+.social-btn.instagram:hover {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(45deg,#f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%);
+  box-shadow: 0 0 14px rgba(220,39,67,.55);
+}
+.social-btn.twitch:hover {
+  color: #fff;
+  border-color: #9146ff;
+  background: #9146ff;
+  box-shadow: 0 0 14px rgba(145,70,255,.55);
+}
+.social-btn.steam:hover {
+  color: #fff;
+  border-color: #66c0f4;
+  background: linear-gradient(180deg,#1b2838 0%,#2a475e 100%);
+  box-shadow: 0 0 14px rgba(102,192,244,.5);
+}
+.social-btn.discord:hover {
+  color: #fff;
+  border-color: #5865f2;
+  background: #5865f2;
+  box-shadow: 0 0 14px rgba(88,101,242,.55);
+}
 
 /* Hide page during BootScreen so there is no flash before the overlay paints */
 html.booting body > :not(script):not(.boot-screen-overlay) { visibility: hidden; }

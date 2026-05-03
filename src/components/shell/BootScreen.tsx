@@ -50,10 +50,8 @@ export function BootScreen() {
 
   useEffect(() => {
     if (!mounted || done) return
-    if (shown >= BOOT_LINES.length) {
-      const t = setTimeout(finish, 1200)
-      return () => clearTimeout(t)
-    }
+    // Stop animating lines once everything is shown — wait for a click.
+    if (shown >= BOOT_LINES.length) return
     const next = BOOT_LINES[shown]
     const delay = next.t === '' ? 80 : 100 + Math.random() * 80
     const t = setTimeout(() => setShown(n => n + 1), delay)
@@ -133,7 +131,7 @@ export function BootScreen() {
         position: 'absolute', bottom: 16, right: 20,
         fontSize: 10, color: 'var(--ink-3)', letterSpacing: '.18em',
       }}>
-        ▸ KATTINTÁS A KIHAGYÁSHOZ
+        ▸ KATTINTÁS A FOLYTATÁSHOZ
       </div>
 
       <style>{`
