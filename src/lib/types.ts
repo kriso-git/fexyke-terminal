@@ -84,13 +84,6 @@ export interface Signal {
   reactions?: Record<string, number>
 }
 
-export interface Thread {
-  id: string
-  title: string
-  created_at: string
-  entries?: Entry[]
-}
-
 export interface ProfileSignal {
   id: string
   target_id: string
@@ -110,8 +103,6 @@ export type Database = {
       operators:       { Row: Operator;      Insert: Omit<Operator,'created_at'>;               Update: Partial<Omit<Operator,'id'>>;      Relationships: [] }
       entries:         { Row: Entry;         Insert: Omit<Entry,'id'|'created_at'|'reads'>;      Update: Partial<Omit<Entry,'id'>>;         Relationships: [] }
       signals:         { Row: Signal;        Insert: Omit<Signal,'id'|'created_at'>;             Update: Partial<Omit<Signal,'id'>>;        Relationships: [] }
-      threads:         { Row: Thread;        Insert: Omit<Thread,'id'|'created_at'>;             Update: Partial<Omit<Thread,'id'>>;        Relationships: [] }
-      thread_entries:  { Row: { thread_id: string; entry_id: string }; Insert: { thread_id: string; entry_id: string }; Update: { thread_id?: string; entry_id?: string }; Relationships: [] }
       profile_signals: { Row: ProfileSignal; Insert: Omit<ProfileSignal,'id'|'created_at'>;      Update: Partial<Omit<ProfileSignal,'id'>>; Relationships: [] }
     }
     Views: Record<string, never>

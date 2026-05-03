@@ -943,7 +943,6 @@ function Archive({ entries, onOpen }: { entries: Entry[]; onOpen: (id: string) =
 interface HomeClientProps {
   entries: Entry[]
   operators: Operator[]
-  threads: unknown[]
   currentOperator: Operator | null
   postCount?: number
   totalLikes?: number

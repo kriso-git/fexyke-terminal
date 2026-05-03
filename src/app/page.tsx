@@ -5,21 +5,20 @@ import { Footer } from '@/components/shell/Footer'
 import { DataStream } from '@/components/shell/DataStream'
 import { HomeClient } from './HomeClient'
 import { TiszaEgg } from '@/components/ui/TiszaEgg'
-import type { Entry, Operator, Signal, Thread } from '@/lib/types'
+import type { Entry, Operator, Signal } from '@/lib/types'
 import { createAdminClient } from '@/lib/supabase-admin'
-import { OPERATOR_JOIN } from '@/lib/operatorFields'
+import { OPERATOR_JOIN, PUBLIC_OPERATOR_COLS } from '@/lib/operatorFields'
 
 async function getData() {
   const admin = createAdminClient()
-  const [entriesRes, operatorsRes, threadsRes] = await Promise.all([
+  const [entriesRes, operatorsRes] = await Promise.all([
     admin.from('entries')
       .select(`*, ${OPERATOR_JOIN}`)
       .neq('status', 'draft')
       .order('priority', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(20),
-    admin.from('operators').select('*').order('created_at', { ascending: true }).limit(20),
-    admin.from('threads').select('*').order('created_at', { ascending: false }).limit(4),
+    admin.from('operators').select(PUBLIC_OPERATOR_COLS).order('created_at', { ascending: true }).limit(20),
   ])
 
   const entries = (entriesRes.data ?? []) as Entry[]
@@ -68,7 +67,6 @@ async function getData() {
       commentCount: commentCountByEntry[e.id] ?? 0,
     })),
     operators: (operatorsRes.data ?? []) as Operator[],
-    threads: (threadsRes.data ?? []) as Thread[],
   }
 }
 
